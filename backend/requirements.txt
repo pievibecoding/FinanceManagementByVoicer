@@ -1,0 +1,7 @@
+Flask
+Flask-Cors
+python-dotenv
+libsql-client
+python-jose[cryptography]
+bcrypt
+google-auth

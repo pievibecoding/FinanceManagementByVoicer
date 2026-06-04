@@ -1,0 +1,9 @@
+{
+  "name": "Finance Management By Voicer",
+  "description": "Quản lý thu chi cá nhân thông minh bằng giọng nói và ngôn ngữ tự nhiên, tích hợp phân tích dữ liệu SQL và sơ đồ trực quan.",
+  "requestFramePermissions": [],
+  "prompt": "",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
