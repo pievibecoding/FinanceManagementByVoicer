@@ -26,9 +26,10 @@ import {
   HelpCircle,
   X,
   Volume2,
-  LogOut
+  LogOut,
+  Calendar
 } from 'lucide-react';
-import { Account, Category, Transaction, ChatMessage, AnalyticsResult } from './types';
+import { Account, Category, Transaction, SplitItem, ChatMessage, AnalyticsResult, Budget, Payee, RecurringTransaction } from './types';
 import {
   initialAccounts,
   initialCategories,
@@ -60,25 +61,89 @@ function App() {
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
 
+  // Budget State
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    () => new Date().toISOString().slice(0, 7)
+  );
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  // Payees State
+  const [payees, setPayees] = useState<Payee[]>([]);
+
+  // Recurring State
+  const [recurringRules, setRecurringRules] = useState<RecurringTransaction[]>([]);
+  const [generatedCount, setGeneratedCount] = useState<number>(0);
+  const [showRecurringForm, setShowRecurringForm] = useState<boolean>(false);
+
+  // Helper to load only recurring rules
+  const loadRecurring = () => {
+    if (!token) return;
+    fetch(`${FLASK_API}/api/recurring`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(recs => { if (Array.isArray(recs)) setRecurringRules(recs); })
+      .catch(() => {});
+  };
+
+  // Helper to load transactions
+  const loadTransactions = () => {
+    if (!token) return;
+    fetch(`${FLASK_API}/api/transactions`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(txs => { if (Array.isArray(txs) && txs.length) setTransactions(txs); })
+      .catch(() => {});
+  };
+
   // Load data from Flask backend on mount
   useEffect(() => {
     if (!token) return;
-    Promise.all([
-      fetch(`${FLASK_API}/api/accounts`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-      fetch(`${FLASK_API}/api/categories`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-      fetch(`${FLASK_API}/api/transactions`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-    ]).then(([accs, cats, txs]) => {
-      if (Array.isArray(accs) && accs.length) setAccounts(accs);
-      if (Array.isArray(cats) && cats.length) setCategories(cats);
-      if (Array.isArray(txs) && txs.length) setTransactions(txs);
-    }).catch((err) => {
-      // 401 → logout
-      if (err.message?.includes('401') || err.status === 401) {
-        logout();
-      }
-      // Backend offline — keep local seed data as fallback
-    });
+    
+    // First run the process endpoint to automatically generate due recurring transactions
+    fetch(`${FLASK_API}/api/recurring/process`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.generated > 0) {
+          setGeneratedCount(data.generated);
+        }
+      })
+      .catch(err => console.error("Error auto-processing recurring rules:", err))
+      .finally(() => {
+        // Then load all dashboard/table data
+        Promise.all([
+          fetch(`${FLASK_API}/api/accounts`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+          fetch(`${FLASK_API}/api/categories`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+          fetch(`${FLASK_API}/api/transactions`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+          fetch(`${FLASK_API}/api/budgets?month=${selectedMonth}`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+          fetch(`${FLASK_API}/api/payees`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+          fetch(`${FLASK_API}/api/recurring`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+        ]).then(([accs, cats, txs, bdgs, pyees, recs]) => {
+          if (Array.isArray(accs) && accs.length) setAccounts(accs);
+          if (Array.isArray(cats) && cats.length) setCategories(cats);
+          if (Array.isArray(txs) && txs.length) setTransactions(txs);
+          if (Array.isArray(bdgs)) setBudgets(bdgs);
+          if (Array.isArray(pyees)) setPayees(pyees);
+          if (Array.isArray(recs)) setRecurringRules(recs);
+        }).catch((err) => {
+          // 401 → logout
+          if (err.message?.includes('401') || err.status === 401) {
+            logout();
+          }
+        });
+      });
   }, [token]);
+
+  // Re-fetch budgets when selected month changes
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${FLASK_API}/api/budgets?month=${selectedMonth}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(bdgs => { if (Array.isArray(bdgs)) setBudgets(bdgs); })
+      .catch(() => {});
+  }, [selectedMonth, token]);
 
   // Chat/Voice State
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
@@ -108,7 +173,7 @@ function App() {
   const [sqlError, setSqlError] = useState<string | null>(null);
 
   // Active UI Tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tables' | 'sql' | 'instructions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tables' | 'sql' | 'instructions' | 'recurring'>('dashboard');
   const [showSqlAnimationId, setShowSqlAnimationId] = useState<string | null>(null);
 
   // Chat auto-scroll ref — only scroll when user/assistant adds new messages, not on initial load
@@ -129,7 +194,28 @@ function App() {
     type: 'expense' as 'income' | 'expense' | 'investment',
     category_id: 'food',
     account_id: 'cash',
-    note: ''
+    note: '',
+    payee_id: null as number | null
+  });
+
+  // Split mode state for manual modal
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitItems, setSplitItems] = useState<Array<{category_id: string; amount: string; note: string}>>([]);
+
+  // Expanded split row in transaction table
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+
+  // Recurring Form state
+  const [newRecurring, setNewRecurring] = useState({
+    amount: '',
+    type: 'expense' as 'income' | 'expense' | 'investment',
+    category_id: 'food',
+    account_id: 'cash',
+    frequency: 'monthly' as 'daily' | 'weekly' | 'monthly' | 'yearly',
+    next_run_date: new Date().toISOString().slice(0, 10),
+    end_date: '',
+    note: '',
+    payee_id: null as number | null
   });
 
   // Calculate Balances derived from Live transactions state
@@ -142,7 +228,7 @@ function App() {
   // Run initial default query to populate sqlResult pane (local simulation for dashboard)
   useEffect(() => {
     try {
-      const res = evaluateSQLQuery(sqlQuery, { accounts, categories, transactions });
+      const res = evaluateSQLQuery(sqlQuery, { accounts, categories, transactions, budgets });
       setSqlResult(res);
       setSqlError(null);
     } catch (err: any) {
@@ -402,23 +488,39 @@ function App() {
     e.preventDefault();
     if (!manualTx.amount || isNaN(Number(manualTx.amount))) return;
 
+    // Validate split mode
+    if (splitMode && splitItems.length > 0) {
+      const splitTotal = splitItems.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+      if (splitTotal !== Number(manualTx.amount)) return; // button should be disabled, but guard anyway
+    }
+
     const now = new Date();
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
     let newId = 'tx-' + (transactions.length + 1).toString().padStart(3, '0');
+    const effectiveCategoryId = splitMode && splitItems.length > 0 ? 'split' : manualTx.category_id;
 
     try {
+      const body: any = {
+        transaction_date: dateStr,
+        account_id: manualTx.account_id,
+        category_id: effectiveCategoryId,
+        amount: Number(manualTx.amount),
+        type: manualTx.type,
+        note: manualTx.note || 'Nhập thủ công',
+        payee_id: manualTx.payee_id,
+      };
+      if (splitMode && splitItems.length > 0) {
+        body.splits = splitItems.map(s => ({
+          category_id: s.category_id,
+          amount: Number(s.amount),
+          note: s.note,
+        }));
+      }
       const res = await fetch(`${FLASK_API}/api/transactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          transaction_date: dateStr,
-          account_id: manualTx.account_id,
-          category_id: manualTx.category_id,
-          amount: Number(manualTx.amount),
-          type: manualTx.type,
-          note: manualTx.note || 'Nhập thủ công',
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.transaction_id) newId = data.transaction_id;
@@ -430,15 +532,22 @@ function App() {
       transaction_id: newId,
       transaction_date: dateStr,
       account_id: manualTx.account_id,
-      category_id: manualTx.category_id,
+      category_id: effectiveCategoryId,
       amount: Number(manualTx.amount),
       type: manualTx.type,
-      note: manualTx.note || 'Nhập thủ công'
+      note: manualTx.note || 'Nhập thủ công',
+      splits: splitMode && splitItems.length > 0
+        ? splitItems.map(s => ({ category_id: s.category_id, amount: Number(s.amount), note: s.note }))
+        : [],
     };
 
     setTransactions(prev => [...prev, newTx]);
+    // Reload from backend to get persisted split data with split_ids
+    loadTransactions();
     setIsManualModalOpen(false);
-    setManualTx({ amount: '', type: 'expense', category_id: 'food', account_id: 'cash', note: '' });
+    setManualTx({ amount: '', type: 'expense', category_id: 'food', account_id: 'cash', note: '', payee_id: null });
+    setSplitMode(false);
+    setSplitItems([]);
 
     setChatHistory(prev => [...prev, {
       id: 'system-' + Date.now(),
@@ -469,10 +578,129 @@ function App() {
     }]);
   };
 
+  const handleToggleRecurring = async (recurring_id: number) => {
+    try {
+      const res = await fetch(`${FLASK_API}/api/recurring/${recurring_id}/toggle`, {
+        method: "PATCH",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to toggle recurring transaction");
+      
+      setChatHistory(prev => [...prev, {
+        id: 'system-' + Date.now(),
+        sender: 'system',
+        text: `Đã thực thi cập nhật is_active: PATCH /api/recurring/${recurring_id}/toggle`,
+        timestamp: Date.now()
+      }]);
+      loadRecurring();
+    } catch (err: any) {
+      alert(err.message || "Error toggling rule");
+    }
+  };
+
+  const handleDeleteRecurring = async (recurring_id: number) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa giao dịch định kỳ này?")) return;
+    try {
+      const res = await fetch(`${FLASK_API}/api/recurring/${recurring_id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete recurring transaction");
+
+      setChatHistory(prev => [...prev, {
+        id: 'system-' + Date.now(),
+        sender: 'system',
+        text: `Đã thực thi xóa giao dịch định kỳ: DELETE /api/recurring/${recurring_id}`,
+        timestamp: Date.now()
+      }]);
+      loadRecurring();
+    } catch (err: any) {
+      alert(err.message || "Error deleting rule");
+    }
+  };
+
+  const handleCreateRecurring = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRecurring.amount || isNaN(Number(newRecurring.amount))) return;
+
+    try {
+      const res = await fetch(`${FLASK_API}/api/recurring`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          account_id: newRecurring.account_id,
+          category_id: newRecurring.category_id,
+          amount: Number(newRecurring.amount),
+          type: newRecurring.type,
+          frequency: newRecurring.frequency,
+          next_run_date: newRecurring.next_run_date,
+          end_date: newRecurring.end_date || null,
+          note: newRecurring.note,
+          payee_id: newRecurring.payee_id
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create recurring transaction");
+
+      setChatHistory(prev => [...prev, {
+        id: 'system-' + Date.now(),
+        sender: 'system',
+        text: `Đã tạo giao dịch định kỳ thành công: POST /api/recurring [ID: ${data.recurring_id}]`,
+        timestamp: Date.now()
+      }]);
+
+      setShowRecurringForm(false);
+      // Reset form state
+      setNewRecurring({
+        amount: '',
+        type: 'expense',
+        category_id: 'food',
+        account_id: 'cash',
+        frequency: 'monthly',
+        next_run_date: new Date().toISOString().slice(0, 10),
+        end_date: '',
+        note: '',
+        payee_id: null
+      });
+      loadRecurring();
+    } catch (err: any) {
+      alert(err.message || "Error creating recurring transaction");
+    }
+  };
+
+  // Update budget for a category via the budgets table
+  const updateBudget = async (categoryId: string, amountLimit: number) => {
+    try {
+      await fetch(`${FLASK_API}/api/budgets/${categoryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ amount_limit: amountLimit, month: selectedMonth }),
+      });
+    } catch {
+      // Optimistic update proceeds regardless
+    }
+    // Update local budgets state
+    setBudgets(prev => {
+      const idx = prev.findIndex(b => b.category_id === categoryId && b.month === selectedMonth);
+      if (idx >= 0) {
+        return prev.map((b, i) => i === idx ? { ...b, amount_limit: amountLimit } : b);
+      }
+      return [...prev, { budget_id: Date.now(), category_id: categoryId, month: selectedMonth, amount_limit: amountLimit }];
+    });
+  };
+
   // Group transactions for simple Category list progress indicators
+  // For split transactions, distribute amounts by their individual split categories
   const categorySums: { [key: string]: number } = {};
   transactions.forEach(t => {
-    if (t.type === 'expense') {
+    if (t.type !== 'expense') return;
+    if (t.splits && t.splits.length > 0) {
+      t.splits.forEach(s => {
+        categorySums[s.category_id] = (categorySums[s.category_id] || 0) + s.amount;
+      });
+    } else {
       categorySums[t.category_id] = (categorySums[t.category_id] || 0) + t.amount;
     }
   });
@@ -577,6 +805,22 @@ function App() {
                 <span className="absolute -top-1 -right-1 bg-teal-500 text-[9px] text-zinc-950 px-1 py-0.2 rounded font-sans font-extrabold scale-90">KPI</span>
               </button>
               <button
+                onClick={() => setActiveTab('recurring')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 relative ${
+                  activeTab === 'recurring'
+                    ? 'bg-zinc-900 text-emerald-400 shadow-sm border border-zinc-800'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Giao dịch định kỳ</span>
+                {recurringRules.filter(r => r.is_active === 1).length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-[9px] text-zinc-950 px-1.5 py-0.5 rounded-full font-sans font-extrabold scale-90">
+                    {recurringRules.filter(r => r.is_active === 1).length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setActiveTab('instructions')}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 ${
                   activeTab === 'instructions'
@@ -669,15 +913,28 @@ function App() {
                         <Flame className="w-4 h-4 text-amber-500" />
                         <span>Hạn Mức Ngân Sách (LEFT JOIN SQL)</span>
                       </span>
-                      <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">Cảnh báo tự động</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="month"
+                          value={selectedMonth}
+                          onChange={e => setSelectedMonth(e.target.value)}
+                          className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-0.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                        <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">Cảnh báo tự động</span>
+                      </div>
                     </div>
 
                     <div className="space-y-3 pt-1">
-                      {categories.filter(c => c.budget > 0).map(cat => {
+                      {categories.filter(c => {
+                        const b = budgets.find(b => b.category_id === c.category_id);
+                        return (b?.amount_limit ?? c.budget) > 0;
+                      }).map(cat => {
+                        const b = budgets.find(b => b.category_id === cat.category_id);
+                        const budgetLimit = b?.amount_limit ?? cat.budget;
                         const spent = categorySums[cat.category_id] || 0;
-                        const percent = Math.min((spent / cat.budget) * 100, 100);
-                        const isOver = spent > cat.budget;
-                        const isWarning = spent > cat.budget * 0.8;
+                        const percent = Math.min((spent / budgetLimit) * 100, 100);
+                        const isOver = spent > budgetLimit;
+                        const isWarning = spent > budgetLimit * 0.8;
 
                         return (
                           <div key={cat.category_id} className="text-xs space-y-1">
@@ -686,7 +943,7 @@ function App() {
                               <span className="font-mono text-zinc-400">
                                 <span className={isOver ? "text-rose-400 font-bold" : isWarning ? "text-amber-400" : "text-zinc-200"}>
                                   {formatCurrency(spent)}
-                                </span> / <span className="text-zinc-500">{formatCurrency(cat.budget)}</span>
+                                </span> / <span className="text-zinc-500">{formatCurrency(budgetLimit)}</span>
                               </span>
                             </div>
                             <div className="w-full h-2.5 bg-zinc-800 rounded-full overflow-hidden p-[1px]">
@@ -701,11 +958,11 @@ function App() {
                               <span>0%</span>
                               <span>
                                 {isOver ? (
-                                  <span className="text-rose-400 font-semibold flex items-center gap-1">❌ Vượt hạn mức {formatCurrency(spent - cat.budget)}</span>
+                                  <span className="text-rose-400 font-semibold flex items-center gap-1">❌ Vượt hạn mức {formatCurrency(spent - budgetLimit)}</span>
                                 ) : isWarning ? (
                                   <span className="text-amber-400 font-semibold">⚠️ Cận ngưỡng chi tiêu (&gt;80%)</span>
                                 ) : (
-                                  <span className="text-emerald-500">✅ An toàn (Còn lại {formatCurrency(cat.budget - spent)})</span>
+                                  <span className="text-emerald-500">✅ An toàn (Còn lại {formatCurrency(budgetLimit - spent)})</span>
                                 )}
                               </span>
                             </div>
@@ -761,6 +1018,55 @@ function App() {
                   </div>
 
                 </div>
+
+                {/* Per-Payee Spending Panel */}
+                {payees.length > 0 && (() => {
+                  const payeeSums: Record<number, number> = {};
+                  const payeeCounts: Record<number, number> = {};
+                  transactions.forEach(t => {
+                    if (t.type === 'expense' && t.payee_id) {
+                      payeeSums[t.payee_id] = (payeeSums[t.payee_id] || 0) + t.amount;
+                      payeeCounts[t.payee_id] = (payeeCounts[t.payee_id] || 0) + 1;
+                    }
+                  });
+                  const sorted = [...payees]
+                    .filter(p => payeeSums[p.payee_id])
+                    .sort((a, b) => (payeeSums[b.payee_id] || 0) - (payeeSums[a.payee_id] || 0));
+                  return (
+                    <div className="bg-zinc-900/20 border border-zinc-800 p-4 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-white flex items-center gap-1.5">
+                          <BarChart3 className="w-4 h-4 text-sky-400" />
+                          <span>Chi Tiêu Theo Payee</span>
+                        </span>
+                        <span className="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded">Merchant Analytics</span>
+                      </div>
+                      {sorted.length === 0 ? (
+                        <p className="text-[11px] text-zinc-500 italic">Chưa có dữ liệu payee. Hãy tạo giao dịch qua giọng nói với merchant đã thêm.</p>
+                      ) : (
+                        <div className="space-y-2.5 pt-1">
+                          {sorted.map(p => {
+                            const total = payeeSums[p.payee_id] || 0;
+                            const count = payeeCounts[p.payee_id] || 0;
+                            const maxTotal = payeeSums[sorted[0].payee_id] || 1;
+                            const pct = (total / maxTotal) * 100;
+                            return (
+                              <div key={p.payee_id} className="space-y-1">
+                                <div className="flex justify-between text-xs text-zinc-300">
+                                  <span className="font-semibold">{p.payee_name}</span>
+                                  <span className="font-mono text-zinc-400">{formatCurrency(total)} <span className="text-zinc-600">({count} giao dịch)</span></span>
+                                </div>
+                                <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                  <div style={{ width: `${pct}%` }} className="h-full bg-sky-500 rounded-full transition-all duration-500" />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Cumulative Running Sum Visualization (Window function simulation visualization) */}
                 <div className="bg-zinc-900/10 border border-zinc-800 p-4 rounded-xl space-y-4">
@@ -827,7 +1133,158 @@ function App() {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
 
+            {/* TAB: RECURRING TRANSACTIONS */}
+            {activeTab === 'recurring' && (
+              <div className="space-y-6 animate-fade-in text-xs font-sans">
+                {/* Banner Notification for Auto-generated Transactions */}
+                {generatedCount > 0 && (
+                  <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center justify-between animate-fade-in">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Hệ thống đã tự động ghi nhận <strong>{generatedCount}</strong> giao dịch định kỳ đến hạn hôm nay!</span>
+                    </div>
+                    <button
+                      onClick={() => setGeneratedCount(0)}
+                      className="text-emerald-400 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-emerald-400" />
+                      <span>Giao dịch định kỳ</span>
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">Tự động sinh giao dịch thực tế vào ngày tiếp theo quy định.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setNewRecurring({
+                        amount: '',
+                        type: 'expense',
+                        category_id: categories[0]?.category_id || 'food',
+                        account_id: accounts[0]?.account_id || 'cash',
+                        frequency: 'monthly',
+                        next_run_date: new Date().toISOString().slice(0, 10),
+                        end_date: '',
+                        note: '',
+                        payee_id: null
+                      });
+                      setShowRecurringForm(true);
+                    }}
+                    className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-lg shadow-emerald-500/10 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Thêm Mới</span>
+                  </button>
+                </div>
+
+                {recurringRules.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-12 bg-zinc-900/10 border border-zinc-800 rounded-2xl text-center space-y-3">
+                    <Calendar className="w-8 h-8 text-zinc-600 animate-pulse" />
+                    <h4 className="text-zinc-300 font-semibold text-xs">Chưa có giao dịch định kỳ nào</h4>
+                    <p className="text-zinc-500 text-[11px] max-w-xs">Hãy thiết lập các khoản thu/chi lặp lại như tiền nhà, tiền lương, hóa đơn dịch vụ...</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {recurringRules.map((rule) => {
+                      const account = accounts.find(a => a.account_id === rule.account_id);
+                      const category = categories.find(c => c.category_id === rule.category_id);
+                      const frequencyLabels = {
+                        daily: 'Hàng ngày',
+                        weekly: 'Hàng tuần',
+                        monthly: 'Hàng tháng',
+                        yearly: 'Hàng năm'
+                      };
+
+                      return (
+                        <div
+                          key={rule.recurring_id}
+                          className={`p-4 bg-zinc-900/40 border rounded-xl flex flex-col justify-between transition-all duration-200 hover:border-zinc-700/60 ${
+                            rule.is_active ? 'border-zinc-800' : 'border-zinc-900 opacity-60'
+                          }`}
+                        >
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-semibold tracking-wide uppercase ${
+                                  rule.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' :
+                                  rule.type === 'expense' ? 'bg-rose-500/10 text-rose-400' :
+                                  'bg-sky-500/10 text-sky-400'
+                                }`}>
+                                  {rule.type === 'income' ? 'Thu nhập' : rule.type === 'expense' ? 'Chi phí' : 'Đầu tư'}
+                                </span>
+                                <h4 className="text-zinc-200 font-semibold text-xs mt-1.5 font-sans">
+                                  {rule.note || `Giao dịch định kỳ #${rule.recurring_id}`}
+                                </h4>
+                              </div>
+                              <span className="text-xs font-mono font-bold text-white">
+                                {rule.type === 'expense' ? '-' : rule.type === 'income' ? '+' : ''}
+                                {formatCurrency(rule.amount)}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-[10px] text-zinc-400">
+                              <div>
+                                <span className="text-zinc-500">Tài khoản:</span> {account?.account_name || rule.account_id}
+                              </div>
+                              <div>
+                                <span className="text-zinc-500">Danh mục:</span> {category?.category_name || rule.category_id}
+                              </div>
+                              <div>
+                                <span className="text-zinc-500">Tần suất:</span> {frequencyLabels[rule.frequency]}
+                              </div>
+                              <div>
+                                <span className="text-zinc-500">Trạng thái:</span>{' '}
+                                <span className={rule.is_active ? 'text-emerald-400' : 'text-zinc-500'}>
+                                  {rule.is_active ? 'Đang bật' : 'Đã tắt'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-zinc-800 text-[10px] space-y-1">
+                              <div className="flex justify-between text-zinc-400">
+                                <span>Lần chạy tiếp theo:</span>
+                                <span className="font-mono text-zinc-200">{rule.next_run_date}</span>
+                              </div>
+                              {rule.end_date && (
+                                <div className="flex justify-between text-zinc-400">
+                                  <span>Ngày kết thúc:</span>
+                                  <span className="font-mono text-zinc-500">{rule.end_date}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 justify-end mt-4">
+                            <button
+                              onClick={() => handleToggleRecurring(rule.recurring_id)}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer ${
+                                rule.is_active
+                                  ? 'bg-zinc-850 text-zinc-300 hover:bg-zinc-800'
+                                  : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                              }`}
+                            >
+                              {rule.is_active ? 'Tắt' : 'Bật'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRecurring(rule.recurring_id)}
+                              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-450 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer"
+                            >
+                              Xóa
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -877,38 +1334,85 @@ function App() {
                       <tbody className="divide-y divide-zinc-800/60 font-mono text-[11px] text-zinc-300">
                         {transactions.map(t => {
                           const isNew = showSqlAnimationId === t.transaction_id;
+                          const isSplit = t.category_id === 'split';
+                          const isExpanded = expandedTxId === t.transaction_id;
+                          const catLabel = isSplit
+                            ? '⑂ Nhiều danh mục'
+                            : (categories.find(c => c.category_id === t.category_id)?.category_name ?? t.category_id);
                           return (
-                            <tr
-                              key={t.transaction_id}
-                              className={`hover:bg-zinc-900/30 transition-colors ${isNew ? 'bg-emerald-950/20 text-emerald-300 font-semibold border-y border-emerald-500/20 flash-inserted' : ''}`}
-                            >
-                              <td className="p-2.5 text-zinc-500">{t.transaction_id}</td>
-                              <td className="p-2.5 white-space-nowrap">{t.transaction_date}</td>
-                              <td className="p-2.5 text-zinc-400">{t.account_id}</td>
-                              <td className="p-2.5 text-zinc-400">{t.category_id}</td>
-                              <td className={`p-2.5 text-right font-semibold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                {formatCurrency(t.amount)}
-                              </td>
-                              <td className="p-2.5">
-                                <span className={`px-1.5 py-0.2 rounded text-[9px] ${
-                                  t.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' :
-                                  t.type === 'expense' ? 'bg-rose-500/10 text-rose-400' :
-                                  'bg-sky-500/10 text-sky-400'
-                                }`}>
-                                  {t.type.toUpperCase()}
-                                </span>
-                              </td>
-                              <td className="p-2.5 max-w-[150px] truncate font-sans text-xs" title={t.note}>{t.note}</td>
-                              <td className="p-2 text-center">
-                                <button
-                                  onClick={() => handleDeleteTransaction(t.transaction_id)}
-                                  className="text-zinc-500 hover:text-rose-400 transition-colors duration-150 p-1 rounded hover:bg-rose-500/10 cursor-pointer"
-                                  title="Thực thi DELETE"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </td>
-                            </tr>
+                            <React.Fragment key={t.transaction_id}>
+                              <tr
+                                className={`hover:bg-zinc-900/30 transition-colors ${isNew ? 'bg-emerald-950/20 text-emerald-300 font-semibold border-y border-emerald-500/20 flash-inserted' : ''}`}
+                              >
+                                <td className="p-2.5 text-zinc-500">{t.transaction_id}</td>
+                                <td className="p-2.5 white-space-nowrap">{t.transaction_date}</td>
+                                <td className="p-2.5 text-zinc-400">{t.account_id}</td>
+                                <td className="p-2.5 text-zinc-400">
+                                  <span className={isSplit ? 'text-amber-400 font-semibold' : ''}>{catLabel}</span>
+                                </td>
+                                <td className={`p-2.5 text-right font-semibold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                  {formatCurrency(t.amount)}
+                                </td>
+                                <td className="p-2.5">
+                                  <span className={`px-1.5 py-0.2 rounded text-[9px] ${
+                                    t.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' :
+                                    t.type === 'expense' ? 'bg-rose-500/10 text-rose-400' :
+                                    'bg-sky-500/10 text-sky-400'
+                                  }`}>
+                                    {t.type.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="p-2.5 max-w-[150px] truncate font-sans text-xs" title={t.note}>{t.note}</td>
+                                <td className="p-2 text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    {isSplit && (
+                                      <button
+                                        onClick={() => setExpandedTxId(isExpanded ? null : t.transaction_id)}
+                                        className="text-zinc-500 hover:text-amber-400 transition-colors duration-150 p-1 rounded hover:bg-amber-500/10 cursor-pointer"
+                                        title="Xem chi tiết phân bổ"
+                                      >
+                                        <span className="text-[10px] font-mono">{isExpanded ? '▼' : '▶'}</span>
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleDeleteTransaction(t.transaction_id)}
+                                      className="text-zinc-500 hover:text-rose-400 transition-colors duration-150 p-1 rounded hover:bg-rose-500/10 cursor-pointer"
+                                      title="Thực thi DELETE"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                              {isSplit && isExpanded && t.splits && t.splits.length > 0 && (
+                                <tr className="bg-zinc-900/40">
+                                  <td colSpan={8} className="px-6 py-3">
+                                    <div className="text-[10px] text-zinc-400 font-sans mb-1.5 font-semibold">Chi tiết phân bổ danh mục:</div>
+                                    <table className="w-full text-left border-collapse">
+                                      <thead>
+                                        <tr className="text-zinc-500 font-mono text-[9px]">
+                                          <th className="pb-1 pr-4">danh_mục</th>
+                                          <th className="pb-1 pr-4 text-right">số_tiền</th>
+                                          <th className="pb-1">ghi_chú</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="font-mono text-[10px] text-zinc-300">
+                                        {t.splits.map((s, idx) => {
+                                          const splitCatName = categories.find(c => c.category_id === s.category_id)?.category_name ?? s.category_id;
+                                          return (
+                                            <tr key={idx} className="border-t border-zinc-800/40">
+                                              <td className="py-1 pr-4 text-sky-400">{splitCatName}</td>
+                                              <td className="py-1 pr-4 text-right text-rose-400 font-semibold">{formatCurrency(s.amount)}</td>
+                                              <td className="py-1 text-zinc-500 font-sans">{s.note || '—'}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           );
                         })}
                       </tbody>
@@ -972,7 +1476,7 @@ function App() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800/60 font-mono text-[10px] text-zinc-300">
-                          {categories.map(cat => (
+                          {categories.filter(cat => cat.category_id !== 'split').map(cat => (
                             <tr key={cat.category_id} className="hover:bg-zinc-900/40">
                               <td className="p-2 text-sky-400 font-bold">{cat.category_id}</td>
                               <td className="p-2 font-sans">{cat.category_name}</td>
@@ -987,18 +1491,14 @@ function App() {
                                 {cat.budget > 0 && (
                                   <button
                                     onClick={() => {
-                                      const newVal = prompt(`Cập nhật hạn mức cho ${cat.category_name} (bằng số VND, ví dụ: 5000000):`, cat.budget.toString());
+                                      const current = budgets.find(b => b.category_id === cat.category_id && b.month === selectedMonth)?.amount_limit ?? cat.budget;
+                                      const newVal = prompt(`Cập nhật hạn mức cho ${cat.category_name} (bằng số VND, ví dụ: 5000000):`, current.toString());
                                       if (newVal && !isNaN(Number(newVal))) {
-                                        setCategories(prev => prev.map(c => c.category_id === cat.category_id ? { ...c, budget: Number(newVal) } : c));
-                                        fetch(`${FLASK_API}/api/categories/${cat.category_id}`, {
-                                          method: 'PUT',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ budget: Number(newVal) }),
-                                        }).catch(() => {});
+                                        updateBudget(cat.category_id, Number(newVal));
                                         setChatHistory(prev => [...prev, {
                                           id: 'sys-up-' + Date.now(),
                                           sender: 'system',
-                                          text: `Đã thực thi cập nhật: UPDATE Category_Dim SET budget = ${newVal} WHERE category_id = '${cat.category_id}';`,
+                                          text: `Đã cập nhật hạn mức: PUT /api/budgets/${cat.category_id} { amount_limit: ${newVal}, month: '${selectedMonth}' }`,
                                           timestamp: Date.now()
                                         }]);
                                       }
@@ -1014,6 +1514,104 @@ function App() {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+
+                  {/* Payee Manager */}
+                  <div className="border border-zinc-800 bg-zinc-900/10 p-4 rounded-xl space-y-3 mt-4">
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <Database className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Danh Sách Payees [Bảng: payees]</span>
+                      </h4>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">Quản lý merchants/người nhận — dùng để tự động gắn kết giao dịch từ giọng nói</p>
+                    </div>
+
+                    {payees.length > 0 ? (
+                      <div className="overflow-x-auto border border-zinc-800/80 rounded-lg">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-zinc-900/60 border-b border-zinc-800 text-zinc-400 font-mono text-[9px]">
+                              <th className="p-2.5">payee_id</th>
+                              <th className="p-2.5">payee_name</th>
+                              <th className="p-2.5">default_category_id</th>
+                              <th className="p-2.5 text-center">hành_động</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-800/60 font-mono text-[11px] text-zinc-300">
+                            {payees.map(p => (
+                              <tr key={p.payee_id} className="hover:bg-zinc-900/40">
+                                <td className="p-2.5 text-zinc-500">{p.payee_id}</td>
+                                <td className="p-2.5 font-semibold text-emerald-300">{p.payee_name}</td>
+                                <td className="p-2.5 text-zinc-400">{p.default_category_id ?? '—'}</td>
+                                <td className="p-2 text-center">
+                                  <button
+                                    onClick={async () => {
+                                      await fetch(`${FLASK_API}/api/payees/${p.payee_id}`, {
+                                        method: 'DELETE',
+                                        headers: { 'Authorization': `Bearer ${token}` },
+                                      }).catch(() => {});
+                                      setPayees(prev => prev.filter(x => x.payee_id !== p.payee_id));
+                                    }}
+                                    className="text-zinc-500 hover:text-rose-400 transition-colors p-1 rounded hover:bg-rose-500/10 cursor-pointer"
+                                    title="Xóa payee"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-zinc-500 italic">Chưa có payee nào. Thêm payee đầu tiên bên dưới.</p>
+                    )}
+
+                    {/* Add payee form */}
+                    <form
+                      className="flex flex-wrap gap-2 pt-1"
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        const nameInput = form.elements.namedItem('payee_name') as HTMLInputElement;
+                        const catSelect = form.elements.namedItem('default_category_id') as HTMLSelectElement;
+                        const name = nameInput.value.trim();
+                        if (!name) return;
+                        try {
+                          const res = await fetch(`${FLASK_API}/api/payees`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify({ payee_name: name, default_category_id: catSelect.value || null }),
+                          });
+                          if (res.status === 409) { alert('Payee đã tồn tại'); return; }
+                          const data = await res.json();
+                          setPayees(prev => [...prev, { payee_id: data.payee_id, payee_name: name, default_category_id: catSelect.value || null }]);
+                          nameInput.value = '';
+                        } catch { /* ignore */ }
+                      }}
+                    >
+                      <input
+                        name="payee_name"
+                        type="text"
+                        placeholder="Tên payee (vd: Grab, Bách Hóa Xanh)"
+                        className="flex-1 min-w-[160px] bg-zinc-900 border border-zinc-800/80 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
+                      />
+                      <select
+                        name="default_category_id"
+                        className="bg-zinc-900 border border-zinc-800/80 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value="">-- Danh mục mặc định --</option>
+                        {categories.map(c => (
+                          <option key={c.category_id} value={c.category_id}>{c.category_name}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                      >
+                        <Plus className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Thêm
+                      </button>
+                    </form>
                   </div>
 
                 </div>
@@ -1459,20 +2057,20 @@ function App() {
       {/* Manual Insert Transaction Dialog Backdrop */}
       {isManualModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-filter backdrop-blur-sm flex items-center justify-center p-4 z-55 animate-fade-in">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
-            <div className="bg-zinc-900 px-4 py-3 flex justify-between items-center border-b border-zinc-800">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="bg-zinc-900 px-4 py-3 flex justify-between items-center border-b border-zinc-800 shrink-0">
               <span className="text-xs font-bold text-white flex items-center gap-1.5 font-sans">
                 <Database className="w-4 h-4 text-emerald-400" /> Thêm giao dịch [INSERT INTO]
               </span>
               <button
-                onClick={() => setIsManualModalOpen(false)}
+                onClick={() => { setIsManualModalOpen(false); setSplitMode(false); setSplitItems([]); }}
                 className="text-zinc-400 hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleInsertManual} className="p-4 space-y-3.5 text-xs">
+            <form onSubmit={handleInsertManual} className="p-4 space-y-3.5 text-xs overflow-y-auto">
               
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-400 block uppercase">Số tiền giao dịch (VND)</label>
@@ -1514,18 +2112,108 @@ function App() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-zinc-400 block uppercase">Danh mục Dim</label>
-                <select
-                  value={manualTx.category_id}
-                  onChange={(e) => setManualTx({ ...manualTx, category_id: e.target.value })}
-                  className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-0"
-                >
-                  {categories.map(c => (
-                    <option key={c.category_id} value={c.category_id}>{c.category_name}</option>
-                  ))}
-                </select>
+              {/* Split mode toggle */}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="split-toggle"
+                  checked={splitMode}
+                  onChange={e => {
+                    setSplitMode(e.target.checked);
+                    if (e.target.checked && splitItems.length === 0) {
+                      setSplitItems([{ category_id: categories.filter(c => c.category_id !== 'split')[0]?.category_id || '', amount: '', note: '' }]);
+                    }
+                    if (!e.target.checked) setSplitItems([]);
+                  }}
+                  className="w-3.5 h-3.5 accent-amber-400 cursor-pointer"
+                />
+                <label htmlFor="split-toggle" className="text-[10px] font-bold text-amber-400 uppercase cursor-pointer">
+                  ⑂ Chia nhiều danh mục (Split)
+                </label>
               </div>
+
+              {/* Single category (non-split mode) */}
+              {!splitMode && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-400 block uppercase">Danh mục Dim</label>
+                  <select
+                    value={manualTx.category_id}
+                    onChange={(e) => setManualTx({ ...manualTx, category_id: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-0"
+                  >
+                    {categories.filter(c => c.category_id !== 'split').map(c => (
+                      <option key={c.category_id} value={c.category_id}>{c.category_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Split rows (split mode) */}
+              {splitMode && (
+                <div className="space-y-2 border border-amber-800/30 bg-amber-950/10 rounded-lg p-3">
+                  {splitItems.map((s, idx) => (
+                    <div key={idx} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase">Danh mục {idx + 1}</span>
+                        {splitItems.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setSplitItems(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-zinc-600 hover:text-rose-400 text-[10px] cursor-pointer"
+                          >
+                            ✕ Xóa
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={s.category_id}
+                          onChange={e => setSplitItems(prev => prev.map((item, i) => i === idx ? { ...item, category_id: e.target.value } : item))}
+                          className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-amber-500 focus:outline-none text-xs"
+                        >
+                          {categories.filter(c => c.category_id !== 'split').map(c => (
+                            <option key={c.category_id} value={c.category_id}>{c.category_name}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          placeholder="Số tiền"
+                          value={s.amount}
+                          onChange={e => setSplitItems(prev => prev.map((item, i) => i === idx ? { ...item, amount: e.target.value } : item))}
+                          className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Ghi chú (tuỳ chọn)"
+                        value={s.note}
+                        onChange={e => setSplitItems(prev => prev.map((item, i) => i === idx ? { ...item, note: e.target.value } : item))}
+                        className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setSplitItems(prev => [...prev, { category_id: categories.filter(c => c.category_id !== 'split')[0]?.category_id || '', amount: '', note: '' }])}
+                    className="text-[10px] text-amber-400 border border-amber-800/40 px-2 py-1 rounded hover:bg-amber-500/10 transition-all cursor-pointer"
+                  >
+                    ＋ Thêm danh mục
+                  </button>
+                  {/* Running total indicator */}
+                  {(() => {
+                    const splitTotal = splitItems.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                    const parentAmt = Number(manualTx.amount) || 0;
+                    const match = parentAmt > 0 && splitTotal === parentAmt;
+                    const diff = parentAmt - splitTotal;
+                    return (
+                      <div className={`text-[10px] font-mono pt-1 ${match ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        Đã phân bổ: {formatCurrency(splitTotal)} / {formatCurrency(parentAmt)}
+                        {' '}{match ? '✅ Khớp' : diff > 0 ? `❌ Còn thiếu ${formatCurrency(diff)}` : `❌ Vượt quá ${formatCurrency(-diff)}`}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-400 block uppercase">Nội dung ghi chú</label>
@@ -1539,13 +2227,183 @@ function App() {
                 />
               </div>
 
+              {payees.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-400 block uppercase">Payee (tuỳ chọn)</label>
+                  <select
+                    value={manualTx.payee_id ?? ''}
+                    onChange={(e) => setManualTx({ ...manualTx, payee_id: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none text-xs"
+                  >
+                    <option value="">-- Không chọn payee --</option>
+                    {payees.map(p => (
+                      <option key={p.payee_id} value={p.payee_id}>{p.payee_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {(() => {
+                const splitTotal = splitItems.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                const submitDisabled = splitMode && splitItems.length > 0 && splitTotal !== Number(manualTx.amount);
+                return (
+                  <button
+                    type="submit"
+                    disabled={submitDisabled}
+                    className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-zinc-950 p-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all active:scale-95 cursor-pointer text-center mt-2.5 block"
+                  >
+                    Thực thi Câu Lệnh INSERT
+                  </button>
+                );
+              })()}
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Recurring Rule Form Modal */}
+      {showRecurringForm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-filter backdrop-blur-sm flex items-center justify-center p-4 z-55 animate-fade-in">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="bg-zinc-900 px-4 py-3 flex justify-between items-center border-b border-zinc-800">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5 font-sans">
+                <Calendar className="w-4 h-4 text-emerald-400" /> Thiết lập giao dịch định kỳ
+              </span>
+              <button
+                onClick={() => setShowRecurringForm(false)}
+                className="text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateRecurring} className="p-4 space-y-3.5 text-xs">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-400 block uppercase">Số tiền (VND)</label>
+                <input
+                  type="number"
+                  required
+                  value={newRecurring.amount}
+                  onChange={(e) => setNewRecurring({ ...newRecurring, amount: e.target.value })}
+                  placeholder="Ví dụ: 5000000"
+                  className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500 focus:outline-none focus:ring-0"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-400 block uppercase">Loại giao dịch</label>
+                  <select
+                    value={newRecurring.type}
+                    onChange={(e: any) => setNewRecurring({ ...newRecurring, type: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-0"
+                  >
+                    <option value="expense">Chi tiêu (Expense)</option>
+                    <option value="income">Thu nhập (Income)</option>
+                    <option value="investment">Đầu tư (Investment)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-400 block uppercase">Tài khoản</label>
+                  <select
+                    value={newRecurring.account_id}
+                    onChange={(e) => setNewRecurring({ ...newRecurring, account_id: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-0"
+                  >
+                    {accounts.map(a => (
+                      <option key={a.account_id} value={a.account_id}>{a.account_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-400 block uppercase">Danh mục</label>
+                  <select
+                    value={newRecurring.category_id}
+                    onChange={(e) => setNewRecurring({ ...newRecurring, category_id: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-0"
+                  >
+                    {categories.map(c => (
+                      <option key={c.category_id} value={c.category_id}>{c.category_name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-400 block uppercase">Tần suất</label>
+                  <select
+                    value={newRecurring.frequency}
+                    onChange={(e: any) => setNewRecurring({ ...newRecurring, frequency: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-0"
+                  >
+                    <option value="daily">Hàng ngày</option>
+                    <option value="weekly">Hàng tuần</option>
+                    <option value="monthly">Hàng tháng</option>
+                    <option value="yearly">Hàng năm</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-400 block uppercase">Ngày bắt đầu</label>
+                  <input
+                    type="date"
+                    required
+                    value={newRecurring.next_run_date}
+                    onChange={(e) => setNewRecurring({ ...newRecurring, next_run_date: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-0 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-400 block uppercase">Ngày kết thúc</label>
+                  <input
+                    type="date"
+                    value={newRecurring.end_date}
+                    onChange={(e) => setNewRecurring({ ...newRecurring, end_date: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-0 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-400 block uppercase">Ghi chú</label>
+                <input
+                  type="text"
+                  value={newRecurring.note}
+                  onChange={(e) => setNewRecurring({ ...newRecurring, note: e.target.value })}
+                  placeholder="Ví dụ: Đóng tiền nhà hàng tháng"
+                  className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-0"
+                />
+              </div>
+
+              {payees.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-400 block uppercase">Payee (tuỳ chọn)</label>
+                  <select
+                    value={newRecurring.payee_id ?? ''}
+                    onChange={(e) => setNewRecurring({ ...newRecurring, payee_id: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full bg-zinc-900 border border-zinc-800/80 rounded-lg p-2 text-white focus:border-emerald-500 focus:outline-none text-xs"
+                  >
+                    <option value="">-- Không chọn payee --</option>
+                    {payees.map(p => (
+                      <option key={p.payee_id} value={p.payee_id}>{p.payee_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <button
                 type="submit"
                 className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 p-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all active:scale-95 cursor-pointer text-center mt-2.5 block"
               >
-                Thực thi Câu Lệnh INSERT
+                Lưu giao dịch định kỳ
               </button>
-
             </form>
           </div>
         </div>

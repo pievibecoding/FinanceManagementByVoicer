@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 import libsql_client
 from config import TURSO_DB_URL, TURSO_AUTH_TOKEN
 
@@ -27,9 +28,16 @@ def initialize_db() -> None:
     try:
         _create_tables(db)
         _migrate_schema(db)
+        _create_budgets_table(db)
+        _migrate_budgets_from_categories(db)
+        _create_payees_table(db)
+        _migrate_payee_column(db)
+        _create_recurring_table(db)
+        _create_split_table(db)
         _seed_system_user(db)
         _seed_accounts(db)
         _seed_categories(db)
+        _seed_split_category(db)
         logger.info("DB initialized successfully.")
     except Exception as e:
         logger.error(f"DB initialization error: {e}")
@@ -134,6 +142,144 @@ def _migrate_schema(db) -> None:
         db.execute("CREATE INDEX IF NOT EXISTS idx_transaction_date ON Transaction_Fact(transaction_date)")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
+
+
+def _create_budgets_table(db) -> None:
+    """Create the budgets table and its index. Idempotent."""
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS budgets (
+            budget_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER NOT NULL,
+            category_id  TEXT    NOT NULL,
+            month        TEXT    NOT NULL,
+            amount_limit INTEGER NOT NULL DEFAULT 0,
+            UNIQUE (user_id, category_id, month),
+            FOREIGN KEY (user_id)     REFERENCES users(user_id),
+            FOREIGN KEY (category_id) REFERENCES Category_Dim(category_id)
+        )
+    """)
+    db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_budgets_user_month ON budgets(user_id, month)"
+    )
+    logger.info("budgets table ready.")
+
+
+def _migrate_budgets_from_categories(db) -> None:
+    """One-time migration: copy non-zero Category_Dim.budget rows into budgets
+    for user_id=1 and the current calendar month. Idempotent via INSERT OR IGNORE."""
+    current_month = datetime.now().strftime("%Y-%m")
+    result = db.execute(
+        "SELECT category_id, budget FROM Category_Dim WHERE budget > 0 AND user_id = 1"
+    )
+    rows = result.rows
+    count = 0
+    for row in rows:
+        category_id, budget = row[0], row[1]
+        db.execute(
+            "INSERT OR IGNORE INTO budgets (user_id, category_id, month, amount_limit) VALUES (?, ?, ?, ?)",
+            [1, category_id, current_month, budget],
+        )
+        count += 1
+    if count:
+        logger.info(f"Migrated {count} budget rows from Category_Dim → budgets (month={current_month}).")
+
+
+# ── Payees ────────────────────────────────────────────────────────────────────
+
+def _create_payees_table(db) -> None:
+    """Create the payees table and its index. Idempotent."""
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS payees (
+            payee_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id             INTEGER NOT NULL,
+            payee_name          TEXT    NOT NULL,
+            default_category_id TEXT,
+            UNIQUE (user_id, payee_name),
+            FOREIGN KEY (user_id)             REFERENCES users(user_id),
+            FOREIGN KEY (default_category_id) REFERENCES Category_Dim(category_id)
+        )
+    """)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_payees_user ON payees(user_id)")
+    logger.info("payees table ready.")
+
+
+def _migrate_payee_column(db) -> None:
+    """Add nullable payee_id column to Transaction_Fact. Idempotent."""
+    try:
+        db.execute(
+            "ALTER TABLE Transaction_Fact ADD COLUMN payee_id INTEGER REFERENCES payees(payee_id)"
+        )
+        logger.info("Migrated Transaction_Fact: added payee_id")
+    except Exception:
+        pass  # column already exists
+
+
+# ── Recurring transactions ────────────────────────────────────────────────────
+
+def _create_recurring_table(db) -> None:
+    """Create the recurring_transactions table and its indexes. Idempotent."""
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS recurring_transactions (
+            recurring_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id       INTEGER NOT NULL,
+            account_id    TEXT    NOT NULL,
+            category_id   TEXT    NOT NULL,
+            payee_id      INTEGER,
+            amount        INTEGER NOT NULL,
+            type          TEXT    NOT NULL CHECK (type IN ('income', 'expense', 'investment')),
+            note          TEXT,
+            frequency     TEXT    NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly')),
+            next_run_date TEXT    NOT NULL,
+            end_date      TEXT,
+            is_active     INTEGER NOT NULL DEFAULT 1,
+            FOREIGN KEY (user_id)     REFERENCES users(user_id),
+            FOREIGN KEY (account_id)  REFERENCES Account_Dim(account_id),
+            FOREIGN KEY (category_id) REFERENCES Category_Dim(category_id)
+        )
+    """)
+    try:
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_recurring_user ON recurring_transactions(user_id)"
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_recurring_next_run ON recurring_transactions(next_run_date, is_active)"
+        )
+    except Exception as e:
+        logger.warning(f"Recurring index creation warning: {e}")
+    logger.info("recurring_transactions table ready.")
+
+
+# ── Split transactions ────────────────────────────────────────────────────────
+
+def _create_split_table(db) -> None:
+    """Create the split_transactions table and its index. Idempotent."""
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS split_transactions (
+            split_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaction_id TEXT    NOT NULL,
+            category_id    TEXT    NOT NULL,
+            amount         INTEGER NOT NULL,
+            note           TEXT,
+            FOREIGN KEY (transaction_id) REFERENCES Transaction_Fact(transaction_id),
+            FOREIGN KEY (category_id)    REFERENCES Category_Dim(category_id)
+        )
+    """)
+    try:
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_split_transaction ON split_transactions(transaction_id)"
+        )
+    except Exception as e:
+        logger.warning(f"Split index creation warning: {e}")
+    logger.info("split_transactions table ready.")
+
+
+def _seed_split_category(db) -> None:
+    """Seed the system-level 'split' sentinel category. Idempotent."""
+    db.execute(
+        "INSERT OR IGNORE INTO Category_Dim (category_id, category_name, category_type, budget, user_id) VALUES (?, ?, ?, ?, ?)",
+        ["split", "Nhiều danh mục", "split", 0, 1],
+    )
+    logger.info("Seeded 'split' sentinel category.")
 
 
 # ── Seed helpers ───────────────────────────────────────────────────────────────

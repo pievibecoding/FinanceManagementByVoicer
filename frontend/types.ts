@@ -11,6 +11,13 @@ export interface Category {
   budget: number; // Hạn mức tháng
 }
 
+export interface SplitItem {
+  split_id?: number;
+  category_id: string;
+  amount: number;
+  note?: string;
+}
+
 export interface Transaction {
   transaction_id: string;
   transaction_date: string;
@@ -19,6 +26,8 @@ export interface Transaction {
   amount: number;
   type: 'income' | 'expense' | 'investment';
   note: string;
+  payee_id?: number | null;
+  splits?: SplitItem[];
 }
 
 export interface ChatMessage {
@@ -51,4 +60,38 @@ export interface AuthResponse {
   email?: string;
   name?: string;
   username?: string;
+}
+
+export interface Budget {
+  budget_id: number;
+  category_id: string;
+  month: string;        // 'YYYY-MM'
+  amount_limit: number;
+}
+
+export interface Payee {
+  payee_id: number;
+  payee_name: string;
+  default_category_id: string | null;
+}
+
+export interface RecurringTransaction {
+  recurring_id: number;
+  account_id: string;
+  category_id: string;
+  payee_id: number | null;
+  amount: number;
+  type: 'income' | 'expense' | 'investment';
+  note: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  next_run_date: string;
+  end_date: string | null;
+  is_active: number;
+}
+
+export interface Artifact {
+  id: string;
+  html: string;
+  status: 'streaming' | 'completed' | 'error';
+  styleName: string;
 }

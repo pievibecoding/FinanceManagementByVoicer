@@ -2,9 +2,9 @@
 routes/transactions.py
 
 Endpoints:
-  GET    /api/transactions         — list user's transactions
-  POST   /api/transactions         — create a transaction
-  DELETE /api/transactions/<id>    — soft-delete a transaction
+  GET    /api/transactions         — list user's transactions (with splits)
+  POST   /api/transactions         — create a transaction (optionally with splits)
+  DELETE /api/transactions/<id>    — soft-delete a transaction + remove split rows
 """
 import logging
 from datetime import datetime
@@ -29,6 +29,22 @@ def get_transactions():
             [g.user_id],
         )
         transactions = rows_to_dicts(result)
+
+        # Attach split rows to each transaction
+        tx_ids = [tx["transaction_id"] for tx in transactions]
+        splits_map: dict[str, list] = {}
+        if tx_ids:
+            placeholders = ",".join("?" * len(tx_ids))
+            split_result = db.execute(
+                f"SELECT * FROM split_transactions WHERE transaction_id IN ({placeholders})",
+                tx_ids,
+            )
+            for s in rows_to_dicts(split_result):
+                splits_map.setdefault(s["transaction_id"], []).append(s)
+
+        for tx in transactions:
+            tx["splits"] = splits_map.get(tx["transaction_id"], [])
+
     finally:
         db.close()
     return jsonify(transactions), 200
@@ -45,18 +61,34 @@ def create_transaction():
     amount           = data.get("amount")
     tx_type          = data.get("type")
     note             = data.get("note", "")
+    payee_id         = data.get("payee_id")  # optional, may be None
+    splits           = data.get("splits", [])
 
     if not all([transaction_date, account_id, category_id, amount, tx_type]):
         return jsonify({"error": "Missing required fields"}), 400
+
+    # Split validation
+    if splits:
+        split_total = sum(int(s.get("amount", 0)) for s in splits)
+        if split_total != int(amount):
+            return jsonify({"error": "Split amounts must sum to total amount"}), 400
+        category_id = "split"  # enforce sentinel regardless of what client sent
 
     transaction_id = f"tx-{int(datetime.now().timestamp() * 1000)}"
 
     db = get_db()
     try:
         db.execute(
-            "INSERT INTO Transaction_Fact (transaction_id, transaction_date, account_id, category_id, amount, type, note, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            [transaction_id, transaction_date, account_id, category_id, int(amount), tx_type, note, g.user_id],
+            "INSERT INTO Transaction_Fact (transaction_id, transaction_date, account_id, category_id, amount, type, note, user_id, payee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [transaction_id, transaction_date, account_id, category_id, int(amount), tx_type, note, g.user_id, payee_id],
         )
+
+        if splits:
+            for s in splits:
+                db.execute(
+                    "INSERT INTO split_transactions (transaction_id, category_id, amount, note) VALUES (?, ?, ?, ?)",
+                    [transaction_id, s["category_id"], int(s["amount"]), s.get("note", "")],
+                )
     finally:
         db.close()
 
@@ -68,6 +100,11 @@ def create_transaction():
 def delete_transaction(transaction_id: str):
     db = get_db()
     try:
+        # Remove split rows first (physical delete before soft-delete of parent)
+        db.execute(
+            "DELETE FROM split_transactions WHERE transaction_id = ?",
+            [transaction_id],
+        )
         db.execute(
             "UPDATE Transaction_Fact SET is_deleted = 1 WHERE transaction_id = ? AND user_id = ?",
             [transaction_id, g.user_id],

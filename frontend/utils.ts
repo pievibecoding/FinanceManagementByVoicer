@@ -1,4 +1,4 @@
-import { Account, Category, Transaction, AnalyticsResult } from './types';
+import { Account, Category, Transaction, AnalyticsResult, Budget } from './types';
 
 // Dữ liệu ban đầu
 export const initialAccounts: Account[] = [
@@ -59,7 +59,7 @@ export const computeBalances = (
  */
 export const evaluateSQLQuery = (
   queryText: string,
-  state: { accounts: Account[]; categories: Category[]; transactions: Transaction[] }
+  state: { accounts: Account[]; categories: Category[]; transactions: Transaction[]; budgets?: Budget[] }
 ): AnalyticsResult => {
   const normQuery = queryText.toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -158,14 +158,20 @@ export const evaluateSQLQuery = (
     });
 
     const rows = state.categories
-      .filter(c => c.budget > 0) // Chỉ xem danh mục có đặt hạn mức
+      .filter(c => {
+        // Use budgets table if provided, fall back to category.budget
+        const budgetRow = state.budgets?.find(b => b.category_id === c.category_id);
+        return (budgetRow?.amount_limit ?? c.budget) > 0;
+      })
       .map(c => {
+        const budgetRow = state.budgets?.find(b => b.category_id === c.category_id);
+        const limit = budgetRow?.amount_limit ?? c.budget;
         const spent = sums[c.category_id] || 0;
-        const diff = c.budget - spent;
-        const status = diff < 0 ? '❌ VƯỢT HẠN MỨC' : spent > c.budget * 0.8 ? '⚠️ CẬN NGƯỠNG (80%)' : '✅ AN TOÀN';
+        const diff = limit - spent;
+        const status = diff < 0 ? '❌ VƯỢT HẠN MỨC' : spent > limit * 0.8 ? '⚠️ CẬN NGƯỠNG (80%)' : '✅ AN TOÀN';
         return [
           c.category_name,
-          formatCurrency(c.budget),
+          formatCurrency(limit),
           formatCurrency(spent),
           formatCurrency(diff),
           status

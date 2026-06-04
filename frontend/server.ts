@@ -75,6 +75,21 @@ async function startServer() {
         ];
       }
 
+      // Fetch user's payee list so Gemini can match known merchants
+      let payeeList: Array<{ payee_id: number; payee_name: string; default_category_id: string | null }> = [];
+      try {
+        const payeeRes = await fetch(`${FLASK_URL}/api/payees`, {
+          headers: { "Authorization": authHeader },
+        });
+        payeeList = await payeeRes.json();
+      } catch {
+        payeeList = [];
+      }
+
+      const payeeContext = payeeList.length > 0
+        ? payeeList.map(p => `"${p.payee_name}"`).join(", ")
+        : "none";
+
       const accountNames = accountList.map(a => a.account_name);
 
       const systemInstruction = `
@@ -99,6 +114,10 @@ Standard output schema properties:
 - note: string, short brief description in Vietnamese (e.g. "ăn cơm sườn", "mua sách học lập trình", "nhận tiền lương tháng", "đầu tư cổ phiếu FPT").
 - transaction_date: string, representing date/time of the transaction. Use the current local time '${localTime || '2026-06-03 11:15:29'}' as the base referential today, and look for relative descriptors like "hôm qua", "hôm nay", "sáng nay", "chiều qua". Extract exact hour/minute if provided (e.g., "Lúc 13h" => 13:00:00). Format of output MUST be 'YYYY-MM-DD HH:MM:SS'.
 
+Known payees for this user: [${payeeContext}].
+If the merchant or recipient in the transaction matches one of the known payees exactly or closely, set payee_name to the exact name from the list.
+If no match, set payee_name to empty string "".
+
 Return ONLY valid JSON.
 `;
 
@@ -119,9 +138,10 @@ Return ONLY valid JSON.
               account: { type: Type.STRING, description: "Tài khoản giao dịch — dùng tên chính xác từ danh sách hoặc tên người dùng nói nếu chưa có" },
               account_is_new: { type: Type.BOOLEAN, description: "TRUE nếu tài khoản chưa có trong danh sách" },
               note: { type: Type.STRING, description: "Ghi chú ngắn ngọn bằng tiếng Việt" },
-              transaction_date: { type: Type.STRING, description: "Ngày giờ định dạng YYYY-MM-DD HH:MM:SS" }
+              transaction_date: { type: Type.STRING, description: "Ngày giờ định dạng YYYY-MM-DD HH:MM:SS" },
+              payee_name: { type: Type.STRING, description: "Tên payee từ danh sách known payees, để trống nếu không khớp" }
             },
-            required: ["valid", "rejection_reason", "amount", "type", "category", "account", "account_is_new", "note", "transaction_date"]
+            required: ["valid", "rejection_reason", "amount", "type", "category", "account", "account_is_new", "note", "transaction_date", "payee_name"]
           }
         },
       });
@@ -163,6 +183,12 @@ Return ONLY valid JSON.
         ACCOUNT_NAME_TO_ID[parsedData.account] = resolvedAccountId;
       }
 
+      // Resolve payee_name → payee_id
+      const matchedPayee = payeeList.find(
+        p => p.payee_name.toLowerCase() === (parsedData.payee_name || "").toLowerCase()
+      );
+      const resolvedPayeeId = matchedPayee?.payee_id ?? null;
+
       // Persist to Turso via Flask backend
       await fetch(`${FLASK_URL}/api/transactions`, {
           method: "POST",
@@ -174,6 +200,7 @@ Return ONLY valid JSON.
             amount: parsedData.amount,
             type: parsedData.type,
             note: parsedData.note,
+            payee_id: resolvedPayeeId,
           }),
         });
 
