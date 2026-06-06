@@ -21,7 +21,7 @@ services:
 
   # Frontend Express + Vite Service
   - type: web
-    name: finance-management-frontend
+    name: fmbv
     env: node
     buildCommand: npm install && npm run build
     startCommand: npm start
