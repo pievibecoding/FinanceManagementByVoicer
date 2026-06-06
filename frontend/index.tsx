@@ -2432,6 +2432,7 @@ function App() {
 
 function Root() {
   const { isAuthenticated } = useAuth();
+  console.log('Root component render, isAuthenticated:', isAuthenticated);
   if (!isAuthenticated) return <AuthPage />;
   return <App />;
 }

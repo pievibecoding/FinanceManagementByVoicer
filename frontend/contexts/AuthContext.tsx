@@ -33,12 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const login = (newToken: string, userId: number, email: string, name = "") => {
+    console.log('AuthContext.login called with:', { userId, email, name });
     localStorage.setItem(TOKEN_KEY,   newToken);
     localStorage.setItem(USER_ID_KEY, String(userId));
     localStorage.setItem(EMAIL_KEY,   email);
     localStorage.setItem(NAME_KEY,    name);
     setToken(newToken);
     setUser({ id: userId, email, name });
+    console.log('AuthContext state updated:', { token: newToken, user: { id: userId, email, name } });
   };
 
   const logout = () => {

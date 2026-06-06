@@ -22,9 +22,13 @@ export function LoginForm({ onSwitchToRegister }: Props) {
     if (!email || !password) { setError('Vui lòng nhập email và mật khẩu'); return; }
     setLoading(true);
     try {
+      console.log('Attempting login with:', email);
       const res = await authApi.login(email.trim(), password);
+      console.log('Login response:', res);
       login(res.access_token, res.user_id, res.email ?? email, res.name ?? '');
+      console.log('Login successful, token set');
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message ?? 'Đăng nhập thất bại');
     } finally {
       setLoading(false);
