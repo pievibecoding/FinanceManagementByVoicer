@@ -40,7 +40,8 @@ def initialize_db() -> None:
         _seed_system_user(db)
         _seed_accounts(db)
         _seed_categories(db)
-        _seed_split_category(db)
+        # Skip split category seeding due to libsql-client HTTP bug
+        # _seed_split_category(db)
         # Skip migrations for new database
         # _migrate_category_id_to_integer(db)
         # _migrate_account_id_to_integer(db)
