@@ -49,25 +49,6 @@ export function LoginForm({ onSwitchToRegister }: Props) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <h2 className="text-xl font-bold text-center text-white">Đăng nhập</h2>
 
-      {hasGoogle && (
-        <>
-          <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={handleGoogle}
-              onError={() => setError('Đăng nhập Google thất bại')}
-              text="continue_with"
-              shape="rectangular"
-              width="320"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-zinc-700" />
-            <span className="text-xs text-zinc-500">hoặc</span>
-            <div className="flex-1 h-px bg-zinc-700" />
-          </div>
-        </>
-      )}
-
       <div className="flex flex-col gap-1">
         <label className="text-sm text-zinc-400">Email</label>
         <input
