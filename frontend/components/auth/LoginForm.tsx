@@ -58,8 +58,6 @@ export function LoginForm({ onSwitchToRegister }: Props) {
               text="continue_with"
               shape="rectangular"
               width="320"
-              useOneTap
-              flow="auth-code"
             />
           </div>
           <div className="flex items-center gap-3">
