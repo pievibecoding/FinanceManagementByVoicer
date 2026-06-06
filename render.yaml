@@ -1,0 +1,36 @@
+services:
+  # Backend Flask API Service
+  - type: web
+    name: finance-management-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: TURSO_DB_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: AUTH_SECRET_KEY
+        generateValue: true
+      - key: AUTH_TOKEN_EXPIRE_DAYS
+        value: "1"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: PORT
+        value: "5000"
+
+  # Frontend Express + Vite Service
+  - type: web
+    name: finance-management-frontend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+      - key: FLASK_BACKEND_URL
+        value: https://finance-management-backend.onrender.com
+      - key: PORT
+        value: "3000"
