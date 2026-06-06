@@ -3,6 +3,7 @@ services:
   - type: web
     name: finance-management-backend
     env: python
+    plan: free
     buildCommand: pip install -r backend/requirements.txt
     startCommand: python backend/main.py
     envVars:
@@ -23,6 +24,7 @@ services:
   - type: web
     name: fmbv
     env: node
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
