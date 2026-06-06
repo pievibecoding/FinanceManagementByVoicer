@@ -4,12 +4,17 @@ import { AuthResponse } from '../types';
 const BASE = '';
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
+  console.log('API request:', path, options);
   const res = await fetch(BASE + path, options);
+  console.log('API response status:', res.status, res.statusText);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    console.error('API error body:', body);
     throw new Error(body.error ?? `HTTP ${res.status}`);
   }
-  return res.json();
+  const data = await res.json();
+  console.log('API response data:', data);
+  return data;
 }
 
 export const authApi = {
