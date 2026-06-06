@@ -9,10 +9,9 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Set COOP/COEP headers for Google OAuth popup
+  // Set COOP header for Google OAuth popup (without COEP to avoid conflicts)
   app.use((req, res, next) => {
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
     next();
   });
 
