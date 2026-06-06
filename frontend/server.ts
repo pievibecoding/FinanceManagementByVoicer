@@ -13,6 +13,7 @@ async function startServer() {
 
   // ── Auth proxy routes (avoids CORS issues by routing through Express) ──────
   const proxyToFlask = async (req: any, res: any, flaskPath: string) => {
+    console.log(`Proxying ${req.method} ${flaskPath} to ${FLASK_URL}`);
     try {
       const flaskRes = await fetch(`${FLASK_URL}${flaskPath}`, {
         method: req.method,
@@ -22,13 +23,16 @@ async function startServer() {
         },
         body: req.method !== "GET" ? JSON.stringify(req.body) : undefined,
       });
+      console.log(`Flask response status: ${flaskRes.status}`);
       const text = await flaskRes.text();
+      console.log(`Flask response text: ${text.substring(0, 500)}`);
       try {
         res.status(flaskRes.status).json(JSON.parse(text));
       } catch {
         res.status(flaskRes.status).json({ error: `Flask error: ${text.substring(0, 200)}` });
       }
     } catch (err: any) {
+      console.error(`Proxy error: ${err.message}`);
       res.status(500).json({ error: err.message || "Flask unreachable" });
     }
   };
