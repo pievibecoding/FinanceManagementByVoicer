@@ -27,6 +27,7 @@ def initialize_db() -> None:
     db = get_db()
     try:
         _create_tables(db)
+        _create_migrations_table(db)
         _migrate_schema(db)
         _create_budgets_table(db)
         _migrate_budgets_from_categories(db)
@@ -38,6 +39,9 @@ def initialize_db() -> None:
         _seed_accounts(db)
         _seed_categories(db)
         _seed_split_category(db)
+        _migrate_category_id_to_integer(db)
+        _migrate_account_id_to_integer(db)
+        _dedup_categories(db)
         logger.info("DB initialized successfully.")
     except Exception as e:
         logger.error(f"DB initialization error: {e}")
@@ -184,6 +188,31 @@ def _migrate_budgets_from_categories(db) -> None:
         logger.info(f"Migrated {count} budget rows from Category_Dim → budgets (month={current_month}).")
 
 
+# ── Schema migrations tracker ─────────────────────────────────────────────────
+
+def _create_migrations_table(db) -> None:
+    """Create a simple migrations log table. Idempotent."""
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            migration_name TEXT PRIMARY KEY,
+            applied_at     TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+
+
+def _migration_applied(db, name: str) -> bool:
+    result = db.execute(
+        "SELECT 1 FROM schema_migrations WHERE migration_name = ?", [name]
+    )
+    return len(result.rows) > 0
+
+
+def _mark_migration_done(db, name: str) -> None:
+    db.execute(
+        "INSERT OR IGNORE INTO schema_migrations (migration_name) VALUES (?)", [name]
+    )
+
+
 # ── Payees ────────────────────────────────────────────────────────────────────
 
 def _create_payees_table(db) -> None:
@@ -212,6 +241,159 @@ def _migrate_payee_column(db) -> None:
         logger.info("Migrated Transaction_Fact: added payee_id")
     except Exception:
         pass  # column already exists
+
+
+# ── Category ID integer migration ─────────────────────────────────────────────
+
+def _migrate_category_id_to_integer(db) -> None:
+    """One-time migration: replace TEXT category_id with INTEGER PRIMARY KEY AUTOINCREMENT."""
+    migration_name = "category_id_to_integer"
+    if _migration_applied(db, migration_name):
+        logger.info("category_id migration already applied — skipping.")
+        return
+
+    logger.info("Starting category_id TEXT→INTEGER migration…")
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS Category_Dim_new (
+            category_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id       INTEGER NOT NULL DEFAULT 1,
+            category_name TEXT NOT NULL,
+            category_type TEXT NOT NULL,
+            budget        INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+
+    result = db.execute(
+        "SELECT category_id, user_id, category_name, category_type, budget FROM Category_Dim ORDER BY user_id, category_id"
+    )
+    old_rows = result.rows
+
+    id_map: dict[str, int] = {}
+    for old_id, user_id, name, cat_type, budget in old_rows:
+        db.execute(
+            "INSERT INTO Category_Dim_new (user_id, category_name, category_type, budget) VALUES (?, ?, ?, ?)",
+            [user_id, name, cat_type, budget],
+        )
+        row = db.execute("SELECT last_insert_rowid() AS id")
+        new_id = row.rows[0][0]
+        id_map[str(old_id)] = new_id
+
+    logger.info(f"Inserted {len(id_map)} categories. Mapping: {id_map}")
+
+    for old_id, new_id in id_map.items():
+        db.execute("UPDATE Transaction_Fact SET category_id = ? WHERE category_id = ?", [str(new_id), old_id])
+        db.execute("UPDATE budgets SET category_id = ? WHERE category_id = ?", [str(new_id), old_id])
+        db.execute("UPDATE split_transactions SET category_id = ? WHERE category_id = ?", [str(new_id), old_id])
+        db.execute("UPDATE recurring_transactions SET category_id = ? WHERE category_id = ?", [str(new_id), old_id])
+        db.execute("UPDATE payees SET default_category_id = ? WHERE default_category_id = ?", [str(new_id), old_id])
+
+    db.execute("DROP TABLE Category_Dim")
+    db.execute("ALTER TABLE Category_Dim_new RENAME TO Category_Dim")
+
+    try:
+        db.execute("CREATE INDEX IF NOT EXISTS idx_category_user ON Category_Dim(user_id)")
+    except Exception as e:
+        logger.warning(f"Index recreation warning: {e}")
+
+    _mark_migration_done(db, migration_name)
+    logger.info("category_id TEXT→INTEGER migration complete.")
+
+
+# ── Account ID integer migration ──────────────────────────────────────────────
+
+def _migrate_account_id_to_integer(db) -> None:
+    """One-time migration: replace TEXT account_id with INTEGER PRIMARY KEY AUTOINCREMENT."""
+    migration_name = "account_id_to_integer"
+    if _migration_applied(db, migration_name):
+        logger.info("account_id migration already applied — skipping.")
+        return
+
+    logger.info("Starting account_id TEXT→INTEGER migration…")
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS Account_Dim_new (
+            account_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER NOT NULL DEFAULT 1,
+            account_name    TEXT NOT NULL,
+            account_type    TEXT NOT NULL,
+            initial_balance INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+
+    result = db.execute(
+        "SELECT account_id, user_id, account_name, account_type, initial_balance FROM Account_Dim ORDER BY user_id, account_id"
+    )
+    old_rows = result.rows
+
+    id_map: dict[str, int] = {}
+    for old_id, user_id, name, acc_type, balance in old_rows:
+        db.execute(
+            "INSERT INTO Account_Dim_new (user_id, account_name, account_type, initial_balance) VALUES (?, ?, ?, ?)",
+            [user_id, name, acc_type, balance],
+        )
+        row = db.execute("SELECT last_insert_rowid() AS id")
+        new_id = row.rows[0][0]
+        id_map[str(old_id)] = new_id
+
+    logger.info(f"Inserted {len(id_map)} accounts. Mapping: {id_map}")
+
+    for old_id, new_id in id_map.items():
+        db.execute("UPDATE Transaction_Fact SET account_id = ? WHERE account_id = ?", [str(new_id), old_id])
+        db.execute("UPDATE recurring_transactions SET account_id = ? WHERE account_id = ?", [str(new_id), old_id])
+
+    db.execute("DROP TABLE Account_Dim")
+    db.execute("ALTER TABLE Account_Dim_new RENAME TO Account_Dim")
+
+    try:
+        db.execute("CREATE INDEX IF NOT EXISTS idx_account_user ON Account_Dim(user_id)")
+    except Exception as e:
+        logger.warning(f"Index recreation warning: {e}")
+
+    _mark_migration_done(db, migration_name)
+    logger.info("account_id TEXT→INTEGER migration complete.")
+
+
+def _dedup_categories(db) -> None:
+    """
+    One-time cleanup: remove duplicate category rows caused by the migration
+    running multiple times. Keeps the lowest category_id per (user_id, category_name).
+    Also re-points any FK references to the surviving row before deleting duplicates.
+    """
+    migration_name = "dedup_categories"
+    if _migration_applied(db, migration_name):
+        return
+
+    logger.info("Deduplicating Category_Dim…")
+
+    # Find all (user_id, category_name) groups that have more than one row
+    dupes = db.execute("""
+        SELECT user_id, category_name, MIN(category_id) AS keep_id
+        FROM Category_Dim
+        GROUP BY user_id, category_name
+        HAVING COUNT(*) > 1
+    """)
+
+    removed = 0
+    for user_id, category_name, keep_id in dupes.rows:
+        # Get all duplicate IDs for this group (everything except the one to keep)
+        all_ids = db.execute(
+            "SELECT category_id FROM Category_Dim WHERE user_id = ? AND category_name = ? AND category_id != ?",
+            [user_id, category_name, keep_id],
+        )
+        for (dup_id,) in all_ids.rows:
+            # Re-point FK references to the surviving row
+            db.execute("UPDATE Transaction_Fact SET category_id = ? WHERE category_id = ?", [str(keep_id), str(dup_id)])
+            db.execute("UPDATE budgets SET category_id = ? WHERE category_id = ?", [str(keep_id), str(dup_id)])
+            db.execute("UPDATE split_transactions SET category_id = ? WHERE category_id = ?", [str(keep_id), str(dup_id)])
+            db.execute("UPDATE recurring_transactions SET category_id = ? WHERE category_id = ?", [str(keep_id), str(dup_id)])
+            db.execute("UPDATE payees SET default_category_id = ? WHERE default_category_id = ?", [str(keep_id), str(dup_id)])
+            # Delete the duplicate
+            db.execute("DELETE FROM Category_Dim WHERE category_id = ?", [dup_id])
+            removed += 1
+
+    _mark_migration_done(db, migration_name)
+    logger.info(f"Dedup complete: removed {removed} duplicate category rows.")
 
 
 # ── Recurring transactions ────────────────────────────────────────────────────
@@ -340,20 +522,19 @@ def _seed_categories(db) -> None:
 def seed_categories_for_user(db, user_id: int) -> None:
     """Seed default categories for a newly registered user."""
     slugs = [
-        ("food",          "Ăn uống",             "expense",    4_000_000),
-        ("salary",        "Tiền lương",           "income",             0),
-        ("investment",    "Đầu tư chứng khoán",  "investment",         0),
-        ("transport",     "Di chuyển",            "expense",    1_500_000),
-        ("shopping",      "Mua sắm",              "expense",    3_000_000),
-        ("entertainment", "Giải trí",             "expense",    2_000_000),
-        ("study",         "Học tập",              "expense",    2_000_000),
-        ("health",        "Sức khỏe",             "expense",    1_000_000),
-        ("other",         "Khác",                 "expense",    1_500_000),
+        ("Ăn uống",             "expense",    4_000_000),
+        ("Tiền lương",           "income",             0),
+        ("Đầu tư chứng khoán",  "investment",         0),
+        ("Di chuyển",            "expense",    1_500_000),
+        ("Mua sắm",              "expense",    3_000_000),
+        ("Giải trí",             "expense",    2_000_000),
+        ("Học tập",              "expense",    2_000_000),
+        ("Sức khỏe",             "expense",    1_000_000),
+        ("Khác",                 "expense",    1_500_000),
     ]
-    for slug, name, cat_type, budget in slugs:
-        category_id = f"{user_id}-{slug}"
+    for name, cat_type, budget in slugs:
         db.execute(
-            "INSERT OR IGNORE INTO Category_Dim (category_id, category_name, category_type, budget, user_id) VALUES (?, ?, ?, ?, ?)",
-            [category_id, name, cat_type, budget, user_id],
+            "INSERT OR IGNORE INTO Category_Dim (user_id, category_name, category_type, budget) VALUES (?, ?, ?, ?)",
+            [user_id, name, cat_type, budget],
         )
     logger.info(f"Seeded categories for user_id={user_id}.")
