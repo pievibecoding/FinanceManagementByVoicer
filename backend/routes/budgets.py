@@ -39,9 +39,9 @@ def get_budgets():
     return jsonify(budgets), 200
 
 
-@budgets_bp.route("/api/budgets/<category_id>", methods=["PUT"])
+@budgets_bp.route("/api/budgets/<int:category_id>", methods=["PUT"])
 @require_auth
-def upsert_budget(category_id: str):
+def upsert_budget(category_id: int):
     data         = request.get_json(silent=True) or {}
     amount_limit = data.get("amount_limit")
     month        = data.get("month") or _current_month()
@@ -73,9 +73,9 @@ def upsert_budget(category_id: str):
     return jsonify({"message": "Budget updated", "budget_id": budget_id}), 200
 
 
-@budgets_bp.route("/api/budgets/<category_id>", methods=["DELETE"])
+@budgets_bp.route("/api/budgets/<int:category_id>", methods=["DELETE"])
 @require_auth
-def delete_budget(category_id: str):
+def delete_budget(category_id: int):
     month = request.args.get("month") or _current_month()
     db = get_db()
     try:

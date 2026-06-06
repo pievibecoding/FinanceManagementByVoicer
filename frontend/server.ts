@@ -59,24 +59,18 @@ async function startServer() {
       });
 
       // Fetch live account list from Flask so Gemini always knows current accounts
-      let accountList: Array<{ account_id: string; account_name: string; account_type: string }> = [];
+      let accountList: Array<{ account_id: number; account_name: string; account_type: string }> = [];
       try {
         const accRes = await fetch(`${FLASK_URL}/api/accounts`, {
           headers: { "Authorization": authHeader },
         });
         accountList = await accRes.json();
       } catch {
-        // Fallback to defaults if Flask is offline
-        accountList = [
-          { account_id: "momo",  account_name: "Ví MoMo",      account_type: "E-Wallet" },
-          { account_id: "vcb",   account_name: "Ngân hàng VCB", account_type: "Bank" },
-          { account_id: "vps",   account_name: "Tài khoản VPS", account_type: "Investment" },
-          { account_id: "cash",  account_name: "Tiền mặt",      account_type: "Cash" },
-        ];
+        accountList = []; // Can't resolve IDs offline — transactions will be skipped
       }
 
       // Fetch user's payee list so Gemini can match known merchants
-      let payeeList: Array<{ payee_id: number; payee_name: string; default_category_id: string | null }> = [];
+      let payeeList: Array<{ payee_id: number; payee_name: string; default_category_id: number | null }> = [];
       try {
         const payeeRes = await fetch(`${FLASK_URL}/api/payees`, {
           headers: { "Authorization": authHeader },
@@ -154,20 +148,31 @@ Return ONLY valid JSON.
         return res.status(422).json({ error: parsedData.rejection_reason || "Nội dung không phải giao dịch tài chính." });
       }
 
-      // Map category/account names → IDs for Flask backend
-      const ACCOUNT_NAME_TO_ID: Record<string, string> = {};
+      // Map account names → integer IDs for Flask backend
+      const ACCOUNT_NAME_TO_ID: Record<string, number> = {};
       for (const a of accountList) {
         ACCOUNT_NAME_TO_ID[a.account_name] = a.account_id;
       }
-      const CATEGORY_NAME_TO_ID: Record<string, string> = {
-        "Ăn uống": "food", "Tiền lương": "salary",
-        "Đầu tư chứng khoán": "investment", "Di chuyển": "transport",
-        "Mua sắm": "shopping", "Giải trí": "entertainment",
-        "Học tập": "study", "Sức khỏe": "health", "Khác": "other",
-      };
+
+      // Fetch user's category list so we resolve to their actual integer IDs
+      let categoryList: Array<{ category_id: number; category_name: string }> = [];
+      try {
+        const catRes = await fetch(`${FLASK_URL}/api/categories`, {
+          headers: { "Authorization": authHeader },
+        });
+        categoryList = await catRes.json();
+      } catch {
+        categoryList = [];
+      }
+
+      // Build name → integer ID map from the user's actual categories
+      const CATEGORY_NAME_TO_ID: Record<string, number> = {};
+      for (const c of categoryList) {
+        CATEGORY_NAME_TO_ID[c.category_name] = c.category_id;
+      }
 
       // If Gemini detected a new account, create it in DB first
-      let resolvedAccountId = ACCOUNT_NAME_TO_ID[parsedData.account] ?? "cash";
+      let resolvedAccountId: number | null = ACCOUNT_NAME_TO_ID[parsedData.account] ?? null;
       if (parsedData.account_is_new && parsedData.account) {
         const createRes = await fetch(`${FLASK_URL}/api/accounts`, {
           method: "POST",
@@ -180,14 +185,43 @@ Return ONLY valid JSON.
         });
         const createData = await createRes.json();
         resolvedAccountId = createData.account_id ?? resolvedAccountId;
-        ACCOUNT_NAME_TO_ID[parsedData.account] = resolvedAccountId;
       }
 
-      // Resolve payee_name → payee_id
-      const matchedPayee = payeeList.find(
-        p => p.payee_name.toLowerCase() === (parsedData.payee_name || "").toLowerCase()
-      );
-      const resolvedPayeeId = matchedPayee?.payee_id ?? null;
+      // Fall back to first available account if still unresolved
+      if (!resolvedAccountId && accountList.length > 0) {
+        resolvedAccountId = accountList[0].account_id;
+      }
+
+      // Resolve category name → integer category_id
+      const geminiCategory = parsedData.category as string;
+      const resolvedCategoryId: number | null =
+        CATEGORY_NAME_TO_ID[geminiCategory] ??
+        (categoryList.length > 0 ? categoryList[categoryList.length - 1].category_id : null); // last = "Khác"
+
+      // Resolve payee_name → payee_id, auto-create if it's a new named payee
+      let resolvedPayeeId: number | null = null;
+      const incomingPayeeName = (parsedData.payee_name || "").trim();
+      if (incomingPayeeName) {
+        const matchedPayee = payeeList.find(
+          p => p.payee_name.toLowerCase() === incomingPayeeName.toLowerCase()
+        );
+        if (matchedPayee) {
+          resolvedPayeeId = matchedPayee.payee_id;
+        } else {
+          // Auto-create the new payee so it appears in future lookups
+          try {
+            const payeeRes = await fetch(`${FLASK_URL}/api/payees`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": authHeader },
+              body: JSON.stringify({ payee_name: incomingPayeeName }),
+            });
+            const payeeData = await payeeRes.json();
+            resolvedPayeeId = payeeData.payee_id ?? null;
+          } catch {
+            // Non-fatal: transaction still saves without payee link
+          }
+        }
+      }
 
       // Persist to Turso via Flask backend
       await fetch(`${FLASK_URL}/api/transactions`, {
@@ -196,7 +230,7 @@ Return ONLY valid JSON.
           body: JSON.stringify({
             transaction_date: parsedData.transaction_date || localTime,
             account_id: resolvedAccountId,
-            category_id: CATEGORY_NAME_TO_ID[parsedData.category] ?? "other",
+            category_id: resolvedCategoryId,
             amount: parsedData.amount,
             type: parsedData.type,
             note: parsedData.note,

@@ -1,19 +1,19 @@
 export interface Account {
-  account_id: string;
+  account_id: number;
   account_name: string;
   initial_balance: number;
   current_balance: number;
 }
 
 export interface Category {
-  category_id: string;
+  category_id: number;
   category_name: string;
   budget: number; // Hạn mức tháng
 }
 
 export interface SplitItem {
   split_id?: number;
-  category_id: string;
+  category_id: number;
   amount: number;
   note?: string;
 }
@@ -21,8 +21,8 @@ export interface SplitItem {
 export interface Transaction {
   transaction_id: string;
   transaction_date: string;
-  account_id: string;
-  category_id: string;
+  account_id: number;
+  category_id: number;
   amount: number;
   type: 'income' | 'expense' | 'investment';
   note: string;
@@ -64,7 +64,7 @@ export interface AuthResponse {
 
 export interface Budget {
   budget_id: number;
-  category_id: string;
+  category_id: number;
   month: string;        // 'YYYY-MM'
   amount_limit: number;
 }
@@ -72,13 +72,13 @@ export interface Budget {
 export interface Payee {
   payee_id: number;
   payee_name: string;
-  default_category_id: string | null;
+  default_category_id: number | null;
 }
 
 export interface RecurringTransaction {
   recurring_id: number;
-  account_id: string;
-  category_id: string;
+  account_id: number;
+  category_id: number;
   payee_id: number | null;
   amount: number;
   type: 'income' | 'expense' | 'investment';

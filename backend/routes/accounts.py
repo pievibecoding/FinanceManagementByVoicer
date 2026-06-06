@@ -6,7 +6,6 @@ Endpoints:
   POST /api/accounts   — create a new account for the user
 """
 import logging
-import re
 
 from flask import Blueprint, jsonify, request, g
 
@@ -45,23 +44,24 @@ def create_account():
     if not account_name:
         return jsonify({"error": "account_name is required"}), 400
 
-    # Prefix with user_id to ensure uniqueness across users
-    slug       = re.sub(r"[^a-z0-9]", "_", account_name.lower())[:24]
-    account_id = data.get("account_id") or f"{g.user_id}_{slug}"
-
     db = get_db()
     try:
+        # Check for duplicate name for this user
         existing = db.execute(
-            "SELECT account_id FROM Account_Dim WHERE account_id = ?", [account_id]
+            "SELECT account_id FROM Account_Dim WHERE user_id = ? AND account_name = ?",
+            [g.user_id, account_name],
         )
         if existing.rows:
+            account_id = existing.rows[0][0]
             return jsonify({"message": "Account already exists", "account_id": account_id}), 200
 
         db.execute(
-            "INSERT INTO Account_Dim (account_id, account_name, account_type, initial_balance, user_id) VALUES (?, ?, ?, ?, ?)",
-            [account_id, account_name, account_type, initial_balance, g.user_id],
+            "INSERT INTO Account_Dim (user_id, account_name, account_type, initial_balance) VALUES (?, ?, ?, ?)",
+            [g.user_id, account_name, account_type, initial_balance],
         )
-        logger.info(f"Created account: {account_id} for user {g.user_id}")
+        row = db.execute("SELECT last_insert_rowid() AS id")
+        account_id = row.rows[0][0]
+        logger.info(f"Created account: {account_id} ({account_name}) for user {g.user_id}")
     finally:
         db.close()
 

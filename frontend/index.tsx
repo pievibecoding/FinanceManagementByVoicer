@@ -192,15 +192,15 @@ function App() {
   const [manualTx, setManualTx] = useState({
     amount: '',
     type: 'expense' as 'income' | 'expense' | 'investment',
-    category_id: 'food',
-    account_id: 'cash',
+    category_id: 0 as number,
+    account_id: 0 as number,
     note: '',
     payee_id: null as number | null
   });
 
   // Split mode state for manual modal
   const [splitMode, setSplitMode] = useState(false);
-  const [splitItems, setSplitItems] = useState<Array<{category_id: string; amount: string; note: string}>>([]);
+  const [splitItems, setSplitItems] = useState<Array<{category_id: number; amount: string; note: string}>>([]);
 
   // Expanded split row in transaction table
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
@@ -209,8 +209,8 @@ function App() {
   const [newRecurring, setNewRecurring] = useState({
     amount: '',
     type: 'expense' as 'income' | 'expense' | 'investment',
-    category_id: 'food',
-    account_id: 'cash',
+    category_id: 0 as number,
+    account_id: 0 as number,
     frequency: 'monthly' as 'daily' | 'weekly' | 'monthly' | 'yearly',
     next_run_date: new Date().toISOString().slice(0, 10),
     end_date: '',
@@ -319,23 +319,34 @@ function App() {
 
       if (parsedJSON && parsedJSON.amount) {
         // Map account and category strings to internal state IDs
-        let catId = 'other';
+        // Match against loaded categories list to get the correct numeric ID
         const normCat = parsedJSON.category?.toLowerCase() || '';
-        if (normCat.includes('ăn') || normCat.includes('food') || normCat.includes('uống') || normCat.includes('nhậu')) catId = 'food';
-        else if (normCat.includes('lương') || normCat.includes('salary') || normCat.includes('thu nhập')) catId = 'salary';
-        else if (normCat.includes('đầu tư') || normCat.includes('chứng') || normCat.includes('vps') || normCat.includes('cổ phiếu')) catId = 'investment';
-        else if (normCat.includes('di chuyển') || normCat.includes('đi') || normCat.includes('xe') || normCat.includes('grab') || normCat.includes('be')) catId = 'transport';
-        else if (normCat.includes('sắm') || normCat.includes('quần') || normCat.includes('shopping')) catId = 'shopping';
-        else if (normCat.includes('trí') || normCat.includes('phim') || normCat.includes('cgv') || normCat.includes('game')) catId = 'entertainment';
-        else if (normCat.includes('học') || normCat.includes('sách') || normCat.includes('study') || normCat.includes('english')) catId = 'study';
-        else if (normCat.includes('khỏe') || normCat.includes('thuốc') || normCat.includes('sức') || normCat.includes('bệnh')) catId = 'health';
+        const matchedCat = categories.find(c => c.category_name.toLowerCase() === parsedJSON.category?.toLowerCase()) ||
+          categories.find(c => {
+            if (normCat.includes('ăn') || normCat.includes('uống')) return c.category_name === 'Ăn uống';
+            if (normCat.includes('lương') || normCat.includes('thu nhập')) return c.category_name === 'Tiền lương';
+            if (normCat.includes('đầu tư') || normCat.includes('chứng')) return c.category_name === 'Đầu tư chứng khoán';
+            if (normCat.includes('di chuyển') || normCat.includes('xe')) return c.category_name === 'Di chuyển';
+            if (normCat.includes('sắm') || normCat.includes('shopping')) return c.category_name === 'Mua sắm';
+            if (normCat.includes('trí') || normCat.includes('phim') || normCat.includes('game')) return c.category_name === 'Giải trí';
+            if (normCat.includes('học') || normCat.includes('sách')) return c.category_name === 'Học tập';
+            if (normCat.includes('khỏe') || normCat.includes('thuốc')) return c.category_name === 'Sức khỏe';
+            return false;
+          }) ||
+          categories.find(c => c.category_name === 'Khác');
+        const catId: number = matchedCat?.category_id ?? (categories[0]?.category_id ?? 0);
 
-        let accId = 'cash';
         const normAcc = parsedJSON.account?.toLowerCase() || '';
-        if (normAcc.includes('momo') || normAcc.includes('ví')) accId = 'momo';
-        else if (normAcc.includes('vcb') || normAcc.includes('văn') || normAcc.includes('ngân hàng')) accId = 'vcb';
-        else if (normAcc.includes('vps') || normAcc.includes('chứng khoán')) accId = 'vps';
-        else if (normAcc.includes('tiền mặt') || normAcc.includes('cash')) accId = 'cash';
+        const matchedAcc = accounts.find(a => a.account_name.toLowerCase() === parsedJSON.account?.toLowerCase()) ||
+          accounts.find(a => {
+            if (normAcc.includes('momo') || normAcc.includes('ví momo')) return a.account_name.toLowerCase().includes('momo');
+            if (normAcc.includes('vcb') || normAcc.includes('vietcombank')) return a.account_name.toLowerCase().includes('vcb');
+            if (normAcc.includes('vps') || normAcc.includes('chứng khoán')) return a.account_name.toLowerCase().includes('vps');
+            if (normAcc.includes('tiền mặt') || normAcc.includes('cash')) return a.account_name.toLowerCase().includes('tiền mặt');
+            return false;
+          }) ||
+          accounts[0];
+        const accId: number = matchedAcc?.account_id ?? (accounts[0]?.account_id ?? 0);
 
         const newId = 'tx-' + (transactions.length + 1).toString().padStart(3, '0');
         const newTx: Transaction = {
@@ -545,7 +556,7 @@ function App() {
     // Reload from backend to get persisted split data with split_ids
     loadTransactions();
     setIsManualModalOpen(false);
-    setManualTx({ amount: '', type: 'expense', category_id: 'food', account_id: 'cash', note: '', payee_id: null });
+    setManualTx({ amount: '', type: 'expense', category_id: 0, account_id: 0, note: '', payee_id: null });
     setSplitMode(false);
     setSplitItems([]);
 
@@ -656,8 +667,8 @@ function App() {
       setNewRecurring({
         amount: '',
         type: 'expense',
-        category_id: 'food',
-        account_id: 'cash',
+        category_id: 0,
+        account_id: 0,
         frequency: 'monthly',
         next_run_date: new Date().toISOString().slice(0, 10),
         end_date: '',
@@ -992,16 +1003,16 @@ function App() {
                           <div key={acc.account_id} className="p-2.5 bg-zinc-900/40 border border-zinc-800/40 rounded-lg flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2">
                               <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold leading-none ${
-                                acc.account_id === 'momo' ? 'bg-pink-900/20 text-pink-400 border border-pink-500/10' :
-                                acc.account_id === 'vcb' ? 'bg-emerald-900/20 text-emerald-400 border border-emerald-500/10' :
-                                acc.account_id === 'vps' ? 'bg-sky-900/20 text-sky-400 border border-sky-500/10' :
+                                acc.account_name.toLowerCase().includes('momo') ? 'bg-pink-900/20 text-pink-400 border border-pink-500/10' :
+                                acc.account_name.toLowerCase().includes('vcb') ? 'bg-emerald-900/20 text-emerald-400 border border-emerald-500/10' :
+                                acc.account_name.toLowerCase().includes('vps') ? 'bg-sky-900/20 text-sky-400 border border-sky-500/10' :
                                 'bg-zinc-800 text-zinc-400'
                               }`}>
                                 {acc.account_name.substring(0, 3)}
                               </div>
                               <div>
                                 <span className="text-xs font-semibold text-white block">{acc.account_name}</span>
-                                <span className="text-[10px] text-zinc-500">{acc.account_id.toUpperCase()}</span>
+                                <span className="text-[10px] text-zinc-500">#{acc.account_id}</span>
                               </div>
                             </div>
 
@@ -1168,8 +1179,8 @@ function App() {
                       setNewRecurring({
                         amount: '',
                         type: 'expense',
-                        category_id: categories[0]?.category_id || 'food',
-                        account_id: accounts[0]?.account_id || 'cash',
+                        category_id: categories[0]?.category_id || 0,
+                        account_id: accounts[0]?.account_id || 0,
                         frequency: 'monthly',
                         next_run_date: new Date().toISOString().slice(0, 10),
                         end_date: '',

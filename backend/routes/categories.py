@@ -44,9 +44,9 @@ def get_categories():
     return jsonify(categories), 200
 
 
-@categories_bp.route("/api/categories/<category_id>", methods=["PUT"])
+@categories_bp.route("/api/categories/<int:category_id>", methods=["PUT"])
 @require_auth
-def update_category_budget(category_id: str):
+def update_category_budget(category_id: int):
     data       = request.get_json(silent=True) or {}
     new_budget = data.get("budget")
 

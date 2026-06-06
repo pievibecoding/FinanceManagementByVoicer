@@ -2,22 +2,22 @@ import { Account, Category, Transaction, AnalyticsResult, Budget } from './types
 
 // Dữ liệu ban đầu
 export const initialAccounts: Account[] = [
-  { account_id: 'momo', account_name: 'Ví MoMo', initial_balance: 5000000, current_balance: 5000000 },
-  { account_id: 'vcb', account_name: 'Ngân hàng VCB', initial_balance: 45000000, current_balance: 45000000 },
-  { account_id: 'vps', account_name: 'Tài khoản VPS', initial_balance: 200000000, current_balance: 200000000 },
-  { account_id: 'cash', account_name: 'Tiền mặt', initial_balance: 2000000, current_balance: 2000000 }
+  { account_id: 1, account_name: 'Ví MoMo', initial_balance: 5000000, current_balance: 5000000 },
+  { account_id: 2, account_name: 'Ngân hàng VCB', initial_balance: 45000000, current_balance: 45000000 },
+  { account_id: 3, account_name: 'Tài khoản VPS', initial_balance: 200000000, current_balance: 200000000 },
+  { account_id: 4, account_name: 'Tiền mặt', initial_balance: 2000000, current_balance: 2000000 }
 ];
 
 export const initialCategories: Category[] = [
-  { category_id: 'food', category_name: 'Ăn uống', budget: 4000000 },
-  { category_id: 'salary', category_name: 'Tiền lương', budget: 0 },
-  { category_id: 'investment', category_name: 'Đầu tư chứng khoán', budget: 0 },
-  { category_id: 'transport', category_name: 'Di chuyển', budget: 1500000 },
-  { category_id: 'shopping', category_name: 'Mua sắm', budget: 3000000 },
-  { category_id: 'entertainment', category_name: 'Giải trí', budget: 2000000 },
-  { category_id: 'study', category_name: 'Học tập', budget: 2000000 },
-  { category_id: 'health', category_name: 'Sức khỏe', budget: 1000000 },
-  { category_id: 'other', category_name: 'Khác', budget: 1500000 }
+  { category_id: 1, category_name: 'Ăn uống', budget: 4000000 },
+  { category_id: 2, category_name: 'Tiền lương', budget: 0 },
+  { category_id: 3, category_name: 'Đầu tư chứng khoán', budget: 0 },
+  { category_id: 4, category_name: 'Di chuyển', budget: 1500000 },
+  { category_id: 5, category_name: 'Mua sắm', budget: 3000000 },
+  { category_id: 6, category_name: 'Giải trí', budget: 2000000 },
+  { category_id: 7, category_name: 'Học tập', budget: 2000000 },
+  { category_id: 8, category_name: 'Sức khỏe', budget: 1000000 },
+  { category_id: 9, category_name: 'Khác', budget: 1500000 }
 ];
 
 export const initialTransactions: Transaction[] = [];
