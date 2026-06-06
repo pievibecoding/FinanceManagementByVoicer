@@ -10,8 +10,10 @@ def get_db() -> libsql_client.ClientSync:
     """Open and return a new sync Turso connection.
     Caller is responsible for calling .close() when done.
     """
+    # Convert libsql:// to https:// to avoid WebSocket issues
+    url = TURSO_DB_URL.replace("libsql://", "https://")
     return libsql_client.create_client_sync(
-        url=TURSO_DB_URL,
+        url=url,
         auth_token=TURSO_AUTH_TOKEN,
     )
 
