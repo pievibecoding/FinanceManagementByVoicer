@@ -9,12 +9,6 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Set COOP header for Google OAuth popup (without COEP to avoid conflicts)
-  app.use((req, res, next) => {
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-    next();
-  });
-
   const FLASK_URL = process.env.FLASK_BACKEND_URL || "http://localhost:5000";
 
   // ── Auth proxy routes (avoids CORS issues by routing through Express) ──────
