@@ -32,6 +32,8 @@ services:
         sync: false
       - key: VITE_GOOGLE_CLIENT_ID
         sync: false
+      - key: VITE_FLASK_BACKEND_URL
+        value: https://finance-management-backend.onrender.com
       - key: FLASK_BACKEND_URL
         value: https://finance-management-backend.onrender.com
       - key: PORT

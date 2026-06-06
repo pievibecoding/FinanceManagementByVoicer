@@ -41,7 +41,7 @@ import {
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
 
-const FLASK_API = 'http://localhost:5000';
+const FLASK_API = import.meta.env.VITE_FLASK_BACKEND_URL || 'http://localhost:5000';
 
 // Các tin nhắn gợi ý tiếng lóng tài chính Việt Nam giúp test trải nghiệm nhanh
 const SLANG_SUGGESTIONS = [
