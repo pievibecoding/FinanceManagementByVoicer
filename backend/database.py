@@ -41,12 +41,15 @@ def initialize_db() -> None:
         _seed_accounts(db)
         _seed_categories(db)
         _seed_split_category(db)
-        _migrate_category_id_to_integer(db)
-        _migrate_account_id_to_integer(db)
-        _dedup_categories(db)
+        # Skip migrations for new database
+        # _migrate_category_id_to_integer(db)
+        # _migrate_account_id_to_integer(db)
+        # _dedup_categories(db)
         logger.info("DB initialized successfully.")
     except Exception as e:
         logger.error(f"DB initialization error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
     finally:
         db.close()
 
