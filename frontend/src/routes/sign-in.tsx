@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import { LoginForm } from '@/components/auth/LoginForm'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -7,13 +8,21 @@ export const Route = createFileRoute('/sign-in')({
     const { isAuthenticated } = useAuth()
     
     if (isAuthenticated) {
-      return <Navigate to="/_authenticated" />
+      return <Navigate to="/" />
     }
+    
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
     
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-full max-w-md">
-          <LoginForm onSwitchToRegister={() => window.location.href = '/sign-up'} />
+          {clientId ? (
+            <GoogleOAuthProvider clientId={clientId}>
+              <LoginForm onSwitchToRegister={() => window.location.href = '/sign-up'} />
+            </GoogleOAuthProvider>
+          ) : (
+            <LoginForm onSwitchToRegister={() => window.location.href = '/sign-up'} />
+          )}
         </div>
       </div>
     )

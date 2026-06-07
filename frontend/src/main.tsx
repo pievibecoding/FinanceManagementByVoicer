@@ -14,7 +14,7 @@ import { ThemeProvider } from '@/context/theme-provider'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
 // Styles
-import './styles/index.css'
+import '../styles/index.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {
