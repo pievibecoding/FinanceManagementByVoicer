@@ -11,7 +11,7 @@
 | Layer | Tech | Entry Point |
 |---|---|---|
 | Frontend | React 19 + TypeScript, Vite, Tailwind v4, Lucide, `@google/genai`, `@react-oauth/google` | `frontend/index.tsx` |
-| BFF Server | Express 5 (TypeScript) + Gemini 2.0 Flash API | `frontend/server.ts` |
+| BFF Server | Express 5 (TypeScript) + Gemini 3.1 Flash Lite API | `frontend/server.ts` |
 | Backend API | Python Flask + Flask-CORS | `backend/main.py` (port 5000) |
 | Database | Turso (libSQL / SQLite-compatible, cloud) | `backend/database.py` |
 | Auth | JWT (python-jose) + bcrypt (rounds=12) + Google OAuth (`google-auth`) | `backend/auth/` |
@@ -47,7 +47,7 @@ user_settings (
 
 -- Dimension: Accounts
 Account_Dim (
-  account_id      TEXT PRIMARY KEY,
+  account_id      INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id         INTEGER NOT NULL REFERENCES users,  -- data isolation
   account_name    TEXT NOT NULL,
   account_type    TEXT NOT NULL,       -- 'E-Wallet' | 'Bank' | 'Investment' | 'Cash'
@@ -56,7 +56,7 @@ Account_Dim (
 
 -- Dimension: Categories
 Category_Dim (
-  category_id   TEXT PRIMARY KEY,     -- format: '{user_id}-food', '{user_id}-salary', etc.
+  category_id   INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id       INTEGER NOT NULL REFERENCES users,  -- data isolation
   category_name TEXT NOT NULL,
   category_type TEXT NOT NULL,        -- 'expense' | 'income' | 'investment'
@@ -65,21 +65,72 @@ Category_Dim (
 
 -- Fact: Transactions
 Transaction_Fact (
-  transaction_id   TEXT PRIMARY KEY,  -- format: 'tx-{timestamp_ms}'
+  transaction_id   TEXT PRIMARY KEY,  -- format: 'tx-{timestamp_ms}' or 'tx-{timestamp_ms}-r{recurring_id}'
   user_id          INTEGER NOT NULL REFERENCES users,  -- data isolation
   transaction_date TEXT NOT NULL,     -- format: 'YYYY-MM-DD HH:MM:SS'
-  account_id       TEXT NOT NULL REFERENCES Account_Dim,
-  category_id      TEXT NOT NULL REFERENCES Category_Dim,
+  account_id       INTEGER NOT NULL REFERENCES Account_Dim,
+  category_id      INTEGER NOT NULL REFERENCES Category_Dim,
   amount           INTEGER NOT NULL,  -- absolute positive value in VND
   type             TEXT NOT NULL,     -- 'income' | 'expense' | 'investment'
   note             TEXT,
+  payee_id         INTEGER REFERENCES payees(payee_id),
   is_deleted       INTEGER NOT NULL DEFAULT 0  -- soft delete
+)
+
+-- Split Transactions (for multi-category transactions)
+split_transactions (
+  split_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  transaction_id TEXT NOT NULL REFERENCES Transaction_Fact(transaction_id),
+  category_id    INTEGER NOT NULL REFERENCES Category_Dim(category_id),
+  amount         INTEGER NOT NULL,
+  note           TEXT
+)
+
+-- Budgets (monthly per-category limits)
+budgets (
+  budget_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL REFERENCES users,
+  category_id  INTEGER NOT NULL REFERENCES Category_Dim(category_id),
+  month        TEXT NOT NULL,        -- format: 'YYYY-MM'
+  amount_limit INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (user_id, category_id, month)
+)
+
+-- Payees (merchants/contacts)
+payees (
+  payee_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id             INTEGER NOT NULL REFERENCES users,
+  payee_name          TEXT NOT NULL,
+  default_category_id INTEGER REFERENCES Category_Dim(category_id),
+  UNIQUE (user_id, payee_name)
+)
+
+-- Recurring Transactions
+recurring_transactions (
+  recurring_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id       INTEGER NOT NULL REFERENCES users,
+  account_id    INTEGER NOT NULL REFERENCES Account_Dim(account_id),
+  category_id   INTEGER NOT NULL REFERENCES Category_Dim(category_id),
+  payee_id      INTEGER REFERENCES payees(payee_id),
+  amount        INTEGER NOT NULL,
+  type          TEXT NOT NULL CHECK (type IN ('income', 'expense', 'investment')),
+  note          TEXT,
+  frequency     TEXT NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly')),
+  next_run_date TEXT NOT NULL,        -- format: 'YYYY-MM-DD'
+  end_date      TEXT,
+  is_active     INTEGER NOT NULL DEFAULT 1
+)
+
+-- Schema Migration Tracker
+schema_migrations (
+  migration_name TEXT PRIMARY KEY,
+  applied_at     TEXT NOT NULL DEFAULT (datetime('now'))
 )
 ```
 
 **System user:** `user_id=1` owns all pre-migration data (seeded on first startup).
 
-**Per-user default categories** (seeded on registration): food, transport, shopping, entertainment, study, health, other (expense); salary (income); investment (investment). Category IDs use `{user_id}-{key}` pattern for cross-user uniqueness.
+**Per-user default categories** (seeded on registration): Ăn uống, Tiền lương, Đầu tư chứng khoán, Di chuyển, Mua sắm, Giải trí, Học tập, Sức khỏe, Khác. Category IDs are auto-incremented INTEGERs per user.
 
 **Seeded accounts** (system user only): momo (5M), vcb (45M), vps (200M), cash (2M) VND. New users must create their own accounts.
 
@@ -105,18 +156,44 @@ All endpoints under `/api/`. JSON in, JSON out. All routes **except `/api/auth/*
 | POST | `/api/transactions` | `{transaction_date, account_id, category_id, amount, type, note}` | `{message, transaction_id}` 201 |
 | DELETE | `/api/transactions/:id` | — | `{message}` 200 — soft delete (sets `is_deleted=1`) |
 
-**POST required fields:** `transaction_date`, `account_id`, `category_id`, `amount`, `type`. `note` is optional.
+**POST required fields:** `transaction_date`, `account_id`, `category_id`, `amount`, `type`. Optional: `note`, `payee_id`, `splits[]` (for multi-category transactions). If `splits` provided, `category_id` is set to sentinel 'split' and amounts must sum to total.
 
 ### Accounts
-| Method | Path | Returns |
-|---|---|---|
-| GET | `/api/accounts` | `Account_Dim[]` (user-scoped, sorted by account_id) |
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/api/accounts` | — | `Account_Dim[]` (user-scoped, sorted by account_id) |
+| POST | `/api/accounts` | `{account_name, account_type, initial_balance}` | `{account_id}` 201 — auto-creates if name doesn't exist |
 
 ### Categories
 | Method | Path | Body | Returns |
 |---|---|---|---|
-| GET | `/api/categories` | — | `Category_Dim[]` (user-scoped, sorted by category_id) |
-| PUT | `/api/categories/:id` | `{budget: number}` | `{message}` 200 |
+| GET | `/api/categories` | — | `Category_Dim[]` (user-scoped, sorted by category_id, budget merged from current month) |
+| PUT | `/api/categories/<category_id>` | `{budget: number}` | `{message}` 200 — updates both Category_Dim.budget and budgets table for current month |
+
+### Budgets
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/api/budgets` | — | `budgets[]` (user-scoped, optional `?month=YYYY-MM`) |
+| PUT | `/api/budgets/<category_id>` | `{amount_limit, month?}` | `{budget_id}` 200 |
+| DELETE | `/api/budgets/<category_id>` | — | `{message}` 200 (optional `?month=YYYY-MM`) |
+
+### Payees
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/api/payees` | — | `payees[]` (user-scoped) |
+| POST | `/api/payees` | `{payee_name, default_category_id?}` | `{payee_id, payee_name}` 201 |
+| PUT | `/api/payees/<payee_id>` | `{payee_name?, default_category_id?}` | `{message}` 200 |
+| DELETE | `/api/payees/<payee_id>` | — | `{message}` 200 |
+
+### Recurring Transactions
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/api/recurring` | — | `recurring_transactions[]` (user-scoped) |
+| POST | `/api/recurring` | `{account_id, category_id, amount, type, frequency, next_run_date, note?, end_date?, payee_id?}` | `{recurring_id}` 201 |
+| PUT | `/api/recurring/<recurring_id>` | partial update fields | `{message}` 200 |
+| DELETE | `/api/recurring/<recurring_id>` | — | `{message}` 200 |
+| PATCH | `/api/recurring/<recurring_id>/toggle` | — | `{is_active}` 200 |
+| POST | `/api/recurring/process` | — | `{generated}` 200 — generates due transactions |
 
 ### Analytics (SQL Passthrough)
 | Method | Path | Body | Returns |
@@ -131,8 +208,8 @@ All endpoints under `/api/`. JSON in, JSON out. All routes **except `/api/auth/*
 
 ### `/api/parse-transaction` POST
 - **Input:** `{ prompt: string, localTime: string }` (localTime format: `YYYY-MM-DD HH:MM:SS`)
-- **Flow:** Calls Gemini 2.0 Flash with a Vietnamese finance system prompt → maps category/account names to IDs → POSTs to Flask `http://localhost:5000/api/transactions`
-- **Output:** `{ amount, type, category, account, note, transaction_date }` (human-readable names, not IDs)
+- **Flow:** Calls Gemini 3.1 Flash Lite with a Vietnamese finance system prompt → fetches user's accounts, categories, and payees → maps names to IDs → auto-creates new accounts/payees if needed → POSTs to Flask `http://localhost:5000/api/transactions`
+- **Output:** `{ valid, rejection_reason, amount, type, category, account, account_is_new, note, transaction_date, payee_name }` (human-readable names, not IDs)
 
 ### `/api/auth/*` (proxy to Flask)
 All auth routes are proxied from Express to Flask unchanged, passing through the `Authorization` header from the browser.
@@ -148,9 +225,11 @@ All auth routes are proxied from Express to Flask unchanged, passing through the
 ```typescript
 interface AuthResponse {
   access_token: string;
+  token_type: string;
   user_id: number;
   email?: string;
   name?: string;
+  username?: string;
 }
 
 interface AuthUser {
@@ -160,27 +239,63 @@ interface AuthUser {
 }
 
 interface Account {
-  account_id: string;
+  account_id: number;
   account_name: string;
   initial_balance: number;
   current_balance: number;   // computed client-side via computeBalances()
 }
 
 interface Category {
-  category_id: string;
+  category_id: number;
   category_name: string;
   budget: number;
+}
+
+interface SplitItem {
+  split_id?: number;
+  category_id: number;
+  amount: number;
+  note?: string;
 }
 
 interface Transaction {
   transaction_id: string;
   transaction_date: string;  // 'YYYY-MM-DD HH:MM:SS'
-  account_id: string;
-  category_id: string;
+  account_id: number;
+  category_id: number;
   amount: number;            // always positive integer VND
   type: 'income' | 'expense' | 'investment';
   note: string;
+  payee_id?: number | null;
+  splits?: SplitItem[];
   is_deleted?: number;       // 0 or 1 — filtered to 0 by API
+}
+
+interface Budget {
+  budget_id: number;
+  category_id: number;
+  month: string;             // 'YYYY-MM'
+  amount_limit: number;
+}
+
+interface Payee {
+  payee_id: number;
+  payee_name: string;
+  default_category_id: number | null;
+}
+
+interface RecurringTransaction {
+  recurring_id: number;
+  account_id: number;
+  category_id: number;
+  payee_id: number | null;
+  amount: number;
+  type: 'income' | 'expense' | 'investment';
+  note: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  next_run_date: string;     // 'YYYY-MM-DD'
+  end_date: string | null;
+  is_active: number;
 }
 
 interface ChatMessage {
@@ -188,7 +303,7 @@ interface ChatMessage {
   sender: 'user' | 'assistant' | 'system';
   text: string;
   timestamp: number;
-  parsedTransaction?: { amount, type, category, account, note, transaction_date };
+  parsedTransaction?: { amount, type, category, account, account_is_new, note, transaction_date, payee_name };
   sqlCommand?: string;
 }
 
@@ -262,7 +377,7 @@ FinanceManagementByVoicer/
 │
 ├── backend/
 │   ├── main.py                 # Flask app factory + startup (port 5000)
-│   ├── database.py             # Turso connection, table creation, seeding (multi-user schema)
+│   ├── database.py             # Turso connection, table creation, seeding, migrations (multi-user schema)
 │   ├── config.py               # Loads env vars (TURSO, AUTH_SECRET_KEY, GOOGLE_CLIENT_ID)
 │   ├── requirements.txt        # Flask, Flask-Cors, python-dotenv, libsql-client, python-jose, bcrypt, google-auth
 │   ├── auth/
@@ -273,13 +388,16 @@ FinanceManagementByVoicer/
 │   │   ├── db.py               # User DB ops (find_by_email, find_by_google_sub, create_user)
 │   │   └── password_hasher.py  # bcrypt hash/verify (rounds=12)
 │   └── routes/
-│       ├── transactions.py     # GET/POST/DELETE /api/transactions (auth + user-scoped + soft delete)
-│       ├── accounts.py         # GET /api/accounts (auth + user-scoped)
-│       ├── categories.py       # GET/PUT /api/categories (auth + user-scoped)
+│       ├── transactions.py     # GET/POST/DELETE /api/transactions (auth + user-scoped + soft delete + splits)
+│       ├── accounts.py         # GET/POST /api/accounts (auth + user-scoped)
+│       ├── categories.py       # GET/PUT /api/categories (auth + user-scoped + budget merge)
+│       ├── budgets.py          # GET/PUT/DELETE /api/budgets (auth + user-scoped + monthly)
+│       ├── payees.py           # GET/POST/PUT/DELETE /api/payees (auth + user-scoped)
+│       ├── recurring.py        # GET/POST/PUT/DELETE/PATCH /api/recurring (auth + user-scoped + process)
 │       └── analytics.py        # POST /api/sql-query (auth, SELECT only)
 │
 ├── database/
-│   ├── schema.sql              # DDL reference (5 tables including users + user_settings)
+│   ├── schema.sql              # DDL reference (basic tables only - migrations add columns)
 │   └── analytics.sql           # Sample SQL queries (basic → advanced)
 │
 └── frontend/
@@ -366,7 +484,7 @@ Transaction `type` classification:
 ## 12. Key Constraints & Gotchas
 
 1. **Amounts are always positive integers (VND).** The `type` field encodes direction — never store negative amounts.
-2. **`transaction_id` format:** `tx-{Date.now()}` (millisecond timestamp). Flask uses this pattern; keep consistent.
+2. **`transaction_id` format:** `tx-{Date.now()}` (millisecond timestamp) for manual transactions, or `tx-{timestamp}-r{recurring_id}` for recurring-generated transactions.
 3. **`transaction_date` format:** `YYYY-MM-DD HH:MM:SS`. Always use this format for DB writes and AI output.
 4. **Offline fallback:** Frontend has seed data in `utils.ts` and falls back gracefully if Flask is unreachable.
 5. **SQL passthrough endpoint** (`/api/sql-query`) only accepts SELECT — enforce this on both client and server.
@@ -378,5 +496,8 @@ Transaction `type` classification:
 11. **Auth token flow:** Browser stores JWT in `localStorage` (`finance_auth_token`). `AuthContext.tsx` exposes `token` + `login/logout`. `index.tsx` attaches `Authorization: Bearer <token>` to all API calls. `server.ts` forwards the header to Flask unchanged.
 12. **Data isolation:** All Flask routes use `@require_auth` decorator which sets `g.user_id`. Every query filters by `user_id = g.user_id`. A user cannot access another user's data (returns 404, not 403).
 13. **Soft delete:** `DELETE /api/transactions/:id` sets `is_deleted=1`, never physically removes the row. All GET queries filter `WHERE is_deleted = 0`.
-14. **Category ID format for new users:** `{user_id}-food`, `{user_id}-salary`, etc. (not the bare keys used by the system user). Always match the user's actual category IDs when creating transactions.
+14. **Category and Account IDs are INTEGERs** (auto-incremented), not TEXT. Migrations convert legacy TEXT IDs to INTEGER. Always use the integer IDs from the API responses.
 15. **Google OAuth** is optional. If `VITE_GOOGLE_CLIENT_ID` is not set, the Google sign-in button is hidden. If `GOOGLE_CLIENT_ID` is not set in the backend, `/api/auth/google` will fail — configure both or neither.
+16. **Split transactions** allow a single transaction to be split across multiple categories. When creating with `splits`, the main `category_id` is set to sentinel 'split' and the actual categories are stored in `split_transactions`.
+17. **Payees** are auto-created by the AI parser when it detects a new merchant name. Payees can have a `default_category_id` for auto-categorization.
+18. **Recurring transactions** are processed via `POST /api/recurring/process`. This generates actual transactions for all rules where `next_run_date <= today` and `is_active=1`, then advances `next_run_date` based on frequency.
