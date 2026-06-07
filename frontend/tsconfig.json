@@ -19,6 +19,8 @@
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
+    "strict": true,
+    "strictNullChecks": true,
     "paths": {
       "@/*": [
         "./*"

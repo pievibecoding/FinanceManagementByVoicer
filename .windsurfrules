@@ -1,0 +1,33 @@
+# AI Agent Rules for Finance Management by Voicer
+
+## Required Reading Before Any Task
+
+**ALWAYS read these files before starting any coding task:**
+
+1. `.kiro/steering/project-context.md` - Project architecture, data model, API contracts, tech stack
+2. `.kiro/steering/coding-guidelines.md` - Behavioral guidelines for coding decisions
+
+## Quick Reference
+
+- **Tech Stack:** React 19 + TypeScript (frontend), Flask (backend), Turso (database), Gemini 2.0 Flash (AI)
+- **Design System:** Tailwind v4 utility classes only. DO NOT use DesignUI.css - it conflicts with Tailwind responsive variants.
+- **Auth:** JWT-based with multi-user data isolation. All routes except `/api/auth/*` require `Authorization: Bearer <token>`.
+- **Amounts:** Always positive integers (VND). Direction encoded in `type` field (income/expense/investment).
+- **Transaction ID format:** `tx-{timestamp_ms}`
+- **Date format:** `YYYY-MM-DD HH:MM:SS`
+- **Soft delete:** Transactions use `is_deleted=1`, never physical deletion.
+
+## Coding Principles
+
+- **Simplicity First:** Minimum code that solves the problem. No speculative features.
+- **Surgical Changes:** Touch only what you must. Match existing style.
+- **Think Before Coding:** State assumptions explicitly. Ask if uncertain.
+- **Goal-Driven:** Define success criteria before implementing.
+
+## Critical Constraints
+
+1. Gemini API calls must be server-side only (`server.ts`), never from `index.tsx`
+2. All database queries must filter by `user_id` for data isolation
+3. Use `https://` prefix for Turso DB URL (not `libsql://`)
+4. Category IDs for new users: `{user_id}-{key}` format
+5. SQL passthrough endpoint accepts SELECT statements only
