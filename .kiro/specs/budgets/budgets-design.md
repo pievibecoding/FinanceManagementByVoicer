@@ -1,0 +1,214 @@
+# Budgets Design
+
+## Layout Structure
+```
+┌─────────────────────────────────────────────────────────┐
+│  Sidebar (Left)  │  Main Content Area (Right)          │
+│                  │                                      │
+│  - Dashboard     │  ┌─────────────────────────────────┐ │
+│  - Transactions  │  │  Header: Budgets                 │ │
+│  - Accounts     │  │  [+ Add Budget]                 │ │
+│  - Categories   │  └─────────────────────────────────┘ │
+│  - Analytics    │                                      │
+│  - Budgets      │  ┌─────────────────────────────────┐ │
+│  - Settings     │  │  Budget Summary Card            │ │
+│                  │  │  Total Budget: 20M             │ │
+│                  │  │  Spent: 15M (75%)              │ │
+│                  │  └─────────────────────────────────┘ │
+│                  │                                      │
+│                  │  ┌─────────────────────────────────┐ │
+│                  │  │  Budget Cards (Grid)            │ │
+│                  │  │  ┌─────────┐ ┌─────────┐       │ │
+│                  │  │  │ Budget  │ │ Budget  │       │ │
+│                  │  │  │   1     │ │   2     │       │ │
+│                  │  │  └─────────┘ └─────────┘       │ │
+│                  │  └─────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Component Design
+
+### 1. Budget Summary Card
+**Layout:** Summary card at top
+
+**Card Content:**
+```
+┌─────────────────────────────────────────┐
+│  Budget Overview                       │
+├─────────────────────────────────────────┤
+│  Total Budget: 20,000,000 VND          │
+│  Total Spent: 15,000,000 VND           │
+│  Remaining: 5,000,000 VND              │
+│                                         │
+│  ████████████░░ 75%                   │
+│                                         │
+│  2 budgets over limit                  │
+│  3 budgets approaching limit          │
+└─────────────────────────────────────────┘
+```
+
+**Styling:**
+- Glassmorphism card
+- Progress bar
+- Alert indicators
+
+### 2. Budget Card
+**Layout:** Card with budget details
+
+**Card Content:**
+```
+┌─────────────────────────────────────┐
+│  🍔 Food                  [⋮]      │
+│                                     │
+│  ████████████░░ 75%               │
+│  3,000,000 / 5,000,000 VND        │
+│                                     │
+│  Remaining: 2,000,000 VND          │
+│  15 days left in period            │
+│                                     │
+│  [View Details]                     │
+└─────────────────────────────────────┘
+```
+
+**Progress Bar Colors:**
+- Green: < 50%
+- Yellow: 50-80%
+- Red: > 80%
+
+**Alert Indicators:**
+- ⚠️ Approaching limit (50-80%)
+- 🚨 Over limit (> 80%)
+
+### 3. Add Budget Modal
+**Layout:** Centered modal with form
+
+**Modal Content:**
+```
+┌─────────────────────────────────────────┐
+│  Add Budget                    [✕]     │
+├─────────────────────────────────────────┤
+│                                         │
+│  Category: [🍔 Food ▼]                 │
+│         (Expense categories only)       │
+│                                         │
+│  Limit Amount: [5,000,000 VND]         │
+│                                         │
+│  Period: [📅 Monthly ▼]                │
+│          [📅 Weekly]                    │
+│                                         │
+│  Start Date: [01/06/2026 📅]          │
+│                                         │
+│  Description: [Optional description]    │
+│                                         │
+│  [Cancel]              [Add Budget]     │
+└─────────────────────────────────────────┘
+```
+
+**Validation:**
+- Category must be expense type
+- Limit must be > 0
+- Start date required
+
+### 4. Edit Budget Modal
+**Layout:** Same as Add Budget modal
+- Pre-filled with existing data
+- "Update Budget" button instead of "Add"
+- Delete button at bottom
+
+### 5. Delete Confirmation Dialog
+**Layout:** Small centered dialog
+
+```
+┌─────────────────────────────────────────┐
+│  Delete Budget?                [✕]     │
+├─────────────────────────────────────────┤
+│  Are you sure you want to delete this   │
+│  budget?                                │
+│                                         │
+│  [Cancel]              [Delete]         │
+└─────────────────────────────────────────┘
+```
+
+### 6. Budget Details View
+**Layout:** Side panel or modal
+
+```
+┌─────────────────────────────────────────┐
+│  Budget Details                [✕]     │
+├─────────────────────────────────────────┤
+│                                         │
+│  🍔 Food                               │
+│  3,000,000 / 5,000,000 VND (75%)      │
+│                                         │
+│  Period: Monthly                       │
+│  Start Date: 01/06/2026                │
+│  End Date: 30/06/2026                  │
+│  Days Remaining: 15                    │
+│                                         │
+│  ──────────────────────────────────    │
+│  Spending Breakdown                    │
+│  ──────────────────────────────────    │
+│  [Transaction List]                    │
+│                                         │
+│  Daily Average: 200,000 VND            │
+│  Projected: 3,000,000 VND              │
+│                                         │
+│  [Edit] [Delete]                        │
+└─────────────────────────────────────────┘
+```
+
+**Spending Breakdown:**
+- List of transactions
+- Daily spending trend
+- Projected spending
+
+### 7. Budget Alert
+**Layout:** Notification banner
+
+```
+┌─────────────────────────────────────────┐
+│  ⚠️ Food budget is 75% used!          │
+│  You have 2,000,000 VND remaining     │
+│  for 15 days.                         │
+│                                         │
+│  [View Budget] [Dismiss]                │
+└─────────────────────────────────────────┘
+```
+
+**Alert Types:**
+- Warning: 50-80% (yellow)
+- Critical: > 80% (red)
+
+### 8. Budget History
+**Layout:** Chart showing budget performance
+
+**Chart Elements:**
+- X-axis: Time (months)
+- Y-axis: Amount (VND)
+- Budget limit line
+- Actual spending line
+- Comparison with previous period
+
+## Color Scheme
+- Progress bar: Green (<50%), Yellow (50-80%), Red (>80%)
+- Alert: Yellow (warning), Red (critical)
+- Card: Glassmorphism
+- Text: White
+
+## Typography
+- Budget name: Bold, large
+- Amounts: Tabular nums, bold
+- Progress: Regular
+- Labels: Regular, uppercase
+
+## Responsive Design
+- Desktop: 3-column grid
+- Tablet: 2-column grid
+- Mobile: 1-column stacked cards
+
+## Interactions
+- Hover effect on cards
+- Click to view details
+- Modal opens with animation
+- Alert dismissible
+- Progress bar animated
