@@ -29,7 +29,7 @@ export function RegisterForm({ onSwitchToLogin }: Props) {
       console.log('Attempting register with:', { email, username });
       const res = await authApi.register(email.trim(), username.trim(), password);
       console.log('Register response:', res);
-      login(res.access_token, res.user_id, res.email ?? email, res.name ?? username);
+      login(res.access_token, res.user_id, res.email ?? email, res.username ?? res.name ?? username);
       console.log('Register successful, token set');
     } catch (err: any) {
       console.error('Register error:', err);

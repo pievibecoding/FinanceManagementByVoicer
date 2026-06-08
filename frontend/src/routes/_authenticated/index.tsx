@@ -1,129 +1,111 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Outlet } from '@tanstack/react-router'
 import { useDashboardMetrics } from '@/hooks/useDashboard'
+import { useCategories } from '@/hooks/useCategories'
 import { MetricCard } from '@/components/dashboard/MetricCard'
-import { BudgetCard } from '@/components/dashboard/BudgetCard'
-import { TransactionListItem } from '@/components/dashboard/TransactionListItem'
-import { AccountCard } from '@/components/dashboard/AccountCard'
-import { QuickActions } from '@/components/dashboard/QuickActions'
+import { IncomeExpenseChart } from '@/components/dashboard/IncomeExpenseChart'
+import { AccountsSummary } from '@/components/dashboard/AccountsSummary'
+import { BudgetOverview } from '@/components/dashboard/BudgetOverview'
+import { AIChatWidget } from '@/components/dashboard/AIChatWidget'
 
 export const Route = createFileRoute('/_authenticated/')({
-  component: () => {
-    const { data, isLoading, isError } = useDashboardMetrics()
+  component: DashboardPage,
+})
 
-    if (isLoading) {
-      return (
-        <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-white">Dashboard</h1>
-          <div className="text-white/60">Loading...</div>
-        </div>
-      )
-    }
+function DashboardPage() {
+  const { data, isLoading, isError } = useDashboardMetrics()
+  const { data: categories = [] } = useCategories()
 
-    if (isError) {
-      return (
-        <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-white">Dashboard</h1>
-          <div className="text-[#dd9787]">Error loading dashboard data</div>
-        </div>
-      )
-    }
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
-    const formatCurrency = (amount: number) => {
-      return new Intl.NumberFormat('vi-VN').format(amount)
-    }
-
+  if (isLoading) {
     return (
       <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <QuickActions />
-        </div>
-
-        {/* Key Metrics Cards */}
+        <h1 className="text-2xl font-bold mb-4 text-white">Dashboard</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <MetricCard
-            title="Total Balance"
-            value={`${formatCurrency(data.totalBalance)} VND`}
-            icon="💰"
-          />
-          <MetricCard
-            title="Monthly Income"
-            value={`${formatCurrency(data.monthlyIncome)} VND`}
-            icon="📈"
-            positive={true}
-          />
-          <MetricCard
-            title="Monthly Expenses"
-            value={`${formatCurrency(data.monthlyExpenses)} VND`}
-            icon="📉"
-            positive={false}
-          />
-          <MetricCard
-            title="Net Savings"
-            value={`${formatCurrency(data.netSavings)} VND`}
-            icon="💵"
-            positive={data.netSavings >= 0}
-          />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white/6 border border-white/18 rounded-[0.625rem] p-6 animate-pulse h-28" />
+          ))}
         </div>
-
-        {/* Budget Overview */}
-        {data.budgets.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Budget Overview</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.budgets.slice(0, 3).map((budget) => (
-                <BudgetCard
-                  key={budget.budget_id}
-                  category={`Category ${budget.category_id}`}
-                  limit={budget.amount_limit}
-                  spent={budget.amount_limit * 0.6} // Placeholder - will calculate from transactions
-                  remaining={budget.amount_limit * 0.4}
-                  onClick={() => {}}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Recent Transactions */}
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Recent Transactions</h2>
-          {data.recentTransactions.length > 0 ? (
-            <div className="space-y-3">
-              {data.recentTransactions.map((transaction) => (
-                <TransactionListItem
-                  key={transaction.transaction_id}
-                  transaction={transaction}
-                  onClick={() => {}}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white/6 border border-white/18 rounded-[0.625rem] p-4 text-white/60">
-              No transactions yet
-            </div>
-          )}
-        </div>
-
-        {/* Account Summary */}
-        {data.accounts.length > 0 && (
-          <div>
-            <h2 className="text-lg font-semibold text-white mb-4">Account Summary</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {data.accounts.map((account) => (
-                <AccountCard
-                  key={account.account_id}
-                  account={account}
-                  onClick={() => {}}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        <Outlet />
+        <div className="text-white/40 text-sm">Đang tải dữ liệu...</div>
       </div>
     )
-  },
-})
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4 text-white">Dashboard</h1>
+        <div className="bg-[#dd9787]/10 border border-[#dd9787]/30 rounded-xl p-4 text-[#dd9787] text-sm">
+          Không thể tải dữ liệu. Kiểm tra kết nối backend.
+        </div>
+      </div>
+    )
+  }
+
+  // Map categories to the shape BudgetOverview needs (category_id as number)
+  const budgetCategories = categories.map(c => ({
+    category_id: Number(c.category_id),
+    category_name: c.category_name,
+  }))
+
+  const isNegativeSavings = data.netSavings < 0
+
+  return (
+    <div className="p-6 space-y-5">
+      {/* Page title */}
+      <h1 className="text-xl font-bold text-white">Dashboard</h1>
+
+      {/* Row 1 — Metric cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          title="Tổng tài sản"
+          value={fmt(data.totalBalance)}
+          icon="💰"
+          positive={data.totalBalance >= 0}
+        />
+        <MetricCard
+          title="Thu nhập tháng"
+          value={fmt(data.monthlyIncome)}
+          icon="📈"
+          positive={true}
+        />
+        <MetricCard
+          title="Chi tiêu tháng"
+          value={fmt(data.monthlyExpenses)}
+          icon="📉"
+          positive={false}
+        />
+        <MetricCard
+          title="Tiết kiệm ròng"
+          value={fmt(data.netSavings)}
+          icon={isNegativeSavings ? '🔴' : '💵'}
+          positive={!isNegativeSavings}
+        />
+      </div>
+
+      {/* Row 2 — Chart + Accounts (7/5 split) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="lg:col-span-7">
+          <IncomeExpenseChart transactions={data.transactions} />
+        </div>
+        <div className="lg:col-span-5">
+          <AccountsSummary
+            accounts={data.accounts}
+            transactions={data.transactions}
+          />
+        </div>
+      </div>
+
+      {/* Row 3 — Budget */}
+      <BudgetOverview
+        budgets={data.budgets}
+        categories={budgetCategories}
+        transactions={data.transactions}
+      />
+
+      {/* AI Chat floating widget */}
+      <AIChatWidget />
+    </div>
+  )
+}

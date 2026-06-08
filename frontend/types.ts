@@ -22,7 +22,7 @@ export interface Transaction {
   transaction_id: string;
   transaction_date: string;
   account_id: number;
-  category_id: number;
+  category_id: number | 'split';  // 'split' is the sentinel value for multi-category transactions
   amount: number;
   type: 'income' | 'expense' | 'investment';
   note: string;

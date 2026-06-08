@@ -100,7 +100,15 @@ def create_transaction():
 def delete_transaction(transaction_id: str):
     db = get_db()
     try:
-        # Remove split rows first (physical delete before soft-delete of parent)
+        # Verify ownership BEFORE touching any rows
+        check = db.execute(
+            "SELECT transaction_id FROM Transaction_Fact WHERE transaction_id = ? AND user_id = ? AND is_deleted = 0",
+            [transaction_id, g.user_id],
+        )
+        if not check.rows:
+            return jsonify({"error": "Transaction not found"}), 404
+
+        # Remove split rows (physical delete) then soft-delete the parent
         db.execute(
             "DELETE FROM split_transactions WHERE transaction_id = ?",
             [transaction_id],

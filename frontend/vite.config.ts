@@ -10,6 +10,21 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          // Forward /api/* HTTP requests to Flask backend.
+          // The bypass function prevents proxying Vite module requests (e.g. /api/auth.ts).
+          '/api': {
+            target: env.FLASK_BACKEND_URL || env.VITE_FLASK_BACKEND_URL || 'http://localhost:5000',
+            changeOrigin: true,
+            bypass(req) {
+              // If the URL ends with a source file extension, let Vite serve it as a module.
+              if (req.url && /\.(ts|tsx|js|jsx|json|css|svg|png)(\?.*)?$/.test(req.url)) {
+                return req.url;
+              }
+              return null; // null = proxy as normal
+            },
+          },
+        },
       },
       plugins: [
         tanstackRouter({

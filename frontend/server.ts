@@ -120,7 +120,8 @@ Return ONLY valid JSON.
 `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        // NOTE: model name "gemini-3.1-flash-lite" is intentional — do NOT change it.
+        model: "gemini-3.1-flash-lite", //Never change this model
         contents: prompt,
         config: {
           systemInstruction: systemInstruction,
@@ -228,7 +229,7 @@ Return ONLY valid JSON.
       }
 
       // Persist to Turso via Flask backend
-      await fetch(`${FLASK_URL}/api/transactions`, {
+      const txRes = await fetch(`${FLASK_URL}/api/transactions`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": authHeader },
           body: JSON.stringify({
@@ -242,11 +243,33 @@ Return ONLY valid JSON.
           }),
         });
 
+      if (!txRes.ok) {
+        const txErr = await txRes.json().catch(() => ({}));
+        throw new Error(txErr.error || `Flask rejected transaction: ${txRes.status}`);
+      }
+
       res.json(parsedData);
     } catch (error: any) {
       console.error("Error calling Gemini API:", error);
       res.status(500).json({ error: error.message || "Failed to parse transaction using AI" });
     }
+  });
+
+  // ── Generic proxy for all other /api/* routes → Flask ─────────────────────
+  // Catches: /api/accounts, /api/transactions, /api/categories, /api/budgets,
+  //          /api/payees, /api/recurring, /api/sql-query, etc.
+  // Must be registered AFTER specific handlers (parse-transaction, auth) to avoid catching them.
+  // NOTE: Express 5 uses /api/*path (named wildcard) instead of /api/*
+  app.all("/api/*path", (req: any, res: any, next: any) => {
+    // Skip proxying Vite module requests (e.g. /api/auth.ts, /api/dashboard.ts?t=...)
+    // These are TypeScript source files that Vite needs to serve as ES modules.
+    const urlPath = req.path;
+    if (/\.(ts|tsx|js|jsx|json|css|svg|png|woff|woff2)$/.test(urlPath)) {
+      return next();
+    }
+    // req.originalUrl preserves the full path + query string
+    const flaskPath = req.originalUrl;
+    proxyToFlask(req, res, flaskPath);
   });
 
   // Vite middleware for development
@@ -259,7 +282,7 @@ Return ONLY valid JSON.
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get(/.*/, (req, res) => {
+    app.get(/.*/, (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

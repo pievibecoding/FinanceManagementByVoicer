@@ -25,7 +25,7 @@ export function LoginForm({ onSwitchToRegister }: Props) {
       console.log('Attempting login with:', email);
       const res = await authApi.login(email.trim(), password);
       console.log('Login response:', res);
-      login(res.access_token, res.user_id, res.email ?? email, res.name ?? '');
+      login(res.access_token, res.user_id, res.email ?? email, res.username ?? res.name ?? '');
       console.log('Login successful, token set');
     } catch (err: any) {
       console.error('Login error:', err);

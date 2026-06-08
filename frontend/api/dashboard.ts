@@ -1,5 +1,3 @@
-import { useAuth } from '@/contexts/AuthContext';
-
 // Auth calls go through Express BFF (same origin = no CORS issues)
 const BASE = '';
 

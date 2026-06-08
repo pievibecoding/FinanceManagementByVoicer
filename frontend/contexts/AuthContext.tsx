@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 const TOKEN_KEY    = "finance_auth_token";
 const USER_ID_KEY  = "finance_auth_user_id";
@@ -31,6 +31,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const name  = localStorage.getItem(NAME_KEY) ?? "";
     return id ? { id: Number(id), email, name } : null;
   });
+
+  // Verify stored token against server on initial load to catch expired/revoked tokens
+  useEffect(() => {
+    const storedToken = localStorage.getItem(TOKEN_KEY);
+    if (!storedToken) return;
+
+    fetch("/api/auth/me", {
+      headers: { "Authorization": `Bearer ${storedToken}` },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Token invalid");
+        return res.json();
+      })
+      .then(data => {
+        // Refresh user info from server in case it changed
+        setUser({
+          id: data.user_id,
+          email: data.email ?? "",
+          name: data.username ?? data.email ?? "",
+        });
+      })
+      .catch(() => {
+        // Token expired or server unreachable — clear auth state
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_ID_KEY);
+        localStorage.removeItem(EMAIL_KEY);
+        localStorage.removeItem(NAME_KEY);
+        setToken(null);
+        setUser(null);
+      });
+  }, []);
 
   const login = (newToken: string, userId: number, email: string, name = "") => {
     console.log('AuthContext.login called with:', { userId, email, name });

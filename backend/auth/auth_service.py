@@ -78,6 +78,9 @@ def google_auth(id_token: str) -> dict:
     except Exception:
         raise ValueError("Google authentication failed")
 
+    if not id_info.get("email_verified"):
+        raise ValueError("Email chưa được xác minh bởi Google")
+
     google_sub: str = id_info.get("sub", "")
     email: Optional[str] = (id_info.get("email") or "").strip().lower() or None
     name: Optional[str] = (id_info.get("name") or "").strip() or None

@@ -1,26 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi, Account, Transaction, Budget } from '@/api/dashboard';
+import { dashboardApi } from '@/api/dashboard';
 
-export function useAccounts() {
-  return useQuery({
-    queryKey: ['accounts'],
-    queryFn: () => dashboardApi.getAccounts(),
-  });
-}
+export { useAccounts, useTransactions, useBudgets } from '@/hooks/useAccounts';
 
-export function useTransactions() {
-  return useQuery({
-    queryKey: ['transactions'],
-    queryFn: () => dashboardApi.getTransactions(),
-  });
-}
-
-export function useBudgets(month?: string) {
-  return useQuery({
-    queryKey: ['budgets', month],
-    queryFn: () => dashboardApi.getBudgets(month),
-  });
-}
+// Re-export from dedicated hooks so dashboard can use them
+import { useAccounts } from '@/hooks/useAccounts';
+import { useTransactions } from '@/hooks/useTransactions';
+import { useBudgets } from '@/hooks/useBudgets';
 
 export function useDashboardMetrics() {
   const accountsQuery = useAccounts();
@@ -30,28 +16,32 @@ export function useDashboardMetrics() {
   const isLoading = accountsQuery.isLoading || transactionsQuery.isLoading || budgetsQuery.isLoading;
   const isError = accountsQuery.isError || transactionsQuery.isError || budgetsQuery.isError;
 
-  // Calculate total balance
-  const totalBalance = accountsQuery.data?.reduce((sum, acc) => sum + acc.initial_balance, 0) || 0;
+  const accounts = accountsQuery.data ?? [];
+  const transactions = transactionsQuery.data ?? [];
 
-  // Calculate current month income and expenses
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const currentMonthTransactions = transactionsQuery.data?.filter(
-    (tx) => tx.transaction_date.startsWith(currentMonth)
-  ) || [];
+  // Compute real current balance per account
+  const totalBalance = accounts.reduce((sum, acc) => {
+    let balance = acc.initial_balance;
+    transactions.forEach(tx => {
+      if (tx.account_id !== acc.account_id) return;
+      if (tx.type === 'income') balance += tx.amount;
+      else balance -= tx.amount; // expense + investment
+    });
+    return sum + balance;
+  }, 0);
 
-  const monthlyIncome = currentMonthTransactions
-    .filter((tx) => tx.type === 'income')
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const thisMonthTx = transactions.filter(tx => tx.transaction_date.startsWith(currentMonth));
+
+  const monthlyIncome = thisMonthTx
+    .filter(tx => tx.type === 'income')
     .reduce((sum, tx) => sum + tx.amount, 0);
 
-  const monthlyExpenses = currentMonthTransactions
-    .filter((tx) => tx.type === 'expense')
+  const monthlyExpenses = thisMonthTx
+    .filter(tx => tx.type === 'expense')
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   const netSavings = monthlyIncome - monthlyExpenses;
-
-  // Calculate budget status
-  const activeBudgets = budgetsQuery.data || [];
-  const budgetStatus = activeBudgets.length > 0 ? (activeBudgets.length / 10) * 100 : 0;
 
   return {
     data: {
@@ -59,10 +49,9 @@ export function useDashboardMetrics() {
       monthlyIncome,
       monthlyExpenses,
       netSavings,
-      budgetStatus,
-      accounts: accountsQuery.data || [],
-      recentTransactions: transactionsQuery.data?.slice(0, 10) || [],
-      budgets: budgetsQuery.data || [],
+      accounts,
+      transactions,
+      budgets: budgetsQuery.data ?? [],
     },
     isLoading,
     isError,

@@ -42,10 +42,9 @@ def initialize_db() -> None:
         _seed_categories(db)
         # Skip split category seeding due to libsql-client HTTP bug
         # _seed_split_category(db)
-        # Skip migrations for new database
-        # _migrate_category_id_to_integer(db)
-        # _migrate_account_id_to_integer(db)
-        # _dedup_categories(db)
+        _migrate_category_id_to_integer(db)
+        _migrate_account_id_to_integer(db)
+        _dedup_categories(db)
         logger.info("DB initialized successfully.")
     except Exception as e:
         logger.error(f"DB initialization error: {e}")
@@ -160,7 +159,7 @@ def _create_budgets_table(db) -> None:
         CREATE TABLE IF NOT EXISTS budgets (
             budget_id    INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id      INTEGER NOT NULL,
-            category_id  TEXT    NOT NULL,
+            category_id  INTEGER NOT NULL,
             month        TEXT    NOT NULL,
             amount_limit INTEGER NOT NULL DEFAULT 0,
             UNIQUE (user_id, category_id, month),
@@ -228,7 +227,7 @@ def _create_payees_table(db) -> None:
             payee_id            INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id             INTEGER NOT NULL,
             payee_name          TEXT    NOT NULL,
-            default_category_id TEXT,
+            default_category_id INTEGER,
             UNIQUE (user_id, payee_name),
             FOREIGN KEY (user_id)             REFERENCES users(user_id),
             FOREIGN KEY (default_category_id) REFERENCES Category_Dim(category_id)
@@ -410,8 +409,8 @@ def _create_recurring_table(db) -> None:
         CREATE TABLE IF NOT EXISTS recurring_transactions (
             recurring_id  INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id       INTEGER NOT NULL,
-            account_id    TEXT    NOT NULL,
-            category_id   TEXT    NOT NULL,
+            account_id    INTEGER NOT NULL,
+            category_id   INTEGER NOT NULL,
             payee_id      INTEGER,
             amount        INTEGER NOT NULL,
             type          TEXT    NOT NULL CHECK (type IN ('income', 'expense', 'investment')),
@@ -445,7 +444,7 @@ def _create_split_table(db) -> None:
         CREATE TABLE IF NOT EXISTS split_transactions (
             split_id       INTEGER PRIMARY KEY AUTOINCREMENT,
             transaction_id TEXT    NOT NULL,
-            category_id    TEXT    NOT NULL,
+            category_id    INTEGER NOT NULL,
             amount         INTEGER NOT NULL,
             note           TEXT,
             FOREIGN KEY (transaction_id) REFERENCES Transaction_Fact(transaction_id),

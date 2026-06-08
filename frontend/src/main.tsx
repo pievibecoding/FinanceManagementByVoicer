@@ -7,7 +7,6 @@ import {
 } from '@tanstack/react-query'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { toast } from 'sonner'
-import { useAuthStore } from '@/stores/auth-store'
 import { DirectionProvider } from '@/context/direction-provider'
 import { FontProvider } from '@/context/font-provider'
 import { ThemeProvider } from '@/context/theme-provider'
@@ -15,6 +14,8 @@ import { ThemeProvider } from '@/context/theme-provider'
 import { routeTree } from './routeTree.gen'
 // Styles
 import '../styles/index.css'
+
+const TOKEN_KEY = 'finance_auth_token'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,7 +43,11 @@ const queryClient = new QueryClient({
       console.error('Query error:', error)
       if (error instanceof Error && error.message.includes('401')) {
         toast.error('Session expired!')
-        useAuthStore.getState().auth.reset()
+        // Clear auth from localStorage and redirect to sign-in
+        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem('finance_auth_user_id')
+        localStorage.removeItem('finance_auth_email')
+        localStorage.removeItem('finance_auth_name')
         router.navigate({ to: '/sign-in' })
       }
     },
