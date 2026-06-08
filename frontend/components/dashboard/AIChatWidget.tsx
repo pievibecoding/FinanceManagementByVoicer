@@ -202,14 +202,28 @@ export function AIChatWidget() {
         queryClient.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
       } else if (opType === 'debt_payment') {
         const debts = await debtsApi.getDebts()
-        const lenderName = (parsed.lender || '').toLowerCase()
+        const counterpartyName = (parsed.lender || parsed.debtor || '').toLowerCase()
         const debtName = (parsed.debt_name || '').toLowerCase()
         const activeDebts = debts.filter(d => d.status === 'active')
-        const matched = activeDebts.find(d =>
-          (lenderName && (d.lender ?? '').toLowerCase().includes(lenderName)) ||
-          (lenderName && (d.debtor ?? '').toLowerCase().includes(lenderName)) ||
-          (debtName && d.name.toLowerCase().includes(debtName))
-        )
+
+        // Smart matching using debt_type:
+        // "tôi trả [X]" → AI sets lender=X → we owe X → debt_type='debt', lender matches X
+        // "[X] trả tôi" → AI sets debtor=X → X owes us → debt_type='loan', debtor matches X
+        const isPayingOut = !!parsed.lender  // tôi trả cho lender
+        const matched = activeDebts.find(d => {
+          if (debtName && d.name.toLowerCase().includes(debtName)) return true
+          if (isPayingOut) {
+            // I'm paying out → I owe someone → debt_type='debt', match lender
+            return d.debt_type === 'debt' &&
+              counterpartyName &&
+              (d.lender ?? '').toLowerCase().includes(counterpartyName)
+          } else {
+            // Someone paying me → they owe me → debt_type='loan', match debtor
+            return d.debt_type === 'loan' &&
+              counterpartyName &&
+              (d.debtor ?? '').toLowerCase().includes(counterpartyName)
+          }
+        })
         const today = new Date()
         const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`
         const paymentDate = parsed.transaction_date || dateStr
