@@ -12,7 +12,7 @@ import {
   Calendar,
   Filter,
   LogOut,
-  ArrowDownCircle,
+  HandCoins,
   PiggyBank,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
@@ -52,7 +52,7 @@ export const sidebarData: SidebarData = {
         {
           title: 'Debts',
           url: '/debts',
-          icon: ArrowDownCircle,
+          icon: HandCoins,
         },
         {
           title: 'Savings',

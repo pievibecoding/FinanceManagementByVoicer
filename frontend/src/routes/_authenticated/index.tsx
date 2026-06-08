@@ -34,7 +34,7 @@ function DashboardPage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold mb-4 text-white">Dashboard</h1>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-white/6 border border-white/18 rounded-[0.625rem] p-6 animate-pulse h-28" />
           ))}
@@ -68,8 +68,8 @@ function DashboardPage() {
       {/* Page title */}
       <h1 className="text-xl font-bold text-white">Dashboard</h1>
 
-      {/* Row 1 — Metric cards (4 columns) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Row 1 — Metric cards (6 columns: 2 mobile, 3 md, 6 lg) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <MetricCard
           title="Tổng tài sản ròng"
           value={fmt(data.netWorth)}
@@ -80,8 +80,8 @@ function DashboardPage() {
         />
         <MetricCard
           title="Tổng số dư hiện tại"
-          value={fmt(data.netWorth)}
-          icon="�"
+          value={fmt(data.totalBalance)}
+          icon="🏦"
           positive={data.totalBalance >= 0}
           onClick={() => setSelectedMetric('total-balance')}
           selected={selectedMetric === 'total-balance'}
@@ -89,7 +89,7 @@ function DashboardPage() {
         <MetricCard
           title="Thu nhập tháng"
           value={fmt(data.monthlyIncome)}
-          icon="�"
+          icon="📈"
           positive={true}
           onClick={() => setSelectedMetric('monthly-income')}
           selected={selectedMetric === 'monthly-income'}
@@ -102,9 +102,25 @@ function DashboardPage() {
           onClick={() => setSelectedMetric('monthly-expense')}
           selected={selectedMetric === 'monthly-expense'}
         />
+        <MetricCard
+          title="Tôi đang nợ"
+          value={fmt(data.totalDebt)}
+          icon="💳"
+          positive={false}
+          onClick={() => setSelectedMetric('total-debt')}
+          selected={selectedMetric === 'total-debt'}
+        />
+        <MetricCard
+          title="Tiết kiệm"
+          value={fmt(data.totalSaved)}
+          icon="🐷"
+          positive={true}
+          onClick={() => setSelectedMetric('net-savings')}
+          selected={selectedMetric === 'net-savings'}
+        />
       </div>
 
-      {/* Row 2 — Chart (3 columns) + Metric cards (4th column) */}
+      {/* Row 2 — Chart + net savings card */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         <div className="lg:col-span-3">
           <DynamicChart
@@ -118,20 +134,12 @@ function DashboardPage() {
         </div>
         <div className="lg:col-span-1 flex flex-col gap-5">
           <MetricCard
-            title="Tiết kiệm ròng"
+            title="Tiết kiệm ròng tháng"
             value={fmt(data.netSavings)}
             icon={isNegativeSavings ? '🔴' : '💵'}
             positive={!isNegativeSavings}
             onClick={() => setSelectedMetric('net-savings')}
             selected={selectedMetric === 'net-savings'}
-          />
-          <MetricCard
-            title="Tổng nợ"
-            value={fmt(data.totalDebt)}
-            icon="📉"
-            positive={false}
-            onClick={() => setSelectedMetric('total-debt')}
-            selected={selectedMetric === 'total-debt'}
           />
         </div>
       </div>

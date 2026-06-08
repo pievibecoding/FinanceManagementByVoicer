@@ -1,31 +1,76 @@
-import { useQuery } from '@tanstack/react-query'
-import { getDebts } from '@/api/debts'
-import type { Debt } from '@/types'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { debtsApi } from '@/api/debts'
 
 export function useDebts() {
   const query = useQuery({
     queryKey: ['debts'],
-    queryFn: getDebts,
+    queryFn: () => debtsApi.getDebts(),
   })
 
   const debts = query.data ?? []
-  
-  // Compute total debt (excluding paid_off status)
   const totalDebt = debts
-    .filter(d => d.status !== 'paid_off')
+    .filter(d => d.debt_type === 'debt' && d.status === 'active')
+    .reduce((sum, d) => sum + d.outstanding_balance, 0)
+  const totalLoan = debts
+    .filter(d => d.debt_type === 'loan' && d.status === 'active')
     .reduce((sum, d) => sum + d.outstanding_balance, 0)
 
-  // Find next payment due (debt with earliest due_date that's not paid_off)
-  const nextPayment = debts
-    .filter(d => d.status !== 'paid_off' && d.due_date)
-    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())[0]
+  return { ...query, debts, totalDebt, totalLoan }
+}
 
-  return {
-    debts,
-    totalDebt,
-    nextPayment,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    error: query.error,
-  }
+export function useCreateDebt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: debtsApi.createDebt,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' }),
+  })
+}
+
+export function useUpdateDebt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ debtId, data }: { debtId: number; data: Parameters<typeof debtsApi.updateDebt>[1] }) =>
+      debtsApi.updateDebt(debtId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['debts'] }),
+  })
+}
+
+export function useDeleteDebt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: debtsApi.deleteDebt,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['debts'] }),
+  })
+}
+
+export function useDebtPayments(debtId: number) {
+  return useQuery({
+    queryKey: ['debt-payments', debtId],
+    queryFn: () => debtsApi.getPayments(debtId),
+    enabled: debtId > 0,
+  })
+}
+
+export function useCreatePayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ debtId, data }: { debtId: number; data: Parameters<typeof debtsApi.createPayment>[1] }) =>
+      debtsApi.createPayment(debtId, data),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
+      qc.invalidateQueries({ queryKey: ['debt-payments', vars.debtId] })
+    },
+  })
+}
+
+export function useDeletePayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ debtId, paymentId }: { debtId: number; paymentId: number }) =>
+      debtsApi.deletePayment(debtId, paymentId),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
+      qc.invalidateQueries({ queryKey: ['debt-payments', vars.debtId] })
+    },
+  })
 }

@@ -2,18 +2,14 @@ export interface Debt {
   debt_id: number
   user_id: number
   name: string
-  debt_type: string
+  debt_type: 'debt' | 'loan'
   lender: string | null
   debtor: string | null
   principal: number
   outstanding_balance: number
-  interest_rate: number | null
-  interest_type: string | null
   start_date: string | null
   due_date: string | null
-  minimum_payment: number | null
-  payment_frequency: string
-  status: string
+  status: 'active' | 'settled' | 'overdue'
   note: string | null
   created_at: string
 }
@@ -28,11 +24,16 @@ export interface DebtPayment {
   interest_portion: number
 }
 
-// Auth calls go through Express BFF (same origin = no CORS issues)
-const BASE = ''
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('finance_auth_token')
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+}
 
-async function request<T>(path: string, options: RequestInit): Promise<T> {
-  const res = await fetch(BASE + path, options)
+async function apiFetch<T>(path: string, options: RequestInit): Promise<T> {
+  const res = await fetch(path, options)
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.error ?? `HTTP ${res.status}`)
@@ -40,50 +41,44 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
   return res.json()
 }
 
-export async function getDebts(): Promise<Debt[]> {
-  return request<Debt[]>('/api/debts', {
-    method: 'GET',
-    credentials: 'include',
-  })
-}
-
-export async function createDebt(data: Partial<Debt>): Promise<void> {
-  return request('/api/debts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  })
-}
-
-export async function updateDebt(debtId: number, data: Partial<Debt>): Promise<void> {
-  return request(`/api/debts/${debtId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  })
-}
-
-export async function deleteDebt(debtId: number): Promise<void> {
-  return request(`/api/debts/${debtId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  })
-}
-
-export async function getDebtPayments(debtId: number): Promise<DebtPayment[]> {
-  return request<DebtPayment[]>(`/api/debts/${debtId}/payments`, {
-    method: 'GET',
-    credentials: 'include',
-  })
-}
-
-export async function createDebtPayment(debtId: number, data: Partial<DebtPayment>): Promise<void> {
-  return request(`/api/debts/${debtId}/payments`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  })
+export const debtsApi = {
+  getDebts(): Promise<Debt[]> {
+    return apiFetch('/api/debts', { method: 'GET', headers: getAuthHeaders() })
+  },
+  createDebt(data: {
+    name: string
+    debt_type: 'debt' | 'loan'
+    lender?: string | null
+    debtor?: string | null
+    principal: number
+    outstanding_balance?: number
+    start_date?: string | null
+    due_date?: string | null
+    note?: string | null
+  }): Promise<{ message: string; debt_id: number }> {
+    return apiFetch('/api/debts', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) })
+  },
+  updateDebt(debtId: number, data: Partial<Omit<Debt, 'debt_id' | 'user_id' | 'created_at'>>): Promise<{ message: string }> {
+    return apiFetch(`/api/debts/${debtId}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(data) })
+  },
+  deleteDebt(debtId: number): Promise<{ message: string }> {
+    const token = localStorage.getItem('finance_auth_token')
+    return apiFetch(`/api/debts/${debtId}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  },
+  getPayments(debtId: number): Promise<DebtPayment[]> {
+    return apiFetch(`/api/debts/${debtId}/payments`, { method: 'GET', headers: getAuthHeaders() })
+  },
+  createPayment(debtId: number, data: { amount_paid: number; payment_date: string; transaction_id?: string | null }): Promise<{ message: string; payment_id: number }> {
+    return apiFetch(`/api/debts/${debtId}/payments`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) })
+  },
+  deletePayment(debtId: number, paymentId: number): Promise<{ message: string }> {
+    const token = localStorage.getItem('finance_auth_token')
+    return apiFetch(`/api/debts/${debtId}/payments/${paymentId}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  },
 }
