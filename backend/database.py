@@ -490,14 +490,24 @@ def _seed_split_category(db) -> None:
 # ── Debt tables ────────────────────────────────────────────────────────────────
 
 def _create_debt_tables(db) -> None:
-    """Create the debt-related tables and their indexes. Idempotent."""
-    # Always attempt CREATE TABLE IF NOT EXISTS regardless of migration flag
+    """Create the debt-related tables and their indexes. Idempotent.
+    NOTE: We do NOT skip based on migration flag — always run CREATE TABLE IF NOT EXISTS.
+    If the old migration flag exists but table is missing (schema mismatch), this fixes it.
+    """
+    # Remove stale migration flag so we always re-check
+    try:
+        db.execute(
+            "DELETE FROM schema_migrations WHERE migration_name = 'create_debt_tables'"
+        )
+    except Exception:
+        pass
+
     db.execute("""
         CREATE TABLE IF NOT EXISTS Debt_Dim (
             debt_id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             name TEXT NOT NULL,
-            debt_type TEXT NOT NULL,
+            debt_type TEXT NOT NULL CHECK (debt_type IN ('debt', 'loan')),
             lender TEXT,
             debtor TEXT,
             principal INTEGER NOT NULL,
@@ -531,15 +541,22 @@ def _create_debt_tables(db) -> None:
     except Exception as e:
         logger.warning(f"Debt index creation warning: {e}")
 
-    _mark_migration_done(db, "create_debt_tables")
     logger.info("debt tables ready.")
 
 
 # ── Savings tables ─────────────────────────────────────────────────────────────
 
 def _create_savings_tables(db) -> None:
-    """Create the savings-related tables and their indexes. Idempotent."""
-    # Always attempt CREATE TABLE IF NOT EXISTS regardless of migration flag
+    """Create the savings-related tables and their indexes. Idempotent.
+    NOTE: Always run CREATE TABLE IF NOT EXISTS — remove stale migration flag first.
+    """
+    try:
+        db.execute(
+            "DELETE FROM schema_migrations WHERE migration_name = 'create_savings_tables'"
+        )
+    except Exception:
+        pass
+
     db.execute("""
         CREATE TABLE IF NOT EXISTS Savings_Dim (
             savings_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -574,7 +591,6 @@ def _create_savings_tables(db) -> None:
     except Exception as e:
         logger.warning(f"Savings index creation warning: {e}")
 
-    _mark_migration_done(db, "create_savings_tables")
     logger.info("savings tables ready.")
 
 
