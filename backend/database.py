@@ -630,6 +630,7 @@ def _seed_categories(db) -> None:
     if result.rows[0][0] != 0:
         return
     categories = [
+        ("essential",     "Thiết yếu",            "expense",    5_000_000),
         ("food",          "Ăn uống",             "expense",    4_000_000),
         ("salary",        "Tiền lương",           "income",             0),
         ("investment",    "Đầu tư chứng khoán",  "investment",         0),
@@ -651,6 +652,7 @@ def _seed_categories(db) -> None:
 def seed_categories_for_user(db, user_id: int) -> None:
     """Seed default categories for a newly registered user."""
     slugs = [
+        ("Thiết yếu",            "expense",    5_000_000),
         ("Ăn uống",             "expense",    4_000_000),
         ("Tiền lương",           "income",             0),
         ("Đầu tư chứng khoán",  "investment",         0),
