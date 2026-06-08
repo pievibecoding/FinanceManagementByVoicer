@@ -15,6 +15,8 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedDebtsIndexRouteImport } from './routes/_authenticated/debts/index'
+import { Route as AuthenticatedSavingsIndexRouteImport } from './routes/_authenticated/savings/index'
 import { Route as AuthenticatedTransactionsIndexRouteImport } from './routes/_authenticated/transactions/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedCategoriesIndexRouteImport } from './routes/_authenticated/categories/index'
@@ -52,6 +54,18 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDebtsIndexRoute =
+  AuthenticatedDebtsIndexRouteImport.update({
+    id: '/debts/',
+    path: '/debts/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSavingsIndexRoute =
+  AuthenticatedSavingsIndexRouteImport.update({
+    id: '/savings/',
+    path: '/savings/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTransactionsIndexRoute =
   AuthenticatedTransactionsIndexRouteImport.update({
     id: '/transactions/',
@@ -101,6 +115,8 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/signout': typeof SignoutRoute
+  '/debts/': typeof AuthenticatedDebtsIndexRoute
+  '/savings/': typeof AuthenticatedSavingsIndexRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/accounts/': typeof AuthenticatedAccountsIndexRoute
   '/analytics/': typeof AuthenticatedAnalyticsIndexRoute
@@ -115,6 +131,8 @@ export interface FileRoutesByTo {
   '/sign-up': typeof SignUpRoute
   '/signout': typeof SignoutRoute
   '/': typeof AuthenticatedIndexRoute
+  '/debts': typeof AuthenticatedDebtsIndexRoute
+  '/savings': typeof AuthenticatedSavingsIndexRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/accounts': typeof AuthenticatedAccountsIndexRoute
   '/analytics': typeof AuthenticatedAnalyticsIndexRoute
@@ -131,6 +149,8 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/signout': typeof SignoutRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/debts/': typeof AuthenticatedDebtsIndexRoute
+  '/_authenticated/savings/': typeof AuthenticatedSavingsIndexRoute
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/accounts/': typeof AuthenticatedAccountsIndexRoute
   '/_authenticated/analytics/': typeof AuthenticatedAnalyticsIndexRoute
@@ -147,6 +167,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/signout'
+    | '/debts/'
+    | '/savings/'
     | '/settings/notifications'
     | '/accounts/'
     | '/analytics/'
@@ -161,6 +183,8 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/signout'
     | '/'
+    | '/debts'
+    | '/savings'
     | '/settings/notifications'
     | '/accounts'
     | '/analytics'
@@ -176,6 +200,8 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/signout'
     | '/_authenticated/'
+    | '/_authenticated/debts/'
+    | '/_authenticated/savings/'
     | '/_authenticated/settings/notifications'
     | '/_authenticated/accounts/'
     | '/_authenticated/analytics/'
@@ -244,6 +270,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTransactionsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/debts/': {
+      id: '/_authenticated/debts/'
+      path: '/debts'
+      fullPath: '/debts/'
+      preLoaderRoute: typeof AuthenticatedDebtsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/savings/': {
+      id: '/_authenticated/savings/'
+      path: '/savings'
+      fullPath: '/savings/'
+      preLoaderRoute: typeof AuthenticatedSavingsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings/': {
       id: '/_authenticated/settings/'
       path: '/settings'
@@ -292,6 +332,8 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
+  AuthenticatedDebtsIndexRoute: typeof AuthenticatedDebtsIndexRoute
+  AuthenticatedSavingsIndexRoute: typeof AuthenticatedSavingsIndexRoute
   AuthenticatedAccountsIndexRoute: typeof AuthenticatedAccountsIndexRoute
   AuthenticatedAnalyticsIndexRoute: typeof AuthenticatedAnalyticsIndexRoute
   AuthenticatedBudgetsIndexRoute: typeof AuthenticatedBudgetsIndexRoute
@@ -304,6 +346,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedSettingsNotificationsRoute:
     AuthenticatedSettingsNotificationsRoute,
+  AuthenticatedDebtsIndexRoute: AuthenticatedDebtsIndexRoute,
+  AuthenticatedSavingsIndexRoute: AuthenticatedSavingsIndexRoute,
   AuthenticatedAccountsIndexRoute: AuthenticatedAccountsIndexRoute,
   AuthenticatedAnalyticsIndexRoute: AuthenticatedAnalyticsIndexRoute,
   AuthenticatedBudgetsIndexRoute: AuthenticatedBudgetsIndexRoute,
