@@ -12,10 +12,14 @@ export function DeleteConfirmationDialog({ open, onOpenChange, transactionId }: 
 
   const handleConfirm = () => {
     if (!transactionId) return;
-    
+
     deleteTransaction.mutate(transactionId, {
       onSuccess: () => {
         onOpenChange(false);
+      },
+      onError: (error) => {
+        console.error('Delete failed:', error);
+        alert(`Xóa thất bại: ${error.message}`);
       },
     });
   };
