@@ -39,6 +39,43 @@ export function useDashboardMetrics() {
 
   const netSavings = monthlyIncome - monthlyExpenses;
 
+  // Compute expense by category for current month (for expense-allocation chart)
+  const expenseByCategory: Record<number, number> = {};
+  thisMonthTx.forEach(tx => {
+    if (tx.type === 'expense') {
+      const catId = Number(tx.category_id);
+      expenseByCategory[catId] = (expenseByCategory[catId] ?? 0) + tx.amount;
+    }
+  });
+
+  // Compute monthly net worth over time (for asset-fluctuation chart)
+  const monthlyNetWorth: Record<string, number> = {};
+  const months = new Set<string>();
+  transactions.forEach(tx => {
+    const month = tx.transaction_date.slice(0, 7);
+    months.add(month);
+  });
+
+  // Sort months chronologically
+  const sortedMonths = Array.from(months).sort();
+
+  // Compute net worth for each month
+  sortedMonths.forEach(month => {
+    let netWorth = 0;
+    accounts.forEach(acc => {
+      let balance = acc.initial_balance;
+      transactions.forEach(tx => {
+        if (tx.account_id !== acc.account_id) return;
+        if (tx.transaction_date.slice(0, 7) <= month) {
+          if (tx.type === 'income') balance += tx.amount;
+          else balance -= tx.amount;
+        }
+      });
+      netWorth += balance;
+    });
+    monthlyNetWorth[month] = netWorth;
+  });
+
   return {
     data: {
       totalBalance,
@@ -48,6 +85,8 @@ export function useDashboardMetrics() {
       accounts,
       transactions,
       budgets: budgetsQuery.data ?? [],
+      expenseByCategory,
+      monthlyNetWorth,
     },
     isLoading,
     isError,

@@ -2,10 +2,11 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useDashboardMetrics } from '@/hooks/useDashboard'
 import { useCategories } from '@/hooks/useCategories'
 import { MetricCard } from '@/components/dashboard/MetricCard'
-import { IncomeExpenseChart } from '@/components/dashboard/IncomeExpenseChart'
+import { DynamicChart } from '@/components/dashboard/DynamicChart'
 import { AccountsSummary } from '@/components/dashboard/AccountsSummary'
 import { BudgetOverview } from '@/components/dashboard/BudgetOverview'
 import { AIChatWidget } from '@/components/dashboard/AIChatWidget'
+import { useState } from 'react'
 
 export const Route = createFileRoute('/_authenticated/')({
   component: DashboardPage,
@@ -14,16 +15,28 @@ export const Route = createFileRoute('/_authenticated/')({
 function DashboardPage() {
   const { data, isLoading, isError } = useDashboardMetrics()
   const { data: categories = [] } = useCategories()
+  const [selectedMetric, setSelectedMetric] = useState('net-worth')
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('vi-VN').format(n) + 'đ'
+
+  const CHART_MAP: Record<string, string> = {
+    'net-worth': 'asset-fluctuation',
+    'total-balance': 'account-distribution',
+    'monthly-income': 'income-expense',
+    'monthly-expense': 'expense-allocation',
+    'net-savings': 'income-expense',
+    'total-debt': 'income-expense',
+  }
+
+  const selectedChart = (CHART_MAP[selectedMetric] || 'asset-fluctuation') as any
 
   if (isLoading) {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold mb-4 text-white">Dashboard</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-white/6 border border-white/18 rounded-[0.625rem] p-6 animate-pulse h-28" />
           ))}
         </div>
@@ -56,44 +69,77 @@ function DashboardPage() {
       {/* Page title */}
       <h1 className="text-xl font-bold text-white">Dashboard</h1>
 
-      {/* Row 1 — Metric cards */}
+      {/* Row 1 — Metric cards (4 columns) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Tổng tài sản"
+          title="Tổng tài sản ròng"
           value={fmt(data.totalBalance)}
           icon="💰"
           positive={data.totalBalance >= 0}
+          onClick={() => setSelectedMetric('net-worth')}
+          selected={selectedMetric === 'net-worth'}
+        />
+        <MetricCard
+          title="Tổng số dư hiện tại"
+          value={fmt(data.totalBalance)}
+          icon="�"
+          positive={data.totalBalance >= 0}
+          onClick={() => setSelectedMetric('total-balance')}
+          selected={selectedMetric === 'total-balance'}
         />
         <MetricCard
           title="Thu nhập tháng"
           value={fmt(data.monthlyIncome)}
-          icon="📈"
+          icon="�"
           positive={true}
+          onClick={() => setSelectedMetric('monthly-income')}
+          selected={selectedMetric === 'monthly-income'}
         />
         <MetricCard
           title="Chi tiêu tháng"
           value={fmt(data.monthlyExpenses)}
           icon="📉"
           positive={false}
-        />
-        <MetricCard
-          title="Tiết kiệm ròng"
-          value={fmt(data.netSavings)}
-          icon={isNegativeSavings ? '🔴' : '💵'}
-          positive={!isNegativeSavings}
+          onClick={() => setSelectedMetric('monthly-expense')}
+          selected={selectedMetric === 'monthly-expense'}
         />
       </div>
 
-      {/* Row 2 — Chart + Accounts (7/5 split) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <div className="lg:col-span-7">
-          <IncomeExpenseChart transactions={data.transactions} />
-        </div>
-        <div className="lg:col-span-5">
-          <AccountsSummary
-            accounts={data.accounts}
+      {/* Row 2 — Chart (3 columns) + Accounts (2 rows in 4th column) */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+        <div className="lg:col-span-3">
+          <DynamicChart
+            chartType={selectedChart}
             transactions={data.transactions}
+            accounts={data.accounts}
+            categories={categories}
+            expenseByCategory={data.expenseByCategory}
+            monthlyNetWorth={data.monthlyNetWorth}
           />
+        </div>
+        <div className="lg:col-span-1 flex flex-col gap-5">
+          <MetricCard
+            title="Tiết kiệm ròng"
+            value={fmt(data.netSavings)}
+            icon={isNegativeSavings ? '🔴' : '💵'}
+            positive={!isNegativeSavings}
+            onClick={() => setSelectedMetric('net-savings')}
+            selected={selectedMetric === 'net-savings'}
+          />
+          <MetricCard
+            title="Tổng nợ"
+            value="0đ"
+            icon="📉"
+            positive={false}
+            onClick={() => setSelectedMetric('total-debt')}
+            selected={selectedMetric === 'total-debt'}
+          />
+          <div className="flex-1">
+            <AccountsSummary
+              accounts={data.accounts}
+              transactions={data.transactions}
+            />
+          </div>
         </div>
       </div>
 
