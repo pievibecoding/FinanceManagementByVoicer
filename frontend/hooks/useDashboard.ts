@@ -1,6 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-import { dashboardApi } from '@/api/dashboard';
-
 import { useAccounts } from '@/hooks/useAccounts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useBudgets } from '@/hooks/useBudgets';

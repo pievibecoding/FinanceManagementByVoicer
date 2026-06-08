@@ -1,23 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { transactionsApi, Transaction } from '@/api/transactions';
+import { transactionsApi } from '@/api/transactions';
+import type { Transaction } from '@/api/transactions';
 
-export function useTransactions(filters?: {
-  startDate?: string;
-  endDate?: string;
-  type?: string;
-  categoryId?: string;
-  accountId?: string;
-  search?: string;
-}) {
+// Always fetch ALL transactions — filtering is done client-side in the page component.
+// Using a stable key ['transactions'] ensures invalidation always hits the right query.
+export function useTransactions() {
   return useQuery({
-    queryKey: ['transactions', filters],
-    queryFn: () => transactionsApi.getTransactions(filters),
+    queryKey: ['transactions'],
+    queryFn: () => transactionsApi.getTransactions(),
   });
 }
 
 export function useAddTransaction() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (transaction: {
       transaction_date: string;
@@ -30,15 +26,14 @@ export function useAddTransaction() {
       splits?: Array<{ category_id: string; amount: number; note: string }>;
     }) => transactionsApi.addTransaction(transaction),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'], refetchType: 'all' });
     },
   });
 }
 
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ transactionId, transaction }: {
       transactionId: string;
@@ -53,20 +48,18 @@ export function useUpdateTransaction() {
       };
     }) => transactionsApi.updateTransaction(transactionId, transaction),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'], refetchType: 'all' });
     },
   });
 }
 
 export function useDeleteTransaction() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (transactionId: string) => transactionsApi.deleteTransaction(transactionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'], refetchType: 'all' });
     },
   });
 }
