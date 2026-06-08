@@ -35,6 +35,29 @@ def create_app() -> Flask:
     app = Flask(__name__)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+    # Global error handler — returns JSON instead of HTML for all unhandled exceptions
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        import traceback
+        logger.error(f"Unhandled exception: {e}\n{traceback.format_exc()}")
+        from flask import jsonify
+        return jsonify({"error": str(e)}), 500
+
+    # Debug endpoint — check if debt/savings tables exist
+    @app.route("/api/debug/tables", methods=["GET"])
+    def debug_tables():
+        from database import get_db
+        from flask import jsonify
+        db = get_db()
+        try:
+            result = db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            )
+            tables = [row[0] for row in result.rows]
+        finally:
+            db.close()
+        return jsonify({"tables": tables})
+
     # Register route blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(transactions_bp)
