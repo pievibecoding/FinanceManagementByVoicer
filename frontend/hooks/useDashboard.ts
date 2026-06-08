@@ -1,9 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '@/api/dashboard';
 
-export { useAccounts, useTransactions, useBudgets } from '@/hooks/useAccounts';
-
-// Re-export from dedicated hooks so dashboard can use them
 import { useAccounts } from '@/hooks/useAccounts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useBudgets } from '@/hooks/useBudgets';

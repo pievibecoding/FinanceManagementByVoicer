@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUpdateTransaction } from '@/hooks/useTransactions';
-import { useAccounts } from '@/hooks/useDashboard';
+import { useAccounts } from '@/hooks/useAccounts';
 import type { Transaction } from '@/api/transactions';
 
 interface EditTransactionModalProps {

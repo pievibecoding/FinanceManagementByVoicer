@@ -118,6 +118,7 @@ export function AIChatWidget() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SR) { setMicError('Trình duyệt không hỗ trợ microphone.'); return }
 
+    // If already listening → stop and submit whatever was captured
     if (listening) {
       recognitionRef.current?._stop?.()
       return
@@ -125,45 +126,47 @@ export function AIChatWidget() {
 
     setMicError(null)
     setListening(true)
+    setInterim('')
 
     const rec = new SR()
     rec.lang = 'vi-VN'
-    rec.continuous = false
+    rec.continuous = true      // keep recording until user taps mic again
     rec.interimResults = true
+    rec.maxAlternatives = 1
+
+    let finalAccumulated = ''
 
     rec.onresult = (e: any) => {
-      let final = '', inter = ''
+      let inter = ''
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) final += t
+        if (e.results[i].isFinal) finalAccumulated += t + ' '
         else inter += t
       }
-      if (inter) setInterim(inter)
-      if (final) {
-        recognitionRef.current = null
-        setInterim('')
-        setListening(false)
-        handleSubmit(final.trim())
-      }
+      setInterim(inter || finalAccumulated.trim())
     }
+
     rec.onerror = (e: any) => {
       if (e.error === 'not-allowed') setMicError('Không có quyền microphone.')
       recognitionRef.current = null
       setListening(false)
       setInterim('')
     }
+
     rec.onend = () => {
-      if (recognitionRef.current === rec) {
-        setListening(false)
-        setInterim('')
-      }
-    }
-    ;(rec as any)._stop = () => {
+      // onend fires after _stop() — submit accumulated text
       recognitionRef.current = null
-      rec.stop()
       setListening(false)
       setInterim('')
+      const text = finalAccumulated.trim()
+      if (text) handleSubmit(text)
     }
+
+    ;(rec as any)._stop = () => {
+      recognitionRef.current = null
+      rec.stop() // triggers onend → which submits
+    }
+
     recognitionRef.current = rec
     rec.start()
   }
@@ -334,6 +337,7 @@ export function AIChatWidget() {
                     ? 'text-[#dd9787] bg-[#dd9787]/10 animate-pulse'
                     : 'text-white/40 hover:text-white'
                 }`}
+                title={listening ? 'Bấm để dừng và gửi' : 'Bấm để nói'}
               >
                 {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>

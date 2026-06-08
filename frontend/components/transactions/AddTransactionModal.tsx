@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAddTransaction } from '@/hooks/useTransactions';
-import { useAccounts } from '@/hooks/useDashboard';
+import { useAccounts } from '@/hooks/useAccounts';
 
 interface AddTransactionModalProps {
   open: boolean;
