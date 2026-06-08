@@ -9,6 +9,7 @@ interface ParsedTransaction {
   account: string
   note: string
   transaction_date: string
+  location?: string
   account_is_new?: boolean
 }
 
@@ -256,6 +257,7 @@ export function AIChatWidget() {
                     <div className="text-white/60 space-y-0.5">
                       <p>🏷 {p.category} &nbsp;·&nbsp; 💳 {p.account}</p>
                       {p.note && <p>📝 {p.note}</p>}
+                      {p.location && <p>📍 {p.location}</p>}
                       <p className="text-white/30">{p.transaction_date}</p>
                       {p.account_is_new && (
                         <p className="text-amber-400">🆕 Tài khoản mới đã được tạo</p>
