@@ -25,7 +25,8 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
   useEffect(() => {
     if (transaction) {
       setFormData({
-        transaction_date: transaction.transaction_date.split('T')[0],
+        // transaction_date from Flask is 'YYYY-MM-DD HH:MM:SS' — take date part only for the input
+        transaction_date: transaction.transaction_date.slice(0, 10),
         account_id: transaction.account_id,
         category_id: transaction.category_id,
         amount: transaction.amount,
@@ -38,10 +39,19 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!transaction) return;
-    
+
+    // Flask expects transaction_date as 'YYYY-MM-DD HH:MM:SS'
+    // Keep original time if date unchanged, otherwise default to 00:00:00
+    const originalDate = transaction.transaction_date.slice(0, 10);
+    const originalTime = transaction.transaction_date.slice(11) || '00:00:00';
+    const newDate = formData.transaction_date;
+    const transactionDate = newDate === originalDate
+      ? transaction.transaction_date
+      : `${newDate} ${originalTime}`;
+
     updateTransaction.mutate({
       transactionId: transaction.transaction_id,
-      transaction: formData,
+      transaction: { ...formData, transaction_date: transactionDate },
     }, {
       onSuccess: () => {
         onOpenChange(false);

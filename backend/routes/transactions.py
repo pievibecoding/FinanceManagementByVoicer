@@ -4,6 +4,7 @@ routes/transactions.py
 Endpoints:
   GET    /api/transactions         — list user's transactions (with splits)
   POST   /api/transactions         — create a transaction (optionally with splits)
+  PUT    /api/transactions/<id>    — update transaction fields
   DELETE /api/transactions/<id>    — soft-delete a transaction + remove split rows
 """
 import logging
@@ -17,6 +18,8 @@ from auth.jwt_utils import require_auth
 logger = logging.getLogger(__name__)
 
 transactions_bp = Blueprint("transactions", __name__)
+
+ALLOWED_UPDATE_FIELDS = {"transaction_date", "account_id", "category_id", "amount", "type", "note", "payee_id"}
 
 
 @transactions_bp.route("/api/transactions", methods=["GET"])
@@ -93,6 +96,46 @@ def create_transaction():
         db.close()
 
     return jsonify({"message": "Transaction created!", "transaction_id": transaction_id}), 201
+
+
+@transactions_bp.route("/api/transactions/<transaction_id>", methods=["PUT"])
+@require_auth
+def update_transaction(transaction_id: str):
+    data = request.get_json(silent=True) or {}
+
+    # Only allow updating specific fields
+    updates = {k: v for k, v in data.items() if k in ALLOWED_UPDATE_FIELDS}
+    if not updates:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    if "amount" in updates:
+        try:
+            updates["amount"] = int(updates["amount"])
+            if updates["amount"] <= 0:
+                return jsonify({"error": "amount must be a positive integer"}), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": "amount must be a positive integer"}), 400
+
+    db = get_db()
+    try:
+        # Verify ownership
+        check = db.execute(
+            "SELECT transaction_id FROM Transaction_Fact WHERE transaction_id = ? AND user_id = ? AND is_deleted = 0",
+            [transaction_id, g.user_id],
+        )
+        if not check.rows:
+            return jsonify({"error": "Transaction not found"}), 404
+
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        values = list(updates.values()) + [transaction_id, g.user_id]
+        db.execute(
+            f"UPDATE Transaction_Fact SET {set_clause} WHERE transaction_id = ? AND user_id = ?",
+            values,
+        )
+    finally:
+        db.close()
+
+    return jsonify({"message": "Transaction updated successfully"}), 200
 
 
 @transactions_bp.route("/api/transactions/<transaction_id>", methods=["DELETE"])
