@@ -96,3 +96,55 @@ export interface Artifact {
   status: 'streaming' | 'completed' | 'error';
   styleName: string;
 }
+
+export interface Debt {
+  debt_id: number;
+  user_id: number;
+  name: string;
+  debt_type: string;
+  lender: string | null;
+  principal: number;
+  outstanding_balance: number;
+  interest_rate: number | null;
+  interest_type: string | null;
+  start_date: string | null;
+  due_date: string | null;
+  minimum_payment: number | null;
+  payment_frequency: string;
+  status: string;
+  note: string | null;
+  created_at: string;
+}
+
+export interface DebtPayment {
+  payment_id: number;
+  debt_id: number;
+  transaction_id: string | null;
+  payment_date: string;
+  amount_paid: number;
+  principal_portion: number;
+  interest_portion: number;
+}
+
+export interface Savings {
+  savings_id: number;
+  user_id: number;
+  name: string;
+  category: string | null;
+  target_amount: number;
+  current_balance: number;
+  interest_rate: number | null;
+  target_date: string | null;
+  linked_account_id: string | null;
+  status: string;
+  note: string | null;
+  created_at: string;
+}
+
+export interface SavingsContribution {
+  contribution_id: number;
+  savings_id: number;
+  transaction_id: string | null;
+  contribution_date: string;
+  amount: number;
+}

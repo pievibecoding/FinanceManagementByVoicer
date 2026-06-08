@@ -3,9 +3,10 @@ import { useDashboardMetrics } from '@/hooks/useDashboard'
 import { useCategories } from '@/hooks/useCategories'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { DynamicChart } from '@/components/dashboard/DynamicChart'
-import { AccountsSummary } from '@/components/dashboard/AccountsSummary'
 import { BudgetOverview } from '@/components/dashboard/BudgetOverview'
 import { AIChatWidget } from '@/components/dashboard/AIChatWidget'
+import { DebtWidget } from '@/components/dashboard/DebtWidget'
+import { SavingsWidget } from '@/components/dashboard/SavingsWidget'
 import { useState } from 'react'
 
 export const Route = createFileRoute('/_authenticated/')({
@@ -73,7 +74,7 @@ function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Tổng tài sản ròng"
-          value={fmt(data.totalBalance)}
+          value={fmt(data.netWorth)}
           icon="💰"
           positive={data.totalBalance >= 0}
           onClick={() => setSelectedMetric('net-worth')}
@@ -81,7 +82,7 @@ function DashboardPage() {
         />
         <MetricCard
           title="Tổng số dư hiện tại"
-          value={fmt(data.totalBalance)}
+          value={fmt(data.netWorth)}
           icon="�"
           positive={data.totalBalance >= 0}
           onClick={() => setSelectedMetric('total-balance')}
@@ -128,12 +129,14 @@ function DashboardPage() {
           />
           <MetricCard
             title="Tổng nợ"
-            value="0đ"
+            value={fmt(data.totalDebt)}
             icon="📉"
             positive={false}
             onClick={() => setSelectedMetric('total-debt')}
             selected={selectedMetric === 'total-debt'}
           />
+          <DebtWidget />
+          <SavingsWidget />
         </div>
       </div>
 

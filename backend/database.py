@@ -38,6 +38,8 @@ def initialize_db() -> None:
         _add_location_column(db)
         _create_recurring_table(db)
         _create_split_table(db)
+        _create_debt_tables(db)
+        _create_savings_tables(db)
         _seed_system_user(db)
         _seed_accounts(db)
         _seed_categories(db)
@@ -483,6 +485,111 @@ def _seed_split_category(db) -> None:
         ["split", "Nhiều danh mục", "split", 0, 1],
     )
     logger.info("Seeded 'split' sentinel category.")
+
+
+# ── Debt tables ────────────────────────────────────────────────────────────────
+
+def _create_debt_tables(db) -> None:
+    """Create the debt-related tables and their indexes. Idempotent."""
+    migration_name = "create_debt_tables"
+    if _migration_applied(db, migration_name):
+        logger.info("debt tables migration already applied — skipping.")
+        return
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS Debt_Dim (
+            debt_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            debt_type TEXT NOT NULL,
+            lender TEXT,
+            principal INTEGER NOT NULL,
+            outstanding_balance INTEGER NOT NULL,
+            interest_rate REAL,
+            interest_type TEXT,
+            start_date TEXT,
+            due_date TEXT,
+            minimum_payment INTEGER,
+            payment_frequency TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            note TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(user_id)
+        )
+    """)
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS Debt_Payment_Fact (
+            payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            debt_id INTEGER NOT NULL,
+            transaction_id TEXT,
+            payment_date TEXT NOT NULL,
+            amount_paid INTEGER NOT NULL,
+            principal_portion INTEGER NOT NULL,
+            interest_portion INTEGER NOT NULL,
+            FOREIGN KEY (debt_id) REFERENCES Debt_Dim(debt_id),
+            FOREIGN KEY (transaction_id) REFERENCES Transaction_Fact(transaction_id)
+        )
+    """)
+
+    try:
+        db.execute("CREATE INDEX IF NOT EXISTS idx_debt_user ON Debt_Dim(user_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_debt_payment_debt ON Debt_Payment_Fact(debt_id)")
+    except Exception as e:
+        logger.warning(f"Debt index creation warning: {e}")
+
+    _mark_migration_done(db, migration_name)
+    logger.info("debt tables ready.")
+
+
+# ── Savings tables ─────────────────────────────────────────────────────────────
+
+def _create_savings_tables(db) -> None:
+    """Create the savings-related tables and their indexes. Idempotent."""
+    migration_name = "create_savings_tables"
+    if _migration_applied(db, migration_name):
+        logger.info("savings tables migration already applied — skipping.")
+        return
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS Savings_Dim (
+            savings_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            category TEXT,
+            target_amount INTEGER NOT NULL,
+            current_balance INTEGER NOT NULL,
+            interest_rate REAL,
+            target_date TEXT,
+            linked_account_id TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            note TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            FOREIGN KEY (linked_account_id) REFERENCES Account_Dim(account_id)
+        )
+    """)
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS Savings_Contribution_Fact (
+            contribution_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            savings_id INTEGER NOT NULL,
+            transaction_id TEXT,
+            contribution_date TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            FOREIGN KEY (savings_id) REFERENCES Savings_Dim(savings_id),
+            FOREIGN KEY (transaction_id) REFERENCES Transaction_Fact(transaction_id)
+        )
+    """)
+
+    try:
+        db.execute("CREATE INDEX IF NOT EXISTS idx_savings_user ON Savings_Dim(user_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_savings_contribution_savings ON Savings_Contribution_Fact(savings_id)")
+    except Exception as e:
+        logger.warning(f"Savings index creation warning: {e}")
+
+    _mark_migration_done(db, migration_name)
+    logger.info("savings tables ready.")
 
 
 # ── Seed helpers ───────────────────────────────────────────────────────────────

@@ -20,6 +20,8 @@ from routes.analytics    import analytics_bp
 from routes.budgets      import budgets_bp
 from routes.payees       import payees_bp
 from routes.recurring    import recurring_bp
+from routes.debts        import debts_bp
+from routes.savings      import savings_bp
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -42,6 +44,8 @@ def create_app() -> Flask:
     app.register_blueprint(budgets_bp)
     app.register_blueprint(payees_bp)
     app.register_blueprint(recurring_bp)
+    app.register_blueprint(debts_bp)
+    app.register_blueprint(savings_bp)
 
     return app
 

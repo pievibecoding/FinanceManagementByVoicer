@@ -1,6 +1,8 @@
 import { useAccounts } from '@/hooks/useAccounts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useBudgets } from '@/hooks/useBudgets';
+import { useDebts } from '@/hooks/useDebts';
+import { useSavings } from '@/hooks/useSavings';
 
 // useDashboardMetrics uses the SAME useTransactions hook as the transactions page.
 // This ensures both share the same TanStack Query cache entry ['transactions'].
@@ -8,6 +10,8 @@ export function useDashboardMetrics() {
   const accountsQuery = useAccounts();
   const transactionsQuery = useTransactions();
   const budgetsQuery = useBudgets();
+  const { totalDebt } = useDebts();
+  const { totalSaved } = useSavings();
 
   const isLoading = accountsQuery.isLoading || transactionsQuery.isLoading || budgetsQuery.isLoading;
   const isError = accountsQuery.isError || transactionsQuery.isError || budgetsQuery.isError;
@@ -25,6 +29,9 @@ export function useDashboardMetrics() {
     });
     return sum + balance;
   }, 0);
+
+  // Net worth = Total assets (sum of all account balances + savings) - Total debt
+  const netWorth = totalBalance + totalSaved - totalDebt;
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const thisMonthTx = transactions.filter(tx => tx.transaction_date.startsWith(currentMonth));
@@ -79,6 +86,9 @@ export function useDashboardMetrics() {
   return {
     data: {
       totalBalance,
+      netWorth,
+      totalDebt,
+      totalSaved,
       monthlyIncome,
       monthlyExpenses,
       netSavings,
