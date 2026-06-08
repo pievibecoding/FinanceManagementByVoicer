@@ -86,6 +86,13 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
             <p className="text-white text-sm">{transaction.transaction_id}</p>
           </div>
 
+          {transaction.location && (
+            <div className="p-3 bg-white/6 border border-white/18 rounded-lg">
+              <p className="text-white/60 text-sm mb-1">Địa điểm</p>
+              <p className="text-white">{transaction.location}</p>
+            </div>
+          )}
+
           {transaction.splits && transaction.splits.length > 0 && (
             <div className="p-3 bg-white/6 border border-white/18 rounded-lg">
               <p className="text-white/60 text-sm mb-2">Splits</p>

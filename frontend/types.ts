@@ -27,6 +27,7 @@ export interface Transaction {
   type: 'income' | 'expense' | 'investment';
   note: string;
   payee_id?: number | null;
+  location?: string | null;
   splits?: SplitItem[];
 }
 

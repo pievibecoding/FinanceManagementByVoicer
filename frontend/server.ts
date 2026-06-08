@@ -113,6 +113,7 @@ Standard output schema properties:
 - account: string, matched account.
 - note: string, short brief description in Vietnamese (e.g. "ăn cơm sườn", "mua sách học lập trình", "nhận tiền lương tháng", "đầu tư cổ phiếu FPT").
 - transaction_date: string, representing date/time of the transaction. Use the current local time '${localTime || '2026-06-03 11:15:29'}' as the base referential today, and look for relative descriptors like "hôm qua", "hôm nay", "sáng nay", "chiều qua". Extract exact hour/minute if provided (e.g., "Lúc 13h" => 13:00:00). Format of output MUST be 'YYYY-MM-DD HH:MM:SS'.
+- location: string, extract location/venue if mentioned in the input (e.g. "tại Starbucks", "ở quán cà phê", "tại siêu thị", "ở Circle K"). If no location is mentioned, leave as empty string "".
 
 Known payees for this user: [${payeeContext}].
 If the merchant or recipient in the transaction matches one of the known payees exactly or closely, set payee_name to the exact name from the list.
@@ -140,9 +141,10 @@ Return ONLY valid JSON.
               account_is_new: { type: Type.BOOLEAN, description: "TRUE nếu tài khoản chưa có trong danh sách" },
               note: { type: Type.STRING, description: "Ghi chú ngắn ngọn bằng tiếng Việt" },
               transaction_date: { type: Type.STRING, description: "Ngày giờ định dạng YYYY-MM-DD HH:MM:SS" },
-              payee_name: { type: Type.STRING, description: "Tên payee từ danh sách known payees, để trống nếu không khớp" }
+              payee_name: { type: Type.STRING, description: "Tên payee từ danh sách known payees, để trống nếu không khớp" },
+              location: { type: Type.STRING, description: "Địa điểm giao dịch nếu được nhắc đến, để trống nếu không có" }
             },
-            required: ["valid", "rejection_reason", "amount", "type", "category", "account", "account_is_new", "note", "transaction_date", "payee_name"]
+            required: ["valid", "rejection_reason", "amount", "type", "category", "account", "account_is_new", "note", "transaction_date", "payee_name", "location"]
           }
         },
       });
@@ -242,6 +244,7 @@ Return ONLY valid JSON.
             type: parsedData.type,
             note: parsedData.note,
             payee_id: resolvedPayeeId,
+            location: parsedData.location,
           }),
         });
 

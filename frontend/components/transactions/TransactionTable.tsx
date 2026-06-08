@@ -49,6 +49,7 @@ export function TransactionTable({ transactions, categories, onEdit, onDelete, o
             <th className="text-left p-4 text-white/60 text-sm font-medium">Loại</th>
             <th className="text-left p-4 text-white/60 text-sm font-medium">Danh mục</th>
             <th className="text-left p-4 text-white/60 text-sm font-medium">Ghi chú</th>
+            <th className="text-left p-4 text-white/60 text-sm font-medium">Địa điểm</th>
             <th className="text-right p-4 text-white/60 text-sm font-medium">Số tiền</th>
             <th className="text-center p-4 text-white/60 text-sm font-medium">Thao tác</th>
           </tr>
@@ -70,6 +71,7 @@ export function TransactionTable({ transactions, categories, onEdit, onDelete, o
                 {catMap[String(tx.category_id)] ?? `#${tx.category_id}`}
               </td>
               <td className="p-4 text-white/70 text-sm max-w-[200px] truncate">{tx.note || '—'}</td>
+              <td className="p-4 text-white/70 text-sm max-w-[200px] truncate">{tx.location || '—'}</td>
               <td className={`p-4 text-right font-bold tabular-nums text-sm ${TYPE_COLOR[tx.type] ?? 'text-white'}`}>
                 {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}đ
               </td>

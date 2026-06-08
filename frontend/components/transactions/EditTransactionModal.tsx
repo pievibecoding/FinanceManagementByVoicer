@@ -22,6 +22,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     amount: 0,
     type: 'expense',
     note: '',
+    location: '',
   });
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         amount: transaction.amount,
         type: transaction.type,
         note: transaction.note,
+        location: transaction.location || '',
       });
     }
   }, [transaction]);
@@ -141,6 +143,17 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
               onChange={(e) => setFormData({ ...formData, note: e.target.value })}
               className="w-full px-3 py-2 bg-white/10 border border-white/18 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#74d3ae]"
               rows={2}
+            />
+          </div>
+
+          <div>
+            <label className="block text-white/60 text-sm mb-1">Địa điểm</label>
+            <input
+              type="text"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              className="w-full px-3 py-2 bg-white/10 border border-white/18 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#74d3ae]"
+              placeholder="Địa điểm giao dịch..."
             />
           </div>
 

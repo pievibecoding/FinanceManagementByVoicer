@@ -59,6 +59,7 @@ export const transactionsApi = {
     type: string;
     note: string;
     payee_id?: number;
+    location?: string;
     splits?: Array<{ category_id: string; amount: number; note: string }>;
   }): Promise<{ message: string; transaction_id: string }> {
     return request('/api/transactions', {
@@ -76,6 +77,7 @@ export const transactionsApi = {
     type?: string;
     note?: string;
     payee_id?: number;
+    location?: string;
   }): Promise<{ message: string }> {
     return request(`/api/transactions/${transactionId}`, {
       method: 'PUT',

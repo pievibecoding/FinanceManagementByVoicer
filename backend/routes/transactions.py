@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 transactions_bp = Blueprint("transactions", __name__)
 
-ALLOWED_UPDATE_FIELDS = {"transaction_date", "account_id", "category_id", "amount", "type", "note", "payee_id"}
+ALLOWED_UPDATE_FIELDS = {"transaction_date", "account_id", "category_id", "amount", "type", "note", "payee_id", "location"}
 
 
 @transactions_bp.route("/api/transactions", methods=["GET"])
@@ -65,6 +65,7 @@ def create_transaction():
     tx_type          = data.get("type")
     note             = data.get("note", "")
     payee_id         = data.get("payee_id")  # optional, may be None
+    location         = data.get("location")  # optional, may be None
     splits           = data.get("splits", [])
 
     if not all([transaction_date, account_id, category_id, amount, tx_type]):
@@ -82,8 +83,8 @@ def create_transaction():
     db = get_db()
     try:
         db.execute(
-            "INSERT INTO Transaction_Fact (transaction_id, transaction_date, account_id, category_id, amount, type, note, user_id, payee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [transaction_id, transaction_date, account_id, category_id, int(amount), tx_type, note, g.user_id, payee_id],
+            "INSERT INTO Transaction_Fact (transaction_id, transaction_date, account_id, category_id, amount, type, note, user_id, payee_id, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [transaction_id, transaction_date, account_id, category_id, int(amount), tx_type, note, g.user_id, payee_id, location],
         )
 
         if splits:

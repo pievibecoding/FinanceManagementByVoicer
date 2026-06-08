@@ -35,6 +35,7 @@ def initialize_db() -> None:
         _migrate_budgets_from_categories(db)
         _create_payees_table(db)
         _migrate_payee_column(db)
+        _add_location_column(db)
         _create_recurring_table(db)
         _create_split_table(db)
         _seed_system_user(db)
@@ -244,6 +245,21 @@ def _migrate_payee_column(db) -> None:
             "ALTER TABLE Transaction_Fact ADD COLUMN payee_id INTEGER REFERENCES payees(payee_id)"
         )
         logger.info("Migrated Transaction_Fact: added payee_id")
+    except Exception:
+        pass  # column already exists
+
+
+def _add_location_column(db) -> None:
+    """Add nullable location column to Transaction_Fact. Idempotent."""
+    migration_name = "add_location_column"
+    if _migration_applied(db, migration_name):
+        logger.info("location column migration already applied — skipping.")
+        return
+
+    try:
+        db.execute("ALTER TABLE Transaction_Fact ADD COLUMN location TEXT")
+        logger.info("Migrated Transaction_Fact: added location")
+        _mark_migration_done(db, migration_name)
     except Exception:
         pass  # column already exists
 

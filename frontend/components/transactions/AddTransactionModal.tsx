@@ -20,6 +20,7 @@ const EMPTY_FORM = () => ({
   amount: 0,
   type: 'expense',
   note: '',
+  location: '',
 });
 
 export function AddTransactionModal({ open, onOpenChange }: AddTransactionModalProps) {
@@ -133,6 +134,17 @@ export function AddTransactionModal({ open, onOpenChange }: AddTransactionModalP
               className="w-full px-3 py-2 bg-white/10 border border-white/18 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#74d3ae]"
               rows={2}
               placeholder="Mô tả giao dịch..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-white/60 text-sm mb-1">Địa điểm</label>
+            <input
+              type="text"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              className="w-full px-3 py-2 bg-white/10 border border-white/18 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#74d3ae]"
+              placeholder="Địa điểm giao dịch..."
             />
           </div>
 

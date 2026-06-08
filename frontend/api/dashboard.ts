@@ -41,6 +41,7 @@ export interface Transaction {
   note: string;
   user_id: number;
   payee_id: number | null;
+  location?: string | null;
   splits: any[];
 }
 
