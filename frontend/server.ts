@@ -15,13 +15,15 @@ async function startServer() {
   const proxyToFlask = async (req: any, res: any, flaskPath: string) => {
     console.log(`Proxying ${req.method} ${flaskPath} to ${FLASK_URL}`);
     try {
+      // DELETE requests must not send a body — some servers reject DELETE+body
+      const hasBody = req.method !== "GET" && req.method !== "DELETE";
       const flaskRes = await fetch(`${FLASK_URL}${flaskPath}`, {
         method: req.method,
         headers: {
-          "Content-Type": "application/json",
+          ...(hasBody ? { "Content-Type": "application/json" } : {}),
           ...(req.headers.authorization ? { "Authorization": req.headers.authorization } : {}),
         },
-        body: req.method !== "GET" ? JSON.stringify(req.body) : undefined,
+        body: hasBody ? JSON.stringify(req.body) : undefined,
       });
       console.log(`Flask response status: ${flaskRes.status}`);
       const text = await flaskRes.text();
