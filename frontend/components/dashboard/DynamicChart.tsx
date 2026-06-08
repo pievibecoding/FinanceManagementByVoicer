@@ -16,14 +16,18 @@ import {
 } from 'recharts'
 import type { Transaction, Account } from '@/api/dashboard'
 import type { Category } from '@/api/categories'
+import type { SavingsGoal } from '@/api/savings'
+import type { Debt } from '@/api/debts'
 
 interface DynamicChartProps {
-  chartType: 'asset-fluctuation' | 'expense-allocation' | 'account-distribution' | 'income-expense'
+  chartType: 'asset-fluctuation' | 'expense-allocation' | 'account-distribution' | 'income-expense' | 'savings-breakdown' | 'debt-breakdown' | 'monthly-income-breakdown' | 'net-savings-trend'
   transactions: Transaction[]
   accounts: Account[]
   categories: Category[]
   expenseByCategory: Record<number, number>
   monthlyNetWorth: Record<string, number>
+  savings?: SavingsGoal[]
+  debts?: Debt[]
 }
 
 type TimeRange = '1d' | '1w' | '1m' | '3m' | '6m' | '1y' | 'all'
@@ -81,6 +85,8 @@ export function DynamicChart({
   categories,
   expenseByCategory,
   monthlyNetWorth,
+  savings = [],
+  debts = [],
 }: DynamicChartProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('1m')
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
@@ -349,6 +355,133 @@ export function DynamicChart({
           </ResponsiveContainer>
         )
 
+      case 'savings-breakdown': {
+        const activeSavings = savings.filter(s => s.status !== 'cancelled')
+        if (activeSavings.length === 0) {
+          return (
+            <div className="flex items-center justify-center h-[260px] text-white/40 text-sm">
+              Chưa có quỹ tiết kiệm nào
+            </div>
+          )
+        }
+        const savingsData = activeSavings.map(s => ({ name: s.name, value: s.current_balance, target: s.target_amount }))
+        const totalSaved = savingsData.reduce((sum, s) => sum + s.value, 0)
+        return (
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie data={savingsData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="value" labelLine={false}
+                label={({ cx, cy, midAngle, innerRadius, outerRadius, value }) => {
+                  if (!value || !totalSaved) return null
+                  const RADIAN = Math.PI / 180
+                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+                  return <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={500}>{((value / totalSaved) * 100).toFixed(0)}%</text>
+                }}
+              >
+                {savingsData.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+              </Pie>
+              <Tooltip content={({ active, payload }) => {
+                if (!active || !payload?.length) return null
+                const item = payload[0].payload
+                const pct = totalSaved > 0 ? ((item.value / totalSaved) * 100).toFixed(1) : '0'
+                const progress = item.target > 0 ? ((item.value / item.target) * 100).toFixed(0) : '0'
+                return (
+                  <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
+                    <p className="text-white font-medium">{item.name}</p>
+                    <p className="text-[#74d3ae]">{fmt(item.value)}đ ({pct}% tổng)</p>
+                    <p className="text-white/40">Mục tiêu: {fmt(item.target)}đ ({progress}% đạt)</p>
+                  </div>
+                )
+              }} />
+              <Legend formatter={(v) => <span className="text-xs text-white/50">{v}</span>} />
+            </PieChart>
+          </ResponsiveContainer>
+        )
+      }
+
+      case 'debt-breakdown': {
+        const myDebts = debts.filter(d => d.status === 'active' && d.debt_type === 'debt')
+        const myLoans = debts.filter(d => d.status === 'active' && d.debt_type === 'loan')
+        if (myDebts.length === 0 && myLoans.length === 0) {
+          return <div className="flex items-center justify-center h-[260px] text-white/40 text-sm">Không có khoản nợ/vay đang hoạt động</div>
+        }
+        const myDebtData = myDebts.map(d => ({ name: d.lender || d.name, value: d.outstanding_balance }))
+        const myLoanData = myLoans.map(d => ({ name: d.debtor || d.name, value: d.outstanding_balance }))
+        const totalDebt = myDebtData.reduce((s, d) => s + d.value, 0)
+        const totalLoan = myLoanData.reduce((s, d) => s + d.value, 0)
+
+        const MiniDonut = ({ data, total, title, color }: { data: {name:string;value:number}[]; total:number; title:string; color:string }) => (
+          <div className="flex-1 flex flex-col min-w-0">
+            <p className="text-white/50 text-xs text-center mb-0.5">{title}</p>
+            <p className="text-center text-sm font-bold mb-1" style={{ color }}>{fmt(total)}đ</p>
+            {data.length === 0
+              ? <div className="flex-1 flex items-center justify-center text-white/30 text-xs">Không có</div>
+              : <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={data} cx="50%" cy="50%" innerRadius={40} outerRadius={75} paddingAngle={2} dataKey="value" labelLine={false}
+                      label={({ cx, cy, midAngle, innerRadius, outerRadius, value }) => {
+                        if (!value || !total) return null
+                        const R = Math.PI / 180
+                        const r = innerRadius + (outerRadius - innerRadius) * 0.5
+                        const x = cx + r * Math.cos(-midAngle * R)
+                        const y = cy + r * Math.sin(-midAngle * R)
+                        return <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={500}>{((value/total)*100).toFixed(0)}%</text>
+                      }}
+                    >
+                      {data.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const item = payload[0].payload
+                      return (
+                        <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
+                          <p className="text-white font-medium">{item.name}</p>
+                          <p style={{ color }}>{fmt(item.value)}đ ({total > 0 ? ((item.value/total)*100).toFixed(1) : 0}%)</p>
+                        </div>
+                      )
+                    }} />
+                    <Legend formatter={(v) => <span className="text-[10px] text-white/40">{v}</span>} />
+                  </PieChart>
+                </ResponsiveContainer>
+            }
+          </div>
+        )
+
+        return (
+          <div className="flex gap-3 h-[260px]">
+            <MiniDonut data={myDebtData} total={totalDebt} title="Tôi đang nợ" color="#dd9787" />
+            <div className="w-px bg-white/10 self-stretch" />
+            <MiniDonut data={myLoanData} total={totalLoan} title="Người nợ tôi" color="#74d3ae" />
+          </div>
+        )
+      }
+
+      case 'monthly-income-breakdown': {
+        const monthlyIncome: Record<string, number> = {}
+        transactions.filter(tx => tx.type === 'income' && new Date(tx.transaction_date) >= startDate)
+          .forEach(tx => {
+            const m = tx.transaction_date.slice(0, 7)
+            monthlyIncome[m] = (monthlyIncome[m] ?? 0) + tx.amount
+          })
+        const incomeData = Object.entries(monthlyIncome).sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ name: formatMonth(month), value }))
+        if (incomeData.length === 0) return <div className="flex items-center justify-center h-[260px] text-white/40 text-sm">Chưa có thu nhập trong kỳ này</div>
+        return (
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={incomeData} barSize={24}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={formatVND} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
+              <Tooltip content={({ active, payload }) => {
+                if (!active || !payload?.length) return null
+                return <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl"><p className="text-white/60 mb-0.5">{payload[0].payload.name}</p><p className="text-[#74d3ae] font-medium">{fmt(payload[0].value as number)}đ</p></div>
+              }} />
+              <Bar dataKey="value" fill="#74d3ae" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )
+      }
+
       case 'income-expense':
         return (
           <ResponsiveContainer width="100%" height={260}>
@@ -397,6 +530,9 @@ export function DynamicChart({
       case 'expense-allocation': return 'Tỷ lệ phân bổ chi tiêu'
       case 'account-distribution': return 'Số dư theo tài khoản'
       case 'income-expense': return 'Thu chi'
+      case 'savings-breakdown': return 'Phân bổ quỹ tiết kiệm'
+      case 'debt-breakdown': return 'Tổng quan nợ/vay'
+      case 'monthly-income-breakdown': return 'Thu nhập theo tháng'
       default: return ''
     }
   }

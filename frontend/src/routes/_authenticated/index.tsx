@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useDashboardMetrics } from '@/hooks/useDashboard'
 import { useCategories } from '@/hooks/useCategories'
+import { useDebts } from '@/hooks/useDebts'
+import { useSavings } from '@/hooks/useSavings'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { DynamicChart } from '@/components/dashboard/DynamicChart'
 import { BudgetOverview } from '@/components/dashboard/BudgetOverview'
@@ -14,6 +16,8 @@ export const Route = createFileRoute('/_authenticated/')({
 function DashboardPage() {
   const { data, isLoading, isError } = useDashboardMetrics()
   const { data: categories = [] } = useCategories()
+  const { debts = [] } = useDebts()
+  const { savings = [] } = useSavings()
   const [selectedMetric, setSelectedMetric] = useState('net-worth')
 
   const fmt = (n: number) =>
@@ -22,10 +26,10 @@ function DashboardPage() {
   const CHART_MAP: Record<string, string> = {
     'net-worth': 'asset-fluctuation',
     'total-balance': 'account-distribution',
-    'monthly-income': 'income-expense',
+    'monthly-income': 'monthly-income-breakdown',
     'monthly-expense': 'expense-allocation',
-    'net-savings': 'income-expense',
-    'total-debt': 'income-expense',
+    'net-savings': 'savings-breakdown',
+    'total-debt': 'debt-breakdown',
   }
 
   const selectedChart = (CHART_MAP[selectedMetric] || 'asset-fluctuation') as any
@@ -130,6 +134,8 @@ function DashboardPage() {
             categories={categories}
             expenseByCategory={data.expenseByCategory}
             monthlyNetWorth={data.monthlyNetWorth}
+            savings={savings}
+            debts={debts}
           />
         </div>
         {/* Right column: 2 cards stacked, total height matches chart */}
