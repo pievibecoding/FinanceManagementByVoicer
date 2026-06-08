@@ -84,6 +84,11 @@ def create_debt():
         row = db.execute("SELECT last_insert_rowid() AS id")
         debt_id = row.rows[0][0]
         logger.info(f"Created debt {debt_id}: {name} for user {g.user_id}")
+    except Exception as e:
+        logger.error(f"Error creating debt: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
     finally:
         db.close()
     return jsonify({"message": "Debt created successfully", "debt_id": debt_id}), 201

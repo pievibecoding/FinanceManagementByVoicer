@@ -491,11 +491,7 @@ def _seed_split_category(db) -> None:
 
 def _create_debt_tables(db) -> None:
     """Create the debt-related tables and their indexes. Idempotent."""
-    migration_name = "create_debt_tables"
-    if _migration_applied(db, migration_name):
-        logger.info("debt tables migration already applied — skipping.")
-        return
-
+    # Always attempt CREATE TABLE IF NOT EXISTS regardless of migration flag
     db.execute("""
         CREATE TABLE IF NOT EXISTS Debt_Dim (
             debt_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -506,12 +502,8 @@ def _create_debt_tables(db) -> None:
             debtor TEXT,
             principal INTEGER NOT NULL,
             outstanding_balance INTEGER NOT NULL,
-            interest_rate REAL,
-            interest_type TEXT,
             start_date TEXT,
             due_date TEXT,
-            minimum_payment INTEGER,
-            payment_frequency TEXT,
             status TEXT NOT NULL DEFAULT 'active',
             note TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -539,7 +531,7 @@ def _create_debt_tables(db) -> None:
     except Exception as e:
         logger.warning(f"Debt index creation warning: {e}")
 
-    _mark_migration_done(db, migration_name)
+    _mark_migration_done(db, "create_debt_tables")
     logger.info("debt tables ready.")
 
 
@@ -547,27 +539,20 @@ def _create_debt_tables(db) -> None:
 
 def _create_savings_tables(db) -> None:
     """Create the savings-related tables and their indexes. Idempotent."""
-    migration_name = "create_savings_tables"
-    if _migration_applied(db, migration_name):
-        logger.info("savings tables migration already applied — skipping.")
-        return
-
+    # Always attempt CREATE TABLE IF NOT EXISTS regardless of migration flag
     db.execute("""
         CREATE TABLE IF NOT EXISTS Savings_Dim (
             savings_id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             name TEXT NOT NULL,
-            category TEXT,
             target_amount INTEGER NOT NULL,
-            current_balance INTEGER NOT NULL,
-            interest_rate REAL,
+            current_balance INTEGER NOT NULL DEFAULT 0,
             target_date TEXT,
-            linked_account_id TEXT,
+            linked_account_id INTEGER,
             status TEXT NOT NULL DEFAULT 'active',
             note TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (user_id) REFERENCES users(user_id),
-            FOREIGN KEY (linked_account_id) REFERENCES Account_Dim(account_id)
+            FOREIGN KEY (user_id) REFERENCES users(user_id)
         )
     """)
 
@@ -589,7 +574,7 @@ def _create_savings_tables(db) -> None:
     except Exception as e:
         logger.warning(f"Savings index creation warning: {e}")
 
-    _mark_migration_done(db, migration_name)
+    _mark_migration_done(db, "create_savings_tables")
     logger.info("savings tables ready.")
 
 
