@@ -18,7 +18,7 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
 }
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('finance_auth_token');
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
