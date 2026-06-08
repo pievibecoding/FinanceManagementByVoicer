@@ -110,6 +110,11 @@ Special operations (set operation_type to one of these when detected):
 - New debt: "vay", "nợ", "khoản vay mới", "thẻ tín dụng mới", "vay tiền" → operation_type = "new_debt"
 - New savings goal: "mục tiêu tiết kiệm mới", "tạo quỹ mới", "đặt mục tiêu mới" → operation_type = "new_savings"
 
+Debt type logic for new_debt operations:
+- If the user borrows money from someone (e.g., "tôi vay Hiền 100k", "mượn Lan 500k"), set debt_type = "debt", debtor = "Tôi" (or the user's name), lender = the person's name
+- If someone borrows money from the user (e.g., "Hiền vay tôi 100k", "cho Lan mượn 500k"), set debt_type = "loan", lender = "Tôi" (or the user's name), debtor = the person's name
+- debt_type must be either "debt" (user owes money) or "loan" (user is owed money)
+
 Standard output schema properties:
 - valid: boolean. Set to TRUE only if the input clearly describes a financial transaction or operation (income, expense, investment, debt payment, savings contribution, new debt, new savings goal). Set to FALSE if the input is a question, greeting, unrelated conversation, or anything that is not a financial operation.
 - rejection_reason: string. If valid is FALSE, briefly explain in Vietnamese why it was rejected (e.g. "Câu hỏi không liên quan đến tài chính"). If valid is TRUE, leave this as empty string "".
@@ -122,6 +127,9 @@ Standard output schema properties:
 - transaction_date: string, representing date/time of the transaction or payment. Use the current local time '${localTime || '2026-06-03 11:15:29'}' as the base referential today, and look for relative descriptors like "hôm qua", "hôm nay", "sáng nay", "chiều qua". Extract exact hour/minute if provided (e.g., "Lúc 13h" => 13:00:00). Format of output MUST be 'YYYY-MM-DD HH:MM:SS'.
 - location: string, extract location/venue if mentioned in the input (e.g. "tại Starbucks", "ở quán cà phê", "tại siêu thị", "ở Circle K"). If no location is mentioned, leave as empty string "".
 - debt_name: string, name of the debt for debt_payment or new_debt operations (e.g. "vay mua xe", "thẻ tín dụng VPBank", "khoản vay mua nhà"). Leave empty for other operations.
+- debt_type: string, type of debt for new_debt operations. Must be "debt" (user owes money) or "loan" (user is owed money). Leave empty for other operations.
+- lender: string, name of the lender for new_debt operations (the person who lent the money). Leave empty for other operations.
+- debtor: string, name of the debtor for new_debt operations (the person who owes the money). Leave empty for other operations.
 - savings_name: string, name of the savings goal for savings_contribution or new_savings operations (e.g. "quỹ du lịch", "mục tiêu mua laptop", "tiết kiệm khẩn cấp"). Leave empty for other operations.
 - target_amount: integer, target amount for new_savings operations. Leave empty for other operations.
 
@@ -155,10 +163,13 @@ Return ONLY valid JSON.
               payee_name: { type: Type.STRING, description: "Tên payee từ danh sách known payees, để trống nếu không khớp" },
               location: { type: Type.STRING, description: "Địa điểm giao dịch nếu được nhắc đến, để trống nếu không có" },
               debt_name: { type: Type.STRING, description: "Tên khoản nợ cho debt_payment hoặc new_debt. Để trống cho các thao tác khác" },
+              debt_type: { type: Type.STRING, description: "Loại nợ cho new_debt: 'debt' (người dùng nợ tiền) hoặc 'loan' (người khác nợ người dùng). Để trống cho các thao tác khác" },
+              lender: { type: Type.STRING, description: "Tên người cho vay cho new_debt (người cho tiền). Để trống cho các thao tác khác" },
+              debtor: { type: Type.STRING, description: "Tên người vay nợ cho new_debt (người nợ tiền). Để trống cho các thao tác khác" },
               savings_name: { type: Type.STRING, description: "Tên mục tiêu tiết kiệm cho savings_contribution hoặc new_savings. Để trống cho các thao tác khác" },
               target_amount: { type: Type.INTEGER, description: "Số tiền mục tiêu cho new_savings. Để trống cho các thao tác khác" }
             },
-            required: ["valid", "rejection_reason", "operation_type", "amount", "type", "category", "account", "account_is_new", "note", "transaction_date", "payee_name", "location", "debt_name", "savings_name", "target_amount"]
+            required: ["valid", "rejection_reason", "operation_type", "amount", "type", "category", "account", "account_is_new", "note", "transaction_date", "payee_name", "location", "debt_name", "debt_type", "lender", "debtor", "savings_name", "target_amount"]
           }
         },
       });
@@ -375,7 +386,9 @@ Return ONLY valid JSON.
           headers: { "Content-Type": "application/json", "Authorization": authHeader },
           body: JSON.stringify({
             name: parsedData.debt_name || parsedData.note,
-            debt_type: 'loan',
+            debt_type: parsedData.debt_type || 'loan',
+            lender: parsedData.lender || null,
+            debtor: parsedData.debtor || null,
             principal: parsedData.amount,
             outstanding_balance: parsedData.amount,
             note: parsedData.note,

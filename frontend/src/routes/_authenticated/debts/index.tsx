@@ -41,6 +41,8 @@ function DebtsPage() {
             <tr>
               <th className="text-left text-white/60 text-xs uppercase px-4 py-3">Tên</th>
               <th className="text-left text-white/60 text-xs uppercase px-4 py-3">Loại</th>
+              <th className="text-left text-white/60 text-xs uppercase px-4 py-3">Người cho vay</th>
+              <th className="text-left text-white/60 text-xs uppercase px-4 py-3">Người vay nợ</th>
               <th className="text-right text-white/60 text-xs uppercase px-4 py-3">Số nợ còn lại</th>
               <th className="text-right text-white/60 text-xs uppercase px-4 py-3">Lãi suất</th>
               <th className="text-right text-white/60 text-xs uppercase px-4 py-3">Trả tối thiểu</th>
@@ -50,7 +52,7 @@ function DebtsPage() {
           <tbody>
             {debts.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center text-white/40 py-8">
+                <td colSpan={8} className="text-center text-white/40 py-8">
                   Chưa có khoản nợ nào
                 </td>
               </tr>
@@ -58,7 +60,18 @@ function DebtsPage() {
               debts.map((debt: Debt) => (
                 <tr key={debt.debt_id} className="border-t border-white/10 hover:bg-white/5">
                   <td className="px-4 py-3 text-white">{debt.name}</td>
-                  <td className="px-4 py-3 text-white/70">{debt.debt_type}</td>
+                  <td className="px-4 py-3 text-white/70">
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      debt.debt_type === 'loan' ? 'bg-blue-500/20 text-blue-400' :
+                      debt.debt_type === 'debt' ? 'bg-[#dd9787]/20 text-[#dd9787]' :
+                      'bg-white/10 text-white/60'
+                    }`}>
+                      {debt.debt_type === 'loan' ? 'Cho vay' :
+                       debt.debt_type === 'debt' ? 'Vay nợ' : debt.debt_type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-white/70">{debt.lender || '-'}</td>
+                  <td className="px-4 py-3 text-white/70">{debt.debtor || '-'}</td>
                   <td className="px-4 py-3 text-right text-white font-medium">{fmt(debt.outstanding_balance)}</td>
                   <td className="px-4 py-3 text-right text-white/70">
                     {debt.interest_rate ? `${debt.interest_rate}%` : '-'}

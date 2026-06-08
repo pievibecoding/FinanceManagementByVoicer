@@ -503,6 +503,7 @@ def _create_debt_tables(db) -> None:
             name TEXT NOT NULL,
             debt_type TEXT NOT NULL,
             lender TEXT,
+            debtor TEXT,
             principal INTEGER NOT NULL,
             outstanding_balance INTEGER NOT NULL,
             interest_rate REAL,

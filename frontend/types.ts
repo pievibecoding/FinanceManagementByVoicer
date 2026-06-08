@@ -103,6 +103,7 @@ export interface Debt {
   name: string;
   debt_type: string;
   lender: string | null;
+  debtor: string | null;
   principal: number;
   outstanding_balance: number;
   interest_rate: number | null;

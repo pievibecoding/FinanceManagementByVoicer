@@ -44,6 +44,7 @@ def create_debt():
     name = (data.get("name") or "").strip()
     debt_type = (data.get("debt_type") or "loan").strip()
     lender = (data.get("lender") or "").strip()
+    debtor = (data.get("debtor") or "").strip()
     principal = int(data.get("principal") or 0)
     outstanding_balance = int(data.get("outstanding_balance") or principal)
     interest_rate = data.get("interest_rate")
@@ -63,9 +64,9 @@ def create_debt():
     try:
         db.execute(
             """INSERT INTO Debt_Dim 
-            (user_id, name, debt_type, lender, principal, outstanding_balance, interest_rate, interest_type, start_date, due_date, minimum_payment, payment_frequency, note)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            [g.user_id, name, debt_type, lender, principal, outstanding_balance, interest_rate, interest_type, start_date, due_date, minimum_payment, payment_frequency, note],
+            (user_id, name, debt_type, lender, debtor, principal, outstanding_balance, interest_rate, interest_type, start_date, due_date, minimum_payment, payment_frequency, note)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [g.user_id, name, debt_type, lender, debtor, principal, outstanding_balance, interest_rate, interest_type, start_date, due_date, minimum_payment, payment_frequency, note],
         )
         logger.info(f"Created debt: {name} for user {g.user_id}")
     finally:
@@ -79,7 +80,7 @@ def update_debt(debt_id: int):
     data = request.get_json(silent=True) or {}
 
     ALLOWED_UPDATE_FIELDS = [
-        "name", "debt_type", "lender", "outstanding_balance", "interest_rate",
+        "name", "debt_type", "lender", "debtor", "outstanding_balance", "interest_rate",
         "interest_type", "start_date", "due_date", "minimum_payment",
         "payment_frequency", "status", "note"
     ]
