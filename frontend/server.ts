@@ -380,32 +380,11 @@ Return ONLY valid JSON.
           });
         }
       } else if (operationType === 'new_debt') {
-        // Create new debt
-        await fetch(`${FLASK_URL}/api/debts`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": authHeader },
-          body: JSON.stringify({
-            name: parsedData.debt_name || parsedData.note,
-            debt_type: parsedData.debt_type || 'loan',
-            lender: parsedData.lender || null,
-            debtor: parsedData.debtor || null,
-            principal: parsedData.amount,
-            outstanding_balance: parsedData.amount,
-            note: parsedData.note,
-          }),
-        });
+        // Return parsed data to frontend — user must confirm before saving
+        // AIChatWidget.confirmEntry() handles the actual debt creation
       } else if (operationType === 'new_savings') {
-        // Create new savings goal
-        await fetch(`${FLASK_URL}/api/savings`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": authHeader },
-          body: JSON.stringify({
-            name: parsedData.savings_name || parsedData.note,
-            target_amount: parsedData.target_amount || parsedData.amount,
-            current_balance: 0,
-            note: parsedData.note,
-          }),
-        });
+        // Return parsed data to frontend — user must confirm before saving
+        // AIChatWidget.confirmEntry() handles the actual savings creation
       }
 
       res.json(parsedData);
