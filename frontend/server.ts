@@ -94,7 +94,7 @@ async function startServer() {
 
       const systemInstruction = `
 You are an expert Vietnamese personal finance assistant.
-Your job is to read a conversational natural language sentence about an income, expense, or investment transaction and parse it into a structured JSON database entry.
+Your job is to read a conversational natural language sentence about an income, expense, investment transaction, debt payment, or savings contribution and parse it into a structured JSON database entry.
 Ensure you convert any financial slang or abbreviations typical in Vietnamese:
 - "k", "kđ", "ngàn", "nghìn" represent thousands (e.g. 50k = 50000, 45 ngàn = 45000).
 - "loét", "lít" represent 100,000 VND (e.g. 1 loét = 100000).
@@ -104,16 +104,26 @@ Ensure you convert any financial slang or abbreviations typical in Vietnamese:
 - Account names should correspond to source accounts in Vietnamese, specifically match from [${accountNames.map(n => `'${n}'`).join(", ")}]. If the user mentions an account NOT in this list, use the exact name they said (e.g. "Ngân hàng OCB") and set account_is_new to TRUE. If matched, set account_is_new to FALSE.
 - Category names must follow consistent financial categories, specifically match from: ['Ăn uống', 'Tiền lương', 'Đầu tư chứng khoán', 'Di chuyển', 'Mua sắm', 'Giải trí', 'Học tập', 'Sức khỏe', 'Khác'].
 
+Special operations (set operation_type to one of these when detected):
+- Debt payment: "trả nợ", "thanh toán khoản vay", "góp", "trả góp", "trả tiền vay", "thanh toán thẻ tín dụng" → operation_type = "debt_payment"
+- Savings contribution: "gửi tiết kiệm", "đặt quỹ", "nạp vào quỹ", "thêm vào mục tiêu", "gửi vào tài khoản tiết kiệm" → operation_type = "savings_contribution"
+- New debt: "vay", "nợ", "khoản vay mới", "thẻ tín dụng mới", "vay tiền" → operation_type = "new_debt"
+- New savings goal: "mục tiêu tiết kiệm mới", "tạo quỹ mới", "đặt mục tiêu mới" → operation_type = "new_savings"
+
 Standard output schema properties:
-- valid: boolean. Set to TRUE only if the input clearly describes a financial transaction (income, expense, or investment). Set to FALSE if the input is a question, greeting, unrelated conversation, or anything that is not a financial transaction.
+- valid: boolean. Set to TRUE only if the input clearly describes a financial transaction or operation (income, expense, investment, debt payment, savings contribution, new debt, new savings goal). Set to FALSE if the input is a question, greeting, unrelated conversation, or anything that is not a financial operation.
 - rejection_reason: string. If valid is FALSE, briefly explain in Vietnamese why it was rejected (e.g. "Câu hỏi không liên quan đến tài chính"). If valid is TRUE, leave this as empty string "".
-- amount: integer, absolute positive value of the transaction (e.g. 45000). Never negative. Use 0 if valid is FALSE.
-- type: string, representing the flow type. Must be 'income' (thu nhập, nhận lương, thưởng, lãi), 'expense' (chi tiêu, ăn uống, sắm đồ, trả tiền nước, xăng xe, di chuyển, giải trí), or 'investment' (tiết kiệm, đầu tư, nạp tài khoản VPS, mua cổ phiếu, chứng khoán).
-- category: string, matched category.
+- operation_type: string, the type of operation. Must be 'transaction' (default), 'debt_payment', 'savings_contribution', 'new_debt', or 'new_savings'.
+- amount: integer, absolute positive value of the transaction or payment (e.g. 45000). Never negative. Use 0 if valid is FALSE.
+- type: string, representing the flow type for transactions. Must be 'income' (thu nhập, nhận lương, thưởng, lãi), 'expense' (chi tiêu, ăn uống, sắm đồ, trả tiền nước, xăng xe, di chuyển, giải trí), or 'investment' (tiết kiệm, đầu tư, nạp tài khoản VPS, mua cổ phiếu, chứng khoán). Leave empty for non-transaction operations.
+- category: string, matched category for transactions. Leave empty for non-transaction operations.
 - account: string, matched account.
-- note: string, short brief description in Vietnamese (e.g. "ăn cơm sườn", "mua sách học lập trình", "nhận tiền lương tháng", "đầu tư cổ phiếu FPT").
-- transaction_date: string, representing date/time of the transaction. Use the current local time '${localTime || '2026-06-03 11:15:29'}' as the base referential today, and look for relative descriptors like "hôm qua", "hôm nay", "sáng nay", "chiều qua". Extract exact hour/minute if provided (e.g., "Lúc 13h" => 13:00:00). Format of output MUST be 'YYYY-MM-DD HH:MM:SS'.
+- note: string, short brief description in Vietnamese (e.g. "ăn cơm sườn", "mua sách học lập trình", "nhận tiền lương tháng", "đầu tư cổ phiếu FPT", "trả nợ xe máy", "gửi vào quỹ du lịch").
+- transaction_date: string, representing date/time of the transaction or payment. Use the current local time '${localTime || '2026-06-03 11:15:29'}' as the base referential today, and look for relative descriptors like "hôm qua", "hôm nay", "sáng nay", "chiều qua". Extract exact hour/minute if provided (e.g., "Lúc 13h" => 13:00:00). Format of output MUST be 'YYYY-MM-DD HH:MM:SS'.
 - location: string, extract location/venue if mentioned in the input (e.g. "tại Starbucks", "ở quán cà phê", "tại siêu thị", "ở Circle K"). If no location is mentioned, leave as empty string "".
+- debt_name: string, name of the debt for debt_payment or new_debt operations (e.g. "vay mua xe", "thẻ tín dụng VPBank", "khoản vay mua nhà"). Leave empty for other operations.
+- savings_name: string, name of the savings goal for savings_contribution or new_savings operations (e.g. "quỹ du lịch", "mục tiêu mua laptop", "tiết kiệm khẩn cấp"). Leave empty for other operations.
+- target_amount: integer, target amount for new_savings operations. Leave empty for other operations.
 
 Known payees for this user: [${payeeContext}].
 If the merchant or recipient in the transaction matches one of the known payees exactly or closely, set payee_name to the exact name from the list.
@@ -132,19 +142,23 @@ Return ONLY valid JSON.
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              valid: { type: Type.BOOLEAN, description: "TRUE nếu là giao dịch tài chính, FALSE nếu không phải" },
+              valid: { type: Type.BOOLEAN, description: "TRUE nếu là giao dịch tài chính hoặc thao tác tài chính, FALSE nếu không phải" },
               rejection_reason: { type: Type.STRING, description: "Lý do từ chối nếu valid=FALSE, để trống nếu valid=TRUE" },
+              operation_type: { type: Type.STRING, description: "Loại thao tác: 'transaction', 'debt_payment', 'savings_contribution', 'new_debt', hoặc 'new_savings'" },
               amount: { type: Type.INTEGER, description: "Số tiền giao dịch dương (VND), 0 nếu không hợp lệ" },
-              type: { type: Type.STRING, description: "Loại giao dịch: 'income', 'expense' hoặc 'investment'" },
-              category: { type: Type.STRING, description: "Danh mục thu chi phù hợp" },
+              type: { type: Type.STRING, description: "Loại giao dịch: 'income', 'expense' hoặc 'investment'. Để trống nếu không phải giao dịch" },
+              category: { type: Type.STRING, description: "Danh mục thu chi phù hợp. Để trống nếu không phải giao dịch" },
               account: { type: Type.STRING, description: "Tài khoản giao dịch — dùng tên chính xác từ danh sách hoặc tên người dùng nói nếu chưa có" },
               account_is_new: { type: Type.BOOLEAN, description: "TRUE nếu tài khoản chưa có trong danh sách" },
               note: { type: Type.STRING, description: "Ghi chú ngắn ngọn bằng tiếng Việt" },
               transaction_date: { type: Type.STRING, description: "Ngày giờ định dạng YYYY-MM-DD HH:MM:SS" },
               payee_name: { type: Type.STRING, description: "Tên payee từ danh sách known payees, để trống nếu không khớp" },
-              location: { type: Type.STRING, description: "Địa điểm giao dịch nếu được nhắc đến, để trống nếu không có" }
+              location: { type: Type.STRING, description: "Địa điểm giao dịch nếu được nhắc đến, để trống nếu không có" },
+              debt_name: { type: Type.STRING, description: "Tên khoản nợ cho debt_payment hoặc new_debt. Để trống cho các thao tác khác" },
+              savings_name: { type: Type.STRING, description: "Tên mục tiêu tiết kiệm cho savings_contribution hoặc new_savings. Để trống cho các thao tác khác" },
+              target_amount: { type: Type.INTEGER, description: "Số tiền mục tiêu cho new_savings. Để trống cho các thao tác khác" }
             },
-            required: ["valid", "rejection_reason", "amount", "type", "category", "account", "account_is_new", "note", "transaction_date", "payee_name", "location"]
+            required: ["valid", "rejection_reason", "operation_type", "amount", "type", "category", "account", "account_is_new", "note", "transaction_date", "payee_name", "location", "debt_name", "savings_name", "target_amount"]
           }
         },
       });
@@ -232,25 +246,153 @@ Return ONLY valid JSON.
         }
       }
 
-      // Persist to Turso via Flask backend
-      const txRes = await fetch(`${FLASK_URL}/api/transactions`, {
+      // Handle different operation types
+      const operationType = parsedData.operation_type || 'transaction';
+      
+      if (operationType === 'transaction') {
+        // Persist to Turso via Flask backend
+        const txRes = await fetch(`${FLASK_URL}/api/transactions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": authHeader },
+            body: JSON.stringify({
+              transaction_date: parsedData.transaction_date || localTime,
+              account_id: resolvedAccountId,
+              category_id: resolvedCategoryId,
+              amount: parsedData.amount,
+              type: parsedData.type,
+              note: parsedData.note,
+              payee_id: resolvedPayeeId,
+              location: parsedData.location,
+            }),
+          });
+
+        if (!txRes.ok) {
+          const txErr = await txRes.json().catch(() => ({}));
+          throw new Error(txErr.error || `Flask rejected transaction: ${txRes.status}`);
+        }
+      } else if (operationType === 'debt_payment') {
+        // Create transaction first, then link to debt payment
+        const txRes = await fetch(`${FLASK_URL}/api/transactions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": authHeader },
+            body: JSON.stringify({
+              transaction_date: parsedData.transaction_date || localTime,
+              account_id: resolvedAccountId,
+              category_id: resolvedCategoryId,
+              amount: parsedData.amount,
+              type: 'expense',
+              note: parsedData.note,
+              payee_id: resolvedPayeeId,
+              location: parsedData.location,
+            }),
+          });
+
+        if (!txRes.ok) {
+          const txErr = await txRes.json().catch(() => ({}));
+          throw new Error(txErr.error || `Flask rejected transaction: ${txRes.status}`);
+        }
+
+        const txData = await txRes.json();
+        
+        // Find debt by name
+        let debtList: Array<{ debt_id: number; name: string }> = [];
+        try {
+          const debtRes = await fetch(`${FLASK_URL}/api/debts`, {
+            headers: { "Authorization": authHeader },
+          });
+          debtList = await debtRes.json();
+        } catch {
+          debtList = [];
+        }
+
+        const matchedDebt = debtList.find(d => d.name.toLowerCase() === (parsedData.debt_name || "").toLowerCase());
+        if (matchedDebt) {
+          // Create debt payment
+          await fetch(`${FLASK_URL}/api/debts/${matchedDebt.debt_id}/payments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": authHeader },
+            body: JSON.stringify({
+              payment_date: parsedData.transaction_date || localTime,
+              amount_paid: parsedData.amount,
+              principal_portion: parsedData.amount,
+              interest_portion: 0,
+              transaction_id: txData.transaction_id,
+            }),
+          });
+        }
+      } else if (operationType === 'savings_contribution') {
+        // Create transaction first, then link to savings contribution
+        const txRes = await fetch(`${FLASK_URL}/api/transactions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": authHeader },
+            body: JSON.stringify({
+              transaction_date: parsedData.transaction_date || localTime,
+              account_id: resolvedAccountId,
+              category_id: resolvedCategoryId,
+              amount: parsedData.amount,
+              type: 'expense',
+              note: parsedData.note,
+              payee_id: resolvedPayeeId,
+              location: parsedData.location,
+            }),
+          });
+
+        if (!txRes.ok) {
+          const txErr = await txRes.json().catch(() => ({}));
+          throw new Error(txErr.error || `Flask rejected transaction: ${txRes.status}`);
+        }
+
+        const txData = await txRes.json();
+        
+        // Find savings by name
+        let savingsList: Array<{ savings_id: number; name: string }> = [];
+        try {
+          const savingsRes = await fetch(`${FLASK_URL}/api/savings`, {
+            headers: { "Authorization": authHeader },
+          });
+          savingsList = await savingsRes.json();
+        } catch {
+          savingsList = [];
+        }
+
+        const matchedSavings = savingsList.find(s => s.name.toLowerCase() === (parsedData.savings_name || "").toLowerCase());
+        if (matchedSavings) {
+          // Create savings contribution
+          await fetch(`${FLASK_URL}/api/savings/${matchedSavings.savings_id}/contributions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": authHeader },
+            body: JSON.stringify({
+              contribution_date: parsedData.transaction_date || localTime,
+              amount: parsedData.amount,
+              transaction_id: txData.transaction_id,
+            }),
+          });
+        }
+      } else if (operationType === 'new_debt') {
+        // Create new debt
+        await fetch(`${FLASK_URL}/api/debts`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": authHeader },
           body: JSON.stringify({
-            transaction_date: parsedData.transaction_date || localTime,
-            account_id: resolvedAccountId,
-            category_id: resolvedCategoryId,
-            amount: parsedData.amount,
-            type: parsedData.type,
+            name: parsedData.debt_name || parsedData.note,
+            debt_type: 'loan',
+            principal: parsedData.amount,
+            outstanding_balance: parsedData.amount,
             note: parsedData.note,
-            payee_id: resolvedPayeeId,
-            location: parsedData.location,
           }),
         });
-
-      if (!txRes.ok) {
-        const txErr = await txRes.json().catch(() => ({}));
-        throw new Error(txErr.error || `Flask rejected transaction: ${txRes.status}`);
+      } else if (operationType === 'new_savings') {
+        // Create new savings goal
+        await fetch(`${FLASK_URL}/api/savings`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": authHeader },
+          body: JSON.stringify({
+            name: parsedData.savings_name || parsedData.note,
+            target_amount: parsedData.target_amount || parsedData.amount,
+            current_balance: 0,
+            note: parsedData.note,
+          }),
+        });
       }
 
       res.json(parsedData);
