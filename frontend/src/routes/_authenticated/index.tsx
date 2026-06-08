@@ -5,8 +5,6 @@ import { MetricCard } from '@/components/dashboard/MetricCard'
 import { DynamicChart } from '@/components/dashboard/DynamicChart'
 import { BudgetOverview } from '@/components/dashboard/BudgetOverview'
 import { AIChatWidget } from '@/components/dashboard/AIChatWidget'
-import { DebtWidget } from '@/components/dashboard/DebtWidget'
-import { SavingsWidget } from '@/components/dashboard/SavingsWidget'
 import { useState } from 'react'
 
 export const Route = createFileRoute('/_authenticated/')({
@@ -135,8 +133,6 @@ function DashboardPage() {
             onClick={() => setSelectedMetric('total-debt')}
             selected={selectedMetric === 'total-debt'}
           />
-          <DebtWidget />
-          <SavingsWidget />
         </div>
       </div>
 

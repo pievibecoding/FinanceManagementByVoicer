@@ -12,6 +12,8 @@ import {
   Calendar,
   Filter,
   LogOut,
+  ArrowDownCircle,
+  PiggyBank,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -46,6 +48,16 @@ export const sidebarData: SidebarData = {
           title: 'Accounts',
           url: '/accounts',
           icon: CreditCard,
+        },
+        {
+          title: 'Debts',
+          url: '/debts',
+          icon: ArrowDownCircle,
+        },
+        {
+          title: 'Savings',
+          url: '/savings',
+          icon: PiggyBank,
         },
         {
           title: 'Categories',
