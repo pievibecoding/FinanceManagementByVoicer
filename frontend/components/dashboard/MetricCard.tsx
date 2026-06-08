@@ -6,15 +6,16 @@ interface MetricCardProps {
   positive?: boolean;
   onClick?: () => void;
   selected?: boolean;
+  className?: string;
 }
 
-export function MetricCard({ title, value, trend, icon, positive = true, onClick, selected = false }: MetricCardProps) {
+export function MetricCard({ title, value, trend, icon, positive = true, onClick, selected = false, className = '' }: MetricCardProps) {
   return (
     <div
       onClick={onClick}
       className={`bg-white/6 border rounded-[0.625rem] p-6 backdrop-blur-sm transition-all cursor-pointer ${
         selected ? 'border-[#74d3ae]/60 bg-[#74d3ae]/10' : 'border-white/18 hover:bg-white/10'
-      }`}
+      } ${className}`}
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-2xl">{icon}</span>

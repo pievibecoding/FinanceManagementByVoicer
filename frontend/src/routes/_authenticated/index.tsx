@@ -120,9 +120,9 @@ function DashboardPage() {
         />
       </div>
 
-      {/* Row 2 — Chart + net savings card */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-        <div className="lg:col-span-3">
+      {/* Row 2 — Chart (3/4) + 2 stacked cards (1/4), equal height */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 lg:items-stretch">
+        <div className="lg:col-span-3 min-h-0">
           <DynamicChart
             chartType={selectedChart}
             transactions={data.transactions}
@@ -132,15 +132,30 @@ function DashboardPage() {
             monthlyNetWorth={data.monthlyNetWorth}
           />
         </div>
+        {/* Right column: 2 cards stacked, total height matches chart */}
         <div className="lg:col-span-1 flex flex-col gap-5">
-          <MetricCard
-            title="Tiết kiệm ròng tháng"
-            value={fmt(data.netSavings)}
-            icon={isNegativeSavings ? '🔴' : '💵'}
-            positive={!isNegativeSavings}
-            onClick={() => setSelectedMetric('net-savings')}
-            selected={selectedMetric === 'net-savings'}
-          />
+          <div className="flex-1">
+            <MetricCard
+              title="Tiết kiệm ròng tháng"
+              value={fmt(data.netSavings)}
+              icon={isNegativeSavings ? '🔴' : '💵'}
+              positive={!isNegativeSavings}
+              onClick={() => setSelectedMetric('net-savings')}
+              selected={selectedMetric === 'net-savings'}
+              className="h-full"
+            />
+          </div>
+          <div className="flex-1">
+            <MetricCard
+              title="Nợ đang hoạt động"
+              value={fmt(data.totalDebt)}
+              icon="💳"
+              positive={false}
+              onClick={() => setSelectedMetric('total-debt')}
+              selected={selectedMetric === 'total-debt'}
+              className="h-full"
+            />
+          </div>
         </div>
       </div>
 
