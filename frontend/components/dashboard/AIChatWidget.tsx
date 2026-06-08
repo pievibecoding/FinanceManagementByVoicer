@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { debtsApi } from '@/api/debts'
 import { savingsApi } from '@/api/savings'
 import type { Debt } from '@/api/debts'
+import type { SavingsGoal } from '@/api/savings'
 
 interface ParsedData {
   valid: boolean
@@ -121,8 +122,68 @@ const TYPE_COLOR: Record<string, string> = {
   investment: 'text-sky-400',
 }
 
-export function AIChatWidget() {
-  const [open, setOpen] = useState(false)
+// Popup to manually pick which savings goal to contribute to
+interface SavingsPickerPopupProps {
+  savings: SavingsGoal[]
+  amount: number
+  contributionDate: string
+  onSelect: (goal: SavingsGoal) => void
+  onCancel: () => void
+}
+
+function SavingsPickerPopup({ savings, amount, contributionDate, onSelect, onCancel }: SavingsPickerPopupProps) {
+  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-zinc-900 border border-white/15 rounded-xl p-4 w-full max-w-sm mx-4 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-white font-semibold text-sm">Chọn quỹ tiết kiệm</p>
+            <p className="text-white/40 text-xs mt-0.5">Nạp: <span className="text-[#74d3ae]">{fmt(amount)}</span></p>
+          </div>
+          <button onClick={onCancel} className="text-white/40 hover:text-white transition-colors p-1">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {savings.length === 0 ? (
+            <p className="text-white/40 text-sm text-center py-4">Không có quỹ nào đang hoạt động</p>
+          ) : (
+            savings.map(goal => {
+              const pct = goal.target_amount > 0
+                ? Math.min(100, (goal.current_balance / goal.target_amount) * 100)
+                : 0
+              return (
+                <button
+                  key={goal.savings_id}
+                  onClick={() => onSelect(goal)}
+                  className="w-full text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#74d3ae]/40 rounded-lg p-3 transition-all"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-white text-sm font-medium truncate">{goal.name}</p>
+                    <span className="text-[10px] text-[#74d3ae] ml-2 shrink-0">{pct.toFixed(0)}%</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-1 mb-1.5">
+                    <div className="bg-[#74d3ae] h-1 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="flex justify-between text-xs text-white/40">
+                    <span>{fmt(goal.current_balance)}</span>
+                    <span>/ {fmt(goal.target_amount)}</span>
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+        <button onClick={onCancel} className="mt-3 w-full text-white/50 text-xs border border-white/10 rounded-lg py-2 hover:bg-white/5 transition-all">
+          Hủy
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function AIChatWidget() {  const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
@@ -139,6 +200,14 @@ export function AIChatWidget() {
     debts: Debt[]
     amount: number
     paymentDate: string
+  } | null>(null)
+
+  // Savings picker state — shown when savings_contribution has no auto-match
+  const [savingsPickerState, setSavingsPickerState] = useState<{
+    entryId: string
+    savings: SavingsGoal[]
+    amount: number
+    contributionDate: string
   } | null>(null)
 
   useEffect(() => {
@@ -250,17 +319,39 @@ export function AIChatWidget() {
       } else if (opType === 'savings_contribution') {
         const savingsList = await savingsApi.getSavings()
         const nameQuery = (parsed.savings_name || '').toLowerCase()
-        const matched = savingsList.find(s =>
-          s.status === 'active' && nameQuery && s.name.toLowerCase().includes(nameQuery)
-        ) ?? savingsList.find(s => s.status === 'active')
+        const activeSavings = savingsList.filter(s => s.status === 'active')
+
+        // Multi-level match: exact → partial → word overlap
+        const findMatch = () => {
+          if (!nameQuery) return null
+          // 1. savings name contains query or query contains savings name
+          const direct = activeSavings.find(s =>
+            s.name.toLowerCase().includes(nameQuery) ||
+            nameQuery.includes(s.name.toLowerCase())
+          )
+          if (direct) return direct
+          // 2. Word overlap — split both into words and find common words
+          const queryWords = nameQuery.split(/\s+/).filter(w => w.length > 1)
+          return activeSavings.find(s => {
+            const nameWords = s.name.toLowerCase().split(/\s+/)
+            return queryWords.some(qw => nameWords.some(nw => nw.includes(qw) || qw.includes(nw)))
+          }) ?? null
+        }
+
+        const matched = findMatch()
+        const today = new Date()
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`
+
         if (matched) {
-          const today = new Date()
-          const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`
           await savingsApi.createContribution(matched.savings_id, {
             amount: parsed.amount,
             contribution_date: parsed.transaction_date || dateStr,
           })
           queryClient.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' })
+        } else {
+          // No match → show savings picker
+          setSavingsPickerState({ entryId: id, savings: activeSavings, amount: parsed.amount, contributionDate: parsed.transaction_date || dateStr })
+          return
         }
       } else {
         // For transaction type, server already saved it — just invalidate
@@ -459,6 +550,23 @@ export function AIChatWidget() {
     }
   }
 
+  // ── Savings picker handler ────────────────────────────────────────────────
+  const handleSavingsPickerSelect = async (goal: SavingsGoal) => {
+    if (!savingsPickerState) return
+    const { entryId, amount, contributionDate } = savingsPickerState
+    setSavingsPickerState(null)
+    try {
+      await savingsApi.createContribution(goal.savings_id, {
+        amount,
+        contribution_date: contributionDate,
+      })
+      queryClient.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' })
+      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, confirmed: true } : e))
+    } catch {
+      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, rejected: true } : e))
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -474,6 +582,22 @@ export function AIChatWidget() {
             // mark entry as rejected so user knows nothing was saved
             setEntries(prev => prev.map(e =>
               e.id === debtPickerState.entryId ? { ...e, rejected: true } : e
+            ))
+          }}
+        />
+      )}
+
+      {/* Savings picker popup */}
+      {savingsPickerState && (
+        <SavingsPickerPopup
+          savings={savingsPickerState.savings}
+          amount={savingsPickerState.amount}
+          contributionDate={savingsPickerState.contributionDate}
+          onSelect={handleSavingsPickerSelect}
+          onCancel={() => {
+            setSavingsPickerState(null)
+            setEntries(prev => prev.map(e =>
+              e.id === savingsPickerState.entryId ? { ...e, rejected: true } : e
             ))
           }}
         />
