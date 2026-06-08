@@ -3,6 +3,7 @@ import { Mic, MicOff, Send, X, Sparkles, CheckCircle, XCircle, Loader2 } from 'l
 import { useQueryClient } from '@tanstack/react-query'
 import { debtsApi } from '@/api/debts'
 import { savingsApi } from '@/api/savings'
+import type { Debt } from '@/api/debts'
 
 interface ParsedData {
   valid: boolean
@@ -32,6 +33,69 @@ interface ChatEntry {
   confirmed?: boolean
   rejected?: boolean
   error?: string
+}
+
+// Popup to manually pick which debt to link a payment to
+interface DebtPickerPopupProps {
+  debts: Debt[]
+  amount: number
+  paymentDate: string
+  onSelect: (debt: Debt) => void
+  onCancel: () => void
+}
+
+function DebtPickerPopup({ debts, amount, paymentDate, onSelect, onCancel }: DebtPickerPopupProps) {
+  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-zinc-900 border border-white/15 rounded-xl p-4 w-full max-w-sm mx-4 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-white font-semibold text-sm">Chọn khoản nợ để ghi nhận</p>
+            <p className="text-white/40 text-xs mt-0.5">Thanh toán: <span className="text-[#74d3ae]">{fmt(amount)}</span></p>
+          </div>
+          <button onClick={onCancel} className="text-white/40 hover:text-white transition-colors p-1">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {debts.length === 0 ? (
+            <p className="text-white/40 text-sm text-center py-4">Không có khoản nợ đang hoạt động</p>
+          ) : (
+            debts.map(debt => (
+              <button
+                key={debt.debt_id}
+                onClick={() => onSelect(debt)}
+                className="w-full text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#74d3ae]/40 rounded-lg p-3 transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-white text-sm font-medium truncate">{debt.name}</p>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ml-2 shrink-0 ${
+                    debt.debt_type === 'debt'
+                      ? 'bg-[#dd9787]/20 text-[#dd9787]'
+                      : 'bg-[#74d3ae]/20 text-[#74d3ae]'
+                  }`}>
+                    {debt.debt_type === 'debt' ? 'Tôi nợ' : 'Nợ tôi'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-1 text-xs text-white/40">
+                  {debt.lender && <span>👤 {debt.lender}</span>}
+                  {debt.debtor && <span>👤 {debt.debtor}</span>}
+                  <span className="ml-auto text-white/50">Còn: {fmt(debt.outstanding_balance)}</span>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+        <button
+          onClick={onCancel}
+          className="mt-3 w-full text-white/50 text-xs border border-white/10 rounded-lg py-2 hover:bg-white/5 transition-all"
+        >
+          Hủy
+        </button>
+      </div>
+    </div>
+  )
 }
 
 const SUGGESTIONS = [
@@ -68,6 +132,14 @@ export function AIChatWidget() {
   const recognitionRef = useRef<any>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
+
+  // Debt picker state — shown when debt_payment has no auto-match
+  const [debtPickerState, setDebtPickerState] = useState<{
+    entryId: string
+    debts: Debt[]
+    amount: number
+    paymentDate: string
+  } | null>(null)
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100)
@@ -132,21 +204,27 @@ export function AIChatWidget() {
         const debts = await debtsApi.getDebts()
         const lenderName = (parsed.lender || '').toLowerCase()
         const debtName = (parsed.debt_name || '').toLowerCase()
-        const matched = debts.find(d =>
-          d.status === 'active' && (
-            (d.lender ?? '').toLowerCase().includes(lenderName) ||
-            (d.debtor ?? '').toLowerCase().includes(lenderName) ||
-            d.name.toLowerCase().includes(debtName)
-          )
+        const activeDebts = debts.filter(d => d.status === 'active')
+        const matched = activeDebts.find(d =>
+          (lenderName && (d.lender ?? '').toLowerCase().includes(lenderName)) ||
+          (lenderName && (d.debtor ?? '').toLowerCase().includes(lenderName)) ||
+          (debtName && d.name.toLowerCase().includes(debtName))
         )
+        const today = new Date()
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`
+        const paymentDate = parsed.transaction_date || dateStr
+
         if (matched) {
-          const today = new Date()
-          const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`
           await debtsApi.createPayment(matched.debt_id, {
             amount_paid: parsed.amount,
-            payment_date: parsed.transaction_date || dateStr,
+            payment_date: paymentDate,
           })
           queryClient.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
+        } else {
+          // No auto-match — show picker for user to select manually
+          // Don't mark as confirmed yet; wait for picker selection
+          setDebtPickerState({ entryId: id, debts: activeDebts, amount: parsed.amount, paymentDate })
+          return // exit early — confirmed will be set after picker
         }
       } else if (opType === 'new_savings') {
         await savingsApi.createSavings({
@@ -349,9 +427,44 @@ export function AIChatWidget() {
     )
   }
 
+  // ── Debt picker handler ───────────────────────────────────────────────────
+  const handleDebtPickerSelect = async (debt: Debt) => {
+    if (!debtPickerState) return
+    const { entryId, amount, paymentDate } = debtPickerState
+    setDebtPickerState(null)
+    try {
+      await debtsApi.createPayment(debt.debt_id, {
+        amount_paid: amount,
+        payment_date: paymentDate,
+      })
+      queryClient.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
+      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, confirmed: true } : e))
+    } catch {
+      // silently fail — user can retry from /debts page
+      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, rejected: true } : e))
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
+      {/* Debt picker popup — rendered outside the chat panel so it covers full screen */}
+      {debtPickerState && (
+        <DebtPickerPopup
+          debts={debtPickerState.debts}
+          amount={debtPickerState.amount}
+          paymentDate={debtPickerState.paymentDate}
+          onSelect={handleDebtPickerSelect}
+          onCancel={() => {
+            setDebtPickerState(null)
+            // mark entry as rejected so user knows nothing was saved
+            setEntries(prev => prev.map(e =>
+              e.id === debtPickerState.entryId ? { ...e, rejected: true } : e
+            ))
+          }}
+        />
+      )}
+
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
