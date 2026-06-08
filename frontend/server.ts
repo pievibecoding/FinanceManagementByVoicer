@@ -105,7 +105,10 @@ Ensure you convert any financial slang or abbreviations typical in Vietnamese:
 - Category names must follow consistent financial categories, specifically match from: ['Ăn uống', 'Tiền lương', 'Đầu tư chứng khoán', 'Di chuyển', 'Mua sắm', 'Giải trí', 'Học tập', 'Sức khỏe', 'Khác'].
 
 Special operations (set operation_type to one of these when detected):
-- Debt payment: "trả nợ", "thanh toán khoản vay", "góp", "trả góp", "trả tiền vay", "thanh toán thẻ tín dụng" → operation_type = "debt_payment"
+- Debt payment: CRITICAL — ANY sentence where money is being paid/returned in context of a debt, regardless of who is doing the paying:
+  * "tôi trả nợ [X]", "tôi trả [X]", "trả tiền cho [X]", "thanh toán khoản vay", "góp", "trả góp" → operation_type = "debt_payment", lender = X
+  * "[X] trả nợ cho tôi", "[X] trả lại cho tôi", "[X] hoàn tiền", "[X] thanh toán cho tôi" → ALSO operation_type = "debt_payment" (this is someone paying back their debt to the user, NOT income), lender = Tôi, debtor = X
+  * Key rule: If the sentence contains "trả nợ", "trả lại", "hoàn trả", "thanh toán nợ" — it is ALWAYS debt_payment, never income or expense.
 - Savings contribution: "gửi tiết kiệm", "đặt quỹ", "nạp vào quỹ", "thêm vào mục tiêu", "gửi vào tài khoản tiết kiệm" → operation_type = "savings_contribution"
 - New debt: "vay", "nợ", "khoản vay mới", "thẻ tín dụng mới", "vay tiền" → operation_type = "new_debt"
 - New savings goal: "mục tiêu tiết kiệm mới", "tạo quỹ mới", "đặt mục tiêu mới" → operation_type = "new_savings"
