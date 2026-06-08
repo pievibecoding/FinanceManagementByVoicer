@@ -1,38 +1,40 @@
 # Finance Management by Voicer — Project Context
 
-> Auto-loaded context for AI coding agents. Accurate as of the current codebase state.
+> Auto-loaded context for AI coding agents. Accurate as of latest commits.
 
 ---
 
 ## 1. Project Overview
 
-**Finance Management by Voicer** is a Vietnamese personal finance tracker with AI-powered voice/text transaction parsing and multi-user authentication.
+**Finance Management by Voicer** is a Vietnamese personal finance tracker with AI-powered voice/text transaction parsing and multi-user authentication with full data isolation.
 
 | Layer | Tech | Entry Point |
 |---|---|---|
-| Frontend | React 19 + TypeScript, Vite, Tailwind v4, TanStack Router, TanStack Query, shadcn/ui, Zustand | `frontend/src/main.tsx` |
+| Frontend | React 19 + TypeScript, Vite, Tailwind v4, TanStack Router, TanStack Query, shadcn/ui | `frontend/src/main.tsx` |
 | BFF Server | Express 5 (TypeScript) + Gemini Flash Lite API | `frontend/server.ts` (port 3000) |
 | Backend API | Python Flask + Flask-CORS | `backend/main.py` (port 5000) |
 | Database | Turso (libSQL / SQLite-compatible, cloud) | `backend/database.py` |
 | Auth | JWT (python-jose) + bcrypt (rounds=12) + Google OAuth | `backend/auth/` |
-| AI | Google Gemini (via `@google/genai`) | server-side only in `server.ts` |
+| AI | Google Gemini `gemini-3.1-flash-lite` (via `@google/genai`) | server-side only in `server.ts` |
 
 **Core flow:** User logs in → speaks/types Vietnamese → Express BFF calls Gemini to parse → saves to Turso via Flask REST (JWT-authenticated, user-scoped) → React reads back via TanStack Query.
 
-**Dev command:** `cd frontend && npm run dev` → runs `tsx --env-file=.env.local server.ts` which starts Express on port 3000 with Vite middleware embedded. **Do NOT run `vite` directly.**
+**Dev command:** `cd frontend && npm run dev` → runs `tsx --env-file=.env.local server.ts` (Express port 3000 with Vite middleware). Do NOT run `vite` directly.
+
+**Production (Render):** `npm run build` → Vite build + esbuild `server.ts` → `npm start` → `node dist/server.cjs`.
 
 ---
 
-## 2. Frontend Architecture (New — TanStack Router)
-
-The frontend was migrated from a single-file SPA (`index.tsx`) to a TanStack Router file-based routing app.
+## 2. Frontend Architecture
 
 ### Entry point chain
 ```
-frontend/index.html
-  └── /src/main.tsx              (React root, QueryClient, ThemeProvider, RouterProvider)
-       └── src/routeTree.gen.ts  (auto-generated — DO NOT edit manually)
-       └── src/routes/__root.tsx (wraps AuthProvider + Toaster)
+frontend/index.html → /src/main.tsx
+  └── ThemeProvider / FontProvider / DirectionProvider
+  └── QueryClientProvider (staleTime: 10s)
+  └── RouterProvider
+       └── src/routeTree.gen.ts (auto-generated — DO NOT edit)
+       └── src/routes/__root.tsx  (AuthProvider + Toaster)
 ```
 
 ### Route tree
@@ -41,8 +43,8 @@ frontend/index.html
 /sign-up          → src/routes/sign-up.tsx
 /signout          → src/routes/signout.tsx
 /help             → src/routes/help.tsx (stub)
-/_authenticated   → src/routes/_authenticated/route.tsx (auth guard)
-  /               → src/routes/_authenticated/index.tsx (Dashboard)
+/_authenticated   → src/routes/_authenticated/route.tsx (auth guard → redirects to /sign-in if not authenticated)
+  /               → src/routes/_authenticated/index.tsx  (Dashboard)
   /accounts       → src/routes/_authenticated/accounts/index.tsx
   /transactions   → src/routes/_authenticated/transactions/index.tsx
   /categories     → src/routes/_authenticated/categories/index.tsx
@@ -53,16 +55,19 @@ frontend/index.html
 
 ### Auth flow
 - `contexts/AuthContext.tsx` — React Context, single source of truth for auth state
-- `__root.tsx` wraps the whole app in `<AuthProvider>`
-- `_authenticated/route.tsx` checks `isAuthenticated` from `useAuth()`, redirects to `/sign-in` if false
 - Token stored in `localStorage` under key `finance_auth_token`
-- `AuthContext` verifies token against `/api/auth/me` on load
+- On mount: verifies token with `GET /api/auth/me`, clears if expired
+- `__root.tsx` wraps the whole app in `<AuthProvider>`
+- `_authenticated/route.tsx` checks `isAuthenticated`, redirects to `/sign-in` if false
+- **No Zustand auth store** — `stores/auth-store.ts` was deleted. Use `useAuth()` from `contexts/AuthContext.tsx` everywhere.
 
-### API proxy (critical)
-All `/api/*` calls from the browser go to Express (port 3000), which proxies them to Flask (port 5000).
-- `vite.config.ts` has `server.proxy` for Vite standalone mode (not normally used)
-- `server.ts` has explicit auth routes + `app.all("/api/*path")` generic catch-all for all other Flask routes
-- **Never call Flask directly from the browser** — always use relative `/api/` paths
+### API proxy
+All `/api/*` browser requests → Express BFF (port 3000) → Flask (port 5000).
+- Express `app.all("/api/*path")` catches all non-specific routes and proxies to Flask
+- **Express 5 wildcard syntax:** `/api/*path` (named), NOT `/api/*`
+- File extension bypass: requests ending in `.ts`, `.tsx`, `.js` etc. skip proxy → served by Vite
+- DELETE requests: no body sent (avoids Flask rejection)
+- Auth header forwarded as-is from browser to Flask
 
 ---
 
@@ -75,242 +80,200 @@ frontend/
 ├── vite.config.ts                ← TanStack Router plugin, Tailwind, path alias @/ → frontend/
 ├── tsconfig.json
 ├── package.json                  ← scripts: dev (tsx server.ts), build, start
-├── types.ts                      ← Shared TypeScript interfaces (AuthResponse, etc.)
+├── types.ts                      ← AuthResponse interface (used by api/auth.ts)
 ├── .env.local                    ← GEMINI_API_KEY, VITE_GOOGLE_CLIENT_ID, FLASK_BACKEND_URL
 │
 ├── src/
-│   ├── main.tsx                  ← React root
-│   ├── routeTree.gen.ts          ← Auto-generated route tree (do not edit)
-│   └── routes/                  ← File-based routes (TanStack Router)
-│       ├── __root.tsx
+│   ├── main.tsx                  ← React root, QueryClient, ThemeProvider, RouterProvider
+│   ├── routeTree.gen.ts          ← Auto-generated (DO NOT EDIT)
+│   └── routes/
+│       ├── __root.tsx            ← Root layout: AuthProvider + Toaster + ReactQueryDevtools
 │       ├── sign-in.tsx
 │       ├── sign-up.tsx
 │       ├── signout.tsx
-│       ├── help.tsx
+│       ├── help.tsx              ← stub
 │       └── _authenticated/
 │           ├── route.tsx         ← Auth guard
-│           ├── index.tsx         ← Dashboard
+│           ├── index.tsx         ← Dashboard page
 │           ├── accounts/index.tsx
-│           ├── transactions/index.tsx
+│           ├── transactions/index.tsx  ← client-side filtering, separate detailsOpen state
 │           ├── categories/index.tsx
 │           ├── budgets/index.tsx
-│           ├── analytics/index.tsx
+│           ├── analytics/index.tsx     ← ⚠️ calls /api/analytics/* that don't exist in Flask
 │           └── settings/
-│               ├── index.tsx
+│               ├── index.tsx     ← stub
 │               └── notifications.tsx
 │
-├── api/                          ← API client functions (fetch wrappers)
+├── api/                          ← fetch wrappers, all use relative paths (through Express proxy)
 │   ├── auth.ts                   ← register, login, googleAuth, getMe, logout
-│   ├── dashboard.ts              ← getAccounts, getTransactions, getBudgets (used by useDashboard)
-│   ├── accounts.ts               ← CRUD for /api/accounts
-│   ├── transactions.ts           ← CRUD for /api/transactions
-│   ├── categories.ts             ← CRUD for /api/categories
-│   ├── budgets.ts                ← CRUD for /api/budgets
-│   └── analytics.ts              ← calls /api/analytics/* (⚠️ see API mismatches below)
+│   ├── dashboard.ts              ← Account/Budget types + getAccounts, getBudgets
+│   │                               NOTE: getTransactions was REMOVED — use transactionsApi instead
+│   ├── transactions.ts           ← getTransactions, addTransaction, updateTransaction, deleteTransaction
+│   ├── accounts.ts               ← getAccounts, addAccount, updateAccount, deleteAccount
+│   ├── categories.ts             ← getCategories (PUT budget via budgets endpoint)
+│   ├── budgets.ts                ← getBudgets, upsertBudget, deleteBudget
+│   └── analytics.ts             ← ⚠️ calls /api/analytics/* (non-existent endpoints)
 │
-├── hooks/                        ← TanStack Query hooks wrapping api/ calls
-│   ├── useDashboard.ts
-│   ├── useAccounts.ts
-│   ├── useTransactions.ts
-│   ├── useCategories.ts
-│   ├── useBudgets.ts
-│   ├── useAnalytics.ts
+├── hooks/                        ← TanStack Query hooks
+│   ├── useDashboard.ts           ← useDashboardMetrics (uses useAccounts + useTransactions + useBudgets)
+│   ├── useTransactions.ts        ← useTransactions (key: ['transactions']), useAddTransaction,
+│   │                               useUpdateTransaction, useDeleteTransaction
+│   │                               All mutations use refetchType: 'all' for immediate UI update
+│   ├── useAccounts.ts            ← useAccounts, useAddAccount, useUpdateAccount, useDeleteAccount
+│   ├── useCategories.ts          ← useCategories, useAddCategory, useUpdateCategory, useDeleteCategory
+│   ├── useBudgets.ts             ← useBudgets, useUpsertBudget, useDeleteBudget
+│   ├── useAnalytics.ts           ← ⚠️ calls non-existent Flask endpoints
 │   ├── use-dialog-state.tsx
 │   ├── use-mobile.tsx
 │   └── use-table-url-state.ts
 │
 ├── components/
-│   ├── layout/                   ← App shell: sidebar, header, authenticated-layout
-│   │   ├── authenticated-layout.tsx
-│   │   ├── app-sidebar.tsx       ← Uses useAuth() to show real user name
+│   ├── layout/
+│   │   ├── app-sidebar.tsx       ← Uses useAuth() to show real user name/email
 │   │   ├── nav-user.tsx
-│   │   ├── nav-group.tsx
-│   │   ├── team-switcher.tsx
+│   │   ├── authenticated-layout.tsx
 │   │   └── data/sidebar-data.ts  ← Nav link definitions
-│   ├── ui/                       ← shadcn/ui components (button, dialog, table, etc.)
+│   ├── ui/                       ← shadcn/ui components
 │   ├── auth/
-│   │   ├── LoginForm.tsx         ← Used by /sign-in route
-│   │   └── RegisterForm.tsx      ← Used by /sign-up route
-│   ├── dashboard/                ← MetricCard, BudgetCard, AccountCard, TransactionListItem, QuickActions
-│   ├── accounts/                 ← AccountCard, AddModal, EditModal, DeleteDialog
-│   ├── transactions/             ← TransactionTable, FilterPanel, AddModal, EditModal, DeleteDialog, DetailsView, Pagination
-│   ├── categories/               ← CategoryCard, AddModal, EditModal, DeleteDialog
-│   ├── budgets/                  ← BudgetCard, AddModal, EditModal, DeleteDialog
-│   ├── analytics/                ← AnalyticsOverview, SpendingByCategory, IncomeVsExpense, MonthlyTrends
-│   ├── AnimatedIcon.tsx
-│   ├── FinanceIcons.tsx
-│   ├── command-menu.tsx
-│   ├── confirm-dialog.tsx
-│   ├── navigation-progress.tsx
-│   ├── profile-dropdown.tsx
-│   ├── sign-out-dialog.tsx
-│   ├── skip-to-main.tsx
-│   └── theme-switch.tsx
+│   │   ├── LoginForm.tsx         ← uses res.username ?? res.name for display name
+│   │   └── RegisterForm.tsx
+│   ├── dashboard/
+│   │   ├── MetricCard.tsx
+│   │   ├── IncomeExpenseChart.tsx  ← bar chart, 6 time range options (7d/30d/3m/6m/12m/ytd)
+│   │   ├── AccountsSummary.tsx     ← shows real current_balance computed from transactions
+│   │   ├── BudgetOverview.tsx      ← grid progress bars, current month only
+│   │   └── AIChatWidget.tsx        ← floating button, continuous mic, confirm/reject parsed tx
+│   ├── transactions/
+│   │   ├── TransactionTable.tsx    ← shows category name (not ID), receives categories prop
+│   │   ├── TransactionDetailsView.tsx ← view-only panel, Edit/Delete buttons
+│   │   ├── AddTransactionModal.tsx    ← dropdown for account/category, date+time to Flask format
+│   │   ├── EditTransactionModal.tsx   ← dropdown for account/category, preserves original time
+│   │   ├── DeleteConfirmationDialog.tsx ← shows error alert on failure
+│   │   ├── FilterPanel.tsx            ← search, date range, type filter (all client-side)
+│   │   └── Pagination.tsx
+│   ├── accounts/
+│   ├── categories/
+│   ├── budgets/
+│   ├── analytics/
+│   ├── sign-out-dialog.tsx        ← uses useAuth().logout() (NOT useAuthStore)
+│   ├── profile-dropdown.tsx       ← uses useAuth()
+│   └── confirm-dialog.tsx
 │
 ├── contexts/
-│   └── AuthContext.tsx            ← Auth state: token + user + login/logout + localStorage + /api/auth/me verify
+│   └── AuthContext.tsx            ← AuthProvider, useAuth hook, token verify on mount
 │
-├── context/                       ← UI providers from shadcn-admin template
-│   ├── theme-provider.tsx
-│   ├── font-provider.tsx
-│   ├── direction-provider.tsx
-│   ├── layout-provider.tsx
-│   └── search-provider.tsx
-│
-├── lib/
-│   ├── utils.ts                   ← cn() helper
-│   ├── cookies.ts
-│   └── handle-server-error.ts
-│
-├── config/
-│   └── fonts.ts
-│
-├── styles/
-│   ├── index.css                  ← Main CSS (Tailwind v4 + shadcn tokens)
-│   └── theme.css
-│
-└── assets/
-    └── logo.tsx
+├── context/                       ← UI providers (theme, font, direction, layout, search)
+├── lib/                           ← utils.ts (cn helper), cookies.ts, handle-server-error.ts
+├── config/                        ← fonts.ts
+└── styles/
+    ├── index.css                  ← Tailwind v4 + shadcn tokens
+    └── theme.css
 ```
 
 ---
 
-## 4. Backend REST API (Flask — port 5000)
+## 4. Key Constraints & Gotchas
+
+1. **Gemini model name** — `"gemini-3.1-flash-lite"` in `server.ts`. **NEVER change this.**
+2. **`@/` alias** resolves to `frontend/` root, NOT `frontend/src/`.
+3. **`routeTree.gen.ts`** is auto-generated by TanStack Router plugin on dev start — DO NOT edit manually.
+4. **No auth store** — `stores/auth-store.ts` was deleted. Use `useAuth()` from `contexts/AuthContext.tsx`.
+5. **Single transactions cache** — both dashboard and transactions page use `useTransactions()` with key `['transactions']`. NEVER create a second function fetching `/api/transactions` with a different key.
+6. **Transaction filtering is client-side** — `useTransactions()` always fetches all transactions. Page components filter with `useMemo`.
+7. **`transaction_date` format** — Flask requires `'YYYY-MM-DD HH:MM:SS'`. HTML `<input type="date">` returns `YYYY-MM-DD` — always append time before sending to Flask.
+8. **Edit modal state** — `TransactionDetailsView` and `EditTransactionModal` must NOT be open simultaneously. Close details first (`setDetailsOpen(false)`), then open edit.
+9. **Soft delete** — DELETE sets `is_deleted=1`, never physically removes rows. All GETs filter `WHERE is_deleted = 0`.
+10. **Express 5 wildcard** — use `/api/*path` (named wildcard), not `/api/*`.
+11. **DELETE proxy** — no `Content-Type` header and no body sent for DELETE requests.
+12. **Analytics page** — currently calls `/api/analytics/overview` etc. which **do not exist** in Flask. The only analytics endpoint is `POST /api/sql-query`.
+
+---
+
+## 5. Backend REST API (Flask — port 5000)
 
 All endpoints under `/api/`. JSON in, JSON out. All routes **except `/api/auth/*`** require `Authorization: Bearer <token>`.
 
 ### Authentication
-| Method | Path | Body | Returns |
-|---|---|---|---|
-| POST | `/api/auth/register` | `{email, username, password}` | `{access_token, user_id}` 201 |
-| POST | `/api/auth/login` | `{email, password}` | `{access_token, user_id, email, username}` 200 |
-| POST | `/api/auth/google` | `{id_token}` | `{access_token, user_id, email, name}` 200 |
-| GET | `/api/auth/me` | — | `{user_id, username, email}` 200 |
-| POST | `/api/auth/logout` | — | `{message}` 200 |
+| Method | Path | Returns |
+|---|---|---|
+| POST | `/api/auth/register` | `{access_token, user_id}` 201 |
+| POST | `/api/auth/login` | `{access_token, user_id, email, username}` 200 |
+| POST | `/api/auth/google` | `{access_token, user_id, email, name}` 200 |
+| GET | `/api/auth/me` | `{user_id, username, email}` 200 |
+| POST | `/api/auth/logout` | `{message}` 200 |
 
 ### Transactions
-| Method | Path | Returns |
+| Method | Path | Notes |
 |---|---|---|
-| GET | `/api/transactions` | `Transaction[]` (user-scoped, `is_deleted=0`, sorted DESC) |
-| POST | `/api/transactions` | `{message, transaction_id}` 201 |
-| DELETE | `/api/transactions/:id` | `{message}` 200 — soft delete |
-
-**POST body:** `{transaction_date, account_id, category_id, amount, type, note?, payee_id?, splits?[]}`
-
-**⚠️ No PUT /api/transactions/:id** — update is not implemented in Flask.
+| GET | `/api/transactions` | user-scoped, `is_deleted=0`, sorted DESC |
+| POST | `/api/transactions` | `{transaction_date, account_id, category_id, amount, type, note?, payee_id?, splits?[]}` |
+| PUT | `/api/transactions/<id>` | partial update, allowed fields: `transaction_date, account_id, category_id, amount, type, note, payee_id` |
+| DELETE | `/api/transactions/<id>` | soft delete (`is_deleted=1`) |
 
 ### Accounts
-| Method | Path | Returns |
+| Method | Path | Notes |
 |---|---|---|
-| GET | `/api/accounts` | `Account_Dim[]` |
-| POST | `/api/accounts` | `{account_id}` 201 |
+| GET | `/api/accounts` | user-scoped |
+| POST | `/api/accounts` | `{account_name, account_type, initial_balance}` |
 
-**⚠️ No PUT or DELETE /api/accounts/:id** — not implemented.
+**⚠️ No PUT/DELETE for accounts.**
 
 ### Categories
-| Method | Path | Returns |
+| Method | Path | Notes |
 |---|---|---|
-| GET | `/api/categories` | `Category_Dim[]` (with budget merged from current month) |
-| PUT | `/api/categories/<category_id>` | `{message}` 200 — updates budget only |
+| GET | `/api/categories` | with budget merged from current month |
+| PUT | `/api/categories/<id>` | budget update only |
 
-**⚠️ No POST or DELETE /api/categories** — categories are seeded per user at registration.
+**⚠️ No POST/DELETE for categories** — seeded per user at registration.
 
 ### Budgets
-| Method | Path | Returns |
+| Method | Path | Notes |
 |---|---|---|
-| GET | `/api/budgets` | `budgets[]` (optional `?month=YYYY-MM`) |
-| PUT | `/api/budgets/<category_id>` | `{budget_id}` 200 |
-| DELETE | `/api/budgets/<category_id>` | `{message}` 200 |
+| GET | `/api/budgets` | optional `?month=YYYY-MM` |
+| PUT | `/api/budgets/<category_id>` | upsert |
+| DELETE | `/api/budgets/<category_id>` | optional `?month=YYYY-MM` |
 
 ### Payees
-| Method | Path | Returns |
-|---|---|---|
-| GET | `/api/payees` | `payees[]` |
-| POST | `/api/payees` | `{payee_id, payee_name}` 201 |
-| PUT | `/api/payees/<payee_id>` | `{message}` 200 |
-| DELETE | `/api/payees/<payee_id>` | `{message}` 200 |
+| Method | Path |
+|---|---|
+| GET/POST | `/api/payees` |
+| PUT/DELETE | `/api/payees/<id>` |
 
 ### Recurring Transactions
-| Method | Path | Returns |
-|---|---|---|
-| GET | `/api/recurring` | `recurring_transactions[]` |
-| POST | `/api/recurring` | `{recurring_id}` 201 |
-| PUT | `/api/recurring/<recurring_id>` | `{message}` 200 |
-| DELETE | `/api/recurring/<recurring_id>` | `{message}` 200 |
-| PATCH | `/api/recurring/<recurring_id>/toggle` | `{is_active}` 200 |
-| POST | `/api/recurring/process` | `{generated}` 200 |
+| Method | Path |
+|---|---|
+| GET/POST | `/api/recurring` |
+| PUT/DELETE | `/api/recurring/<id>` |
+| PATCH | `/api/recurring/<id>/toggle` |
+| POST | `/api/recurring/process` |
 
-### Analytics
-| Method | Path | Returns |
+### Analytics (SQL passthrough)
+| Method | Path | Notes |
 |---|---|---|
-| POST | `/api/sql-query` | `{headers: string[], rows: any[][]}` — SELECT only, blocks `users` table |
+| POST | `/api/sql-query` | SELECT only, blocks `users`/`user_settings`/`schema_migrations` tables |
 
-**⚠️ No `/api/analytics/overview`, `/api/analytics/spending-by-category`, etc.** — these don't exist. The `api/analytics.ts` frontend file calls non-existent endpoints and needs to be rewritten to use `POST /api/sql-query` instead.
+**⚠️ No `/api/analytics/*` endpoints.** The analytics page currently errors because it calls these.
 
 ---
 
-## 5. API Mismatches (Frontend calls endpoints that don't exist in Flask)
+## 6. Database Schema (key facts)
 
-These need to be fixed — either add the endpoints to Flask or rewrite the frontend api files:
-
-| Frontend call | Flask reality | Action needed |
-|---|---|---|
-| `GET /api/analytics/overview` | ❌ Doesn't exist | Rewrite using `POST /api/sql-query` |
-| `GET /api/analytics/spending-by-category` | ❌ Doesn't exist | Rewrite using `POST /api/sql-query` |
-| `GET /api/analytics/income-vs-expense` | ❌ Doesn't exist | Rewrite using `POST /api/sql-query` |
-| `GET /api/analytics/monthly-trends` | ❌ Doesn't exist | Rewrite using `POST /api/sql-query` |
-| `PUT /api/transactions/:id` | ❌ Doesn't exist | Add to Flask or remove Edit from UI |
-| `POST /api/categories` | ❌ Doesn't exist | Remove from frontend |
-| `DELETE /api/categories/:id` | ❌ Doesn't exist | Remove from frontend |
-| `PUT /api/accounts/:id` | ❌ Doesn't exist | Add to Flask or remove Edit from UI |
-| `DELETE /api/accounts/:id` | ❌ Doesn't exist | Add to Flask or remove Delete from UI |
-
----
-
-## 6. Missing Features (not yet in new app)
-
-| Feature | Old App | New App |
-|---|---|---|
-| AI Voice/Text Parser | ✅ Full UI with microphone, chat history, Gemini integration | ❌ Missing entirely |
-| Payees management | ✅ Inline in old app | ❌ No route, no hook, no api file |
-| Recurring transactions | ✅ Full CRUD + process | ❌ No route, no hook, no api file |
-| SQL Analytics console | ✅ Direct SQL query UI | ❌ Missing |
-| Split transactions | ✅ In manual entry modal | ❌ Not in new transaction modal |
-
----
-
-## 7. Database Schema (Star Schema — Multi-User)
-
-```sql
-users (user_id, username, email, password_hash, google_sub, created_at, is_deleted)
-user_settings (setting_id, user_id, currency, language, timezone)
-Account_Dim (account_id INTEGER PK AUTOINCREMENT, user_id, account_name, account_type, initial_balance)
-Category_Dim (category_id INTEGER PK AUTOINCREMENT, user_id, category_name, category_type, budget)
-Transaction_Fact (transaction_id TEXT PK, user_id, transaction_date, account_id, category_id,
-                  amount INTEGER, type TEXT, note TEXT, payee_id, is_deleted)
-split_transactions (split_id, transaction_id, category_id INTEGER, amount, note)
-budgets (budget_id, user_id, category_id INTEGER, month TEXT 'YYYY-MM', amount_limit, UNIQUE(user_id, category_id, month))
-payees (payee_id, user_id, payee_name, default_category_id INTEGER, UNIQUE(user_id, payee_name))
-recurring_transactions (recurring_id, user_id, account_id INTEGER, category_id INTEGER, payee_id,
-                        amount, type, note, frequency, next_run_date, end_date, is_active)
-schema_migrations (migration_name, applied_at)
-```
-
-**Key rules:**
-- All amounts are **positive integers in VND**. Direction is encoded in `type` ('income'|'expense'|'investment')
+- All amounts: **positive integers in VND**. Direction encoded in `type` ('income'|'expense'|'investment').
 - `transaction_date` format: `'YYYY-MM-DD HH:MM:SS'`
-- `transaction_id` format: `'tx-{timestamp_ms}'` or `'tx-{timestamp_ms}-r{recurring_id}'`
-- Soft delete: `is_deleted=1` on Transaction_Fact. All GETs filter `WHERE is_deleted = 0`
-- `category_id = 'split'` is a sentinel value for split transactions (stored as TEXT in Transaction_Fact)
-- Per-user default categories seeded on registration: Ăn uống, Tiền lương, Đầu tư chứng khoán, Di chuyển, Mua sắm, Giải trí, Học tập, Sức khỏe, Khác
+- `transaction_id` format: `'tx-{timestamp_ms}'`
+- `category_id = 'split'` is sentinel for multi-category transactions
+- `is_deleted=1` = soft deleted, never returned by GET
+- `Account_Dim.initial_balance` only — `current_balance` computed client-side in `AccountsSummary.tsx`
+- Per-user default categories seeded at registration: Ăn uống, Tiền lương, Đầu tư chứng khoán, Di chuyển, Mua sắm, Giải trí, Học tập, Sức khỏe, Khác
+- System user `user_id=1` owns old seed data — new users cannot see it
 
 ---
 
-## 8. Environment Variables
+## 7. Environment Variables
 
 **`backend/.env`:**
 ```
-TURSO_DB_URL=https://...
+TURSO_DB_URL=https://...      (must use https://, database.py converts libsql:// automatically)
 TURSO_AUTH_TOKEN=...
 AUTH_SECRET_KEY=...
 AUTH_TOKEN_EXPIRE_DAYS=1
@@ -319,20 +282,30 @@ GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
 
 **`frontend/.env.local`:**
 ```
-GEMINI_API_KEY=...
+GEMINI_API_KEY=AIza...        (must start with AIza — AQ. format is invalid)
 VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
-FLASK_BACKEND_URL=http://localhost:5000    ← server-side only (used by server.ts)
+FLASK_BACKEND_URL=http://localhost:5000   (server-side only, used by server.ts)
 ```
 
 ---
 
-## 9. Key Constraints
+## 8. Missing Features (not yet implemented in new app)
 
-1. **`npm run dev`** runs `tsx server.ts` — Express serves Vite middleware. Do NOT run `vite` directly.
-2. **Gemini is server-side only** — called in `server.ts`, never from browser code.
-3. **`@/` alias** resolves to `frontend/` (root of frontend folder), not `frontend/src/`.
-4. **`routeTree.gen.ts`** is auto-generated by TanStack Router plugin on dev server start — do not edit.
-5. **Auth** uses `contexts/AuthContext.tsx` everywhere. The old `stores/auth-store.ts` has been deleted.
-6. **Analytics** page currently errors because it calls non-existent Flask endpoints.
-7. **Vite proxy** in `vite.config.ts` only applies when running Vite standalone (not normal). Normal dev uses Express proxy in `server.ts` (`app.all("/api/*path")`).
-8. **Express 5** wildcard syntax is `/api/*path` (named), not `/api/*`.
+| Feature | Status |
+|---|---|
+| Analytics page | ⚠️ Errors — calls non-existent `/api/analytics/*` endpoints |
+| Voice/AI chat integration | ✅ `AIChatWidget.tsx` on dashboard (floating button) |
+| Payees management | ❌ No route, no hook, no dedicated page |
+| Recurring transactions | ❌ No route, no hook, no dedicated page |
+| Settings page | ❌ Stub only |
+| SQL analytics console | ❌ Not in new app |
+
+---
+
+## 9. Deployment (Render)
+
+Defined in `render.yaml`:
+- **Backend**: Python service, `python backend/main.py`, env vars set in Render dashboard
+- **Frontend**: Node service (`fmbv`), build: `cd frontend && npm install && npm run build`, start: `cd frontend && npm start`
+- `FLASK_BACKEND_URL` env var points to backend Render URL
+- Render free plan spins down after 15min inactivity — first request may be slow
