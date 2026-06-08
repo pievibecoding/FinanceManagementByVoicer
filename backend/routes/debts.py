@@ -81,7 +81,12 @@ def create_debt():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             [g.user_id, name, debt_type, lender, debtor, principal, outstanding_balance, start_date, due_date, note],
         )
-        row = db.execute("SELECT last_insert_rowid() AS id")
+        # Use MAX(debt_id) for the user to get the just-inserted row
+        # (avoids libsql_client HTTP mode issue with SELECT last_insert_rowid() after INSERT)
+        row = db.execute(
+            "SELECT MAX(debt_id) FROM Debt_Dim WHERE user_id = ?",
+            [g.user_id],
+        )
         debt_id = row.rows[0][0]
         logger.info(f"Created debt {debt_id}: {name} for user {g.user_id}")
     except Exception as e:
@@ -202,7 +207,10 @@ def create_debt_payment(debt_id: int):
             VALUES (?, ?, ?, ?, ?, ?)""",
             [debt_id, transaction_id, payment_date, amount_paid, amount_paid, 0],
         )
-        row = db.execute("SELECT last_insert_rowid() AS id")
+        row = db.execute(
+            "SELECT MAX(payment_id) FROM Debt_Payment_Fact WHERE debt_id = ?",
+            [debt_id],
+        )
         payment_id = row.rows[0][0]
 
         # Update outstanding balance

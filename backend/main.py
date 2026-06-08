@@ -43,7 +43,7 @@ def create_app() -> Flask:
         from flask import jsonify
         return jsonify({"error": str(e)}), 500
 
-    # Debug endpoint — check if debt/savings tables exist
+    # Debug endpoint — check table schemas
     @app.route("/api/debug/tables", methods=["GET"])
     def debug_tables():
         from database import get_db
@@ -54,9 +54,16 @@ def create_app() -> Flask:
                 "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
             )
             tables = [row[0] for row in result.rows]
+            schemas = {}
+            for t in tables:
+                try:
+                    info = db.execute(f"PRAGMA table_info({t})")
+                    schemas[t] = [{"cid": r[0], "name": r[1], "type": r[2], "notnull": r[3], "dflt_value": r[4], "pk": r[5]} for r in info.rows]
+                except Exception as e:
+                    schemas[t] = str(e)
         finally:
             db.close()
-        return jsonify({"tables": tables})
+        return jsonify({"tables": tables, "schemas": schemas})
 
     # Register route blueprints
     app.register_blueprint(auth_bp)

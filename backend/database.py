@@ -40,6 +40,8 @@ def initialize_db() -> None:
         _create_split_table(db)
         _create_debt_tables(db)
         _create_savings_tables(db)
+        _migrate_debt_schema(db)
+        _migrate_savings_schema(db)
         _seed_system_user(db)
         _seed_accounts(db)
         _seed_categories(db)
@@ -592,6 +594,46 @@ def _create_savings_tables(db) -> None:
         logger.warning(f"Savings index creation warning: {e}")
 
     logger.info("savings tables ready.")
+
+
+def _migrate_debt_schema(db) -> None:
+    """Add missing columns to Debt_Dim if the table was created with the old schema.
+    Old schema had interest_rate, interest_type, minimum_payment, payment_frequency
+    but may be missing nothing — we just ensure required columns exist.
+    This is idempotent via try/except.
+    """
+    # These columns should exist in the new schema — add if missing
+    columns_to_ensure = [
+        ("status", "TEXT NOT NULL DEFAULT 'active'"),
+        ("note", "TEXT"),
+        ("lender", "TEXT"),
+        ("debtor", "TEXT"),
+        ("start_date", "TEXT"),
+        ("due_date", "TEXT"),
+    ]
+    for col_name, col_def in columns_to_ensure:
+        try:
+            db.execute(f"ALTER TABLE Debt_Dim ADD COLUMN {col_name} {col_def}")
+            logger.info(f"Debt_Dim: added missing column {col_name}")
+        except Exception:
+            pass  # Column already exists
+
+
+def _migrate_savings_schema(db) -> None:
+    """Add missing columns to Savings_Dim if the table was created with the old schema."""
+    columns_to_ensure = [
+        ("status", "TEXT NOT NULL DEFAULT 'active'"),
+        ("note", "TEXT"),
+        ("target_date", "TEXT"),
+        ("linked_account_id", "INTEGER"),
+        ("current_balance", "INTEGER NOT NULL DEFAULT 0"),
+    ]
+    for col_name, col_def in columns_to_ensure:
+        try:
+            db.execute(f"ALTER TABLE Savings_Dim ADD COLUMN {col_name} {col_def}")
+            logger.info(f"Savings_Dim: added missing column {col_name}")
+        except Exception:
+            pass  # Column already exists
 
 
 # ── Seed helpers ───────────────────────────────────────────────────────────────
