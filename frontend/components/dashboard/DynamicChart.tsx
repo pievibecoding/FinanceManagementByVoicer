@@ -182,7 +182,7 @@ export function DynamicChart({
     switch (chartType) {
       case 'asset-fluctuation':
         return (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={assetFluctuationData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
               <XAxis
@@ -225,14 +225,14 @@ export function DynamicChart({
       case 'expense-allocation':
         if (expenseAllocationData.length === 0) {
           return (
-            <div className="flex items-center justify-center h-[260px] text-white/40 text-sm">
+            <div className="flex items-center justify-center h-full text-white/40 text-sm">
               Chưa có dữ liệu chi tiêu tháng này
             </div>
           )
         }
         const totalExpense = expenseAllocationData.reduce((sum, item) => sum + item.value, 0)
         return (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={expenseAllocationData}
@@ -291,14 +291,14 @@ export function DynamicChart({
       case 'account-distribution':
         if (accountDistributionData.length === 0) {
           return (
-            <div className="flex items-center justify-center h-[260px] text-white/40 text-sm">
+            <div className="flex items-center justify-center h-full text-white/40 text-sm">
               Chưa có tài khoản nào
             </div>
           )
         }
         const totalBalance = accountDistributionData.reduce((sum, item) => sum + item.value, 0)
         return (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={accountDistributionData}
@@ -359,7 +359,7 @@ export function DynamicChart({
         const activeSavings = savings.filter(s => s.status !== 'cancelled')
         if (activeSavings.length === 0) {
           return (
-            <div className="flex items-center justify-center h-[260px] text-white/40 text-sm">
+            <div className="flex items-center justify-center h-full text-white/40 text-sm">
               Chưa có quỹ tiết kiệm nào
             </div>
           )
@@ -367,10 +367,10 @@ export function DynamicChart({
         const savingsData = activeSavings.map(s => ({ name: s.name, value: s.current_balance, target: s.target_amount }))
         const totalSaved = savingsData.reduce((sum, s) => sum + s.value, 0)
         return (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={savingsData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="value" labelLine={false}
-                label={({ cx, cy, midAngle, innerRadius, outerRadius, value }) => {
+                label={({ cx, cy, midAngle = 0, innerRadius, outerRadius, value }) => {
                   if (!value || !totalSaved) return null
                   const RADIAN = Math.PI / 180
                   const radius = innerRadius + (outerRadius - innerRadius) * 0.5
@@ -404,7 +404,7 @@ export function DynamicChart({
         const myDebts = debts.filter(d => d.status === 'active' && d.debt_type === 'debt')
         const myLoans = debts.filter(d => d.status === 'active' && d.debt_type === 'loan')
         if (myDebts.length === 0 && myLoans.length === 0) {
-          return <div className="flex items-center justify-center h-[260px] text-white/40 text-sm">Không có khoản nợ/vay đang hoạt động</div>
+          return <div className="flex items-center justify-center h-full text-white/40 text-sm">Không có khoản nợ/vay đang hoạt động</div>
         }
         const myDebtData = myDebts.map(d => ({ name: d.lender || d.name, value: d.outstanding_balance }))
         const myLoanData = myLoans.map(d => ({ name: d.debtor || d.name, value: d.outstanding_balance }))
@@ -420,7 +420,7 @@ export function DynamicChart({
               : <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie data={data} cx="50%" cy="50%" innerRadius={40} outerRadius={75} paddingAngle={2} dataKey="value" labelLine={false}
-                      label={({ cx, cy, midAngle, innerRadius, outerRadius, value }) => {
+                      label={({ cx, cy, midAngle = 0, innerRadius, outerRadius, value }) => {
                         if (!value || !total) return null
                         const R = Math.PI / 180
                         const r = innerRadius + (outerRadius - innerRadius) * 0.5
@@ -449,7 +449,7 @@ export function DynamicChart({
         )
 
         return (
-          <div className="flex gap-3 h-[260px]">
+          <div className="flex gap-3 h-full">
             <MiniDonut data={myDebtData} total={totalDebt} title="Tôi đang nợ" color="#dd9787" />
             <div className="w-px bg-white/10 self-stretch" />
             <MiniDonut data={myLoanData} total={totalLoan} title="Người nợ tôi" color="#74d3ae" />
@@ -465,9 +465,9 @@ export function DynamicChart({
             monthlyIncome[m] = (monthlyIncome[m] ?? 0) + tx.amount
           })
         const incomeData = Object.entries(monthlyIncome).sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ name: formatMonth(month), value }))
-        if (incomeData.length === 0) return <div className="flex items-center justify-center h-[260px] text-white/40 text-sm">Chưa có thu nhập trong kỳ này</div>
+        if (incomeData.length === 0) return <div className="flex items-center justify-center h-full text-white/40 text-sm">Chưa có thu nhập trong kỳ này</div>
         return (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeData} barSize={24}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -484,7 +484,7 @@ export function DynamicChart({
 
       case 'income-expense':
         return (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeExpenseData} barGap={2} barSize={60}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis
@@ -538,8 +538,8 @@ export function DynamicChart({
   }
 
   return (
-    <div className="bg-white/6 border border-white/18 rounded-[0.625rem] p-5 backdrop-blur-sm h-full">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white/6 border border-white/18 rounded-[0.625rem] p-5 backdrop-blur-sm h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <h3 className="text-white font-semibold text-sm">{getChartTitle()}</h3>
         <div className="flex gap-1">
           {TIME_RANGES.map(r => (
@@ -557,7 +557,9 @@ export function DynamicChart({
           ))}
         </div>
       </div>
-      {renderChart()}
+      <div className="flex-1 min-h-0">
+        {renderChart()}
+      </div>
     </div>
   )
 }
