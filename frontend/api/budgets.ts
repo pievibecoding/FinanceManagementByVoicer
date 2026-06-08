@@ -7,7 +7,7 @@ export interface Budget {
 
 export const budgetsApi = {
   async getBudgets(month?: string): Promise<Budget[]> {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('finance_auth_token');
     const params = new URLSearchParams();
     if (month) params.append('month', month);
 
@@ -25,7 +25,7 @@ export const budgetsApi = {
   },
 
   async upsertBudget(categoryId: number, amountLimit: number, month?: string): Promise<{ message: string; budget_id: number }> {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('finance_auth_token');
     const response = await fetch(`/api/budgets/${categoryId}`, {
       method: 'PUT',
       headers: {
@@ -46,7 +46,7 @@ export const budgetsApi = {
   },
 
   async deleteBudget(categoryId: number, month?: string): Promise<{ message: string }> {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('finance_auth_token');
     const params = new URLSearchParams();
     if (month) params.append('month', month);
 
