@@ -59,13 +59,6 @@ export const dashboardApi = {
     });
   },
 
-  async getTransactions(): Promise<Transaction[]> {
-    return request<Transaction[]>('/api/transactions', {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
-  },
-
   async getBudgets(month?: string): Promise<Budget[]> {
     const params = month ? `?month=${month}` : '';
     return request<Budget[]>(`/api/budgets${params}`, {

@@ -2,6 +2,8 @@ import { useAccounts } from '@/hooks/useAccounts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useBudgets } from '@/hooks/useBudgets';
 
+// useDashboardMetrics uses the SAME useTransactions hook as the transactions page.
+// This ensures both share the same TanStack Query cache entry ['transactions'].
 export function useDashboardMetrics() {
   const accountsQuery = useAccounts();
   const transactionsQuery = useTransactions();
