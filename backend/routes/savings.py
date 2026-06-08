@@ -76,7 +76,10 @@ def create_savings():
             VALUES (?, ?, ?, ?, ?, ?, ?)""",
             [g.user_id, name, target_amount, current_balance, target_date, linked_account_id, note],
         )
-        row = db.execute("SELECT last_insert_rowid() AS id")
+        row = db.execute(
+            "SELECT MAX(savings_id) FROM Savings_Dim WHERE user_id = ?",
+            [g.user_id],
+        )
         savings_id = row.rows[0][0]
         logger.info(f"Created savings goal {savings_id}: {name} for user {g.user_id}")
     finally:
@@ -190,7 +193,10 @@ def create_savings_contribution(savings_id: int):
             VALUES (?, ?, ?, ?)""",
             [savings_id, transaction_id, contribution_date, amount],
         )
-        row = db.execute("SELECT last_insert_rowid() AS id")
+        row = db.execute(
+            "SELECT MAX(contribution_id) FROM Savings_Contribution_Fact WHERE savings_id = ?",
+            [savings_id],
+        )
         contribution_id = row.rows[0][0]
 
         # Update current balance
