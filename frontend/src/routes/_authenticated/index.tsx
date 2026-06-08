@@ -105,7 +105,7 @@ function DashboardPage() {
         />
       </div>
 
-      {/* Row 2 — Chart (3 columns) + Accounts (2 rows in 4th column) */}
+      {/* Row 2 — Chart (3 columns) + Metric cards (4th column) */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         <div className="lg:col-span-3">
           <DynamicChart
@@ -134,12 +134,6 @@ function DashboardPage() {
             onClick={() => setSelectedMetric('total-debt')}
             selected={selectedMetric === 'total-debt'}
           />
-          <div className="flex-1">
-            <AccountsSummary
-              accounts={data.accounts}
-              transactions={data.transactions}
-            />
-          </div>
         </div>
       </div>
 

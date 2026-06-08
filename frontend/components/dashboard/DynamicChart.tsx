@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -26,6 +26,18 @@ interface DynamicChartProps {
   monthlyNetWorth: Record<string, number>
 }
 
+type TimeRange = '1d' | '1w' | '1m' | '3m' | '6m' | '1y' | 'all'
+
+const TIME_RANGES: { key: TimeRange; label: string }[] = [
+  { key: '1d', label: '1 ngày' },
+  { key: '1w', label: '1 tuần' },
+  { key: '1m', label: '1 tháng' },
+  { key: '3m', label: '3 tháng' },
+  { key: '6m', label: '6 tháng' },
+  { key: '1y', label: '1 năm' },
+  { key: 'all', label: 'Tất cả' },
+]
+
 const ACCOUNT_COLORS: Record<string, string> = {
   'Bank': '#678d58',
   'E-Wallet': '#74d3ae',
@@ -49,6 +61,19 @@ function formatMonth(month: string) {
   return `T${monthNum}/${year.slice(2)}`
 }
 
+function getStartDate(range: TimeRange): Date {
+  const now = new Date()
+  switch (range) {
+    case '1d': return new Date(now.getTime() - 1 * 86400000)
+    case '1w': return new Date(now.getTime() - 7 * 86400000)
+    case '1m': return new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+    case '3m': return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
+    case '6m': return new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+    case '1y': return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+    case 'all': return new Date(0)
+  }
+}
+
 export function DynamicChart({
   chartType,
   transactions,
@@ -57,18 +82,53 @@ export function DynamicChart({
   expenseByCategory,
   monthlyNetWorth,
 }: DynamicChartProps) {
+  const [timeRange, setTimeRange] = useState<TimeRange>('1m')
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
+
+  const startDate = getStartDate(timeRange)
+
+  // Filter transactions based on time range
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(tx => {
+      const txDate = new Date(tx.transaction_date)
+      return txDate >= startDate
+    })
+  }, [transactions, startDate])
+
+  // Filter monthly net worth based on time range
+  const filteredMonthlyNetWorth = useMemo(() => {
+    const result: Record<string, number> = {}
+    Object.entries(monthlyNetWorth).forEach(([month, value]) => {
+      const monthDate = new Date(month + '-01')
+      if (monthDate >= startDate) {
+        result[month] = value
+      }
+    })
+    return result
+  }, [monthlyNetWorth, startDate])
+
+  // Filter expense by category based on time range
+  const filteredExpenseByCategory = useMemo(() => {
+    const result: Record<number, number> = {}
+    filteredTransactions.forEach(tx => {
+      if (tx.type === 'expense') {
+        const catId = Number(tx.category_id)
+        result[catId] = (result[catId] ?? 0) + tx.amount
+      }
+    })
+    return result
+  }, [filteredTransactions])
 
   // Asset Fluctuation Chart (Line chart)
   const assetFluctuationData = useMemo(() => {
-    return Object.entries(monthlyNetWorth)
+    return Object.entries(filteredMonthlyNetWorth)
       .map(([month, value]) => ({ name: formatMonth(month), value: value || 0 }))
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [monthlyNetWorth])
+  }, [filteredMonthlyNetWorth])
 
   // Expense Allocation Chart (Donut chart)
   const expenseAllocationData = useMemo(() => {
-    return Object.entries(expenseByCategory)
+    return Object.entries(filteredExpenseByCategory)
       .map(([catId, amount]) => {
         const cat = categories.find(c => String(c.category_id) === catId)
         return {
@@ -77,13 +137,13 @@ export function DynamicChart({
         }
       })
       .filter(item => item.value > 0)
-  }, [expenseByCategory, categories])
+  }, [filteredExpenseByCategory, categories])
 
   // Account Distribution Chart (Donut chart)
   const accountDistributionData = useMemo(() => {
     return accounts.map(acc => {
       let balance = acc.initial_balance
-      transactions.forEach(tx => {
+      filteredTransactions.forEach(tx => {
         if (tx.account_id !== acc.account_id) return
         if (tx.type === 'income') balance += tx.amount
         else balance -= tx.amount
@@ -94,18 +154,15 @@ export function DynamicChart({
         accountType: acc.account_type,
       }
     }).filter(acc => acc.value !== 0)
-  }, [accounts, transactions])
+  }, [accounts, filteredTransactions])
 
   // Income Expense Chart (Bar chart)
   const incomeExpenseData = useMemo(() => {
-    const currentMonth = new Date().toISOString().slice(0, 7)
-    const thisMonthTx = transactions.filter(tx => tx.transaction_date.startsWith(currentMonth))
-    
-    const income = thisMonthTx
+    const income = filteredTransactions
       .filter(tx => tx.type === 'income')
       .reduce((sum, tx) => sum + tx.amount, 0)
     
-    const expense = thisMonthTx
+    const expense = filteredTransactions
       .filter(tx => tx.type === 'expense')
       .reduce((sum, tx) => sum + tx.amount, 0)
     
@@ -113,7 +170,7 @@ export function DynamicChart({
       { name: 'Thu nhập', value: income, fill: '#74d3ae' },
       { name: 'Chi tiêu', value: expense, fill: '#dd9787' },
     ]
-  }, [transactions])
+  }, [filteredTransactions])
 
   const renderChart = () => {
     switch (chartType) {
@@ -167,6 +224,7 @@ export function DynamicChart({
             </div>
           )
         }
+        const totalExpense = expenseAllocationData.reduce((sum, item) => sum + item.value, 0)
         return (
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
@@ -178,6 +236,28 @@ export function DynamicChart({
                 outerRadius={100}
                 paddingAngle={2}
                 dataKey="value"
+                label={({ cx, cy, midAngle, innerRadius, outerRadius, value, name }) => {
+                  if (midAngle === undefined) return null
+                  const RADIAN = Math.PI / 180
+                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+                  const percent = ((value / totalExpense) * 100).toFixed(0)
+                  return (
+                    <text
+                      x={x}
+                      y={y}
+                      fill="white"
+                      textAnchor={x > cx ? 'start' : 'end'}
+                      dominantBaseline="central"
+                      fontSize={10}
+                      fontWeight={500}
+                    >
+                      {percent}%
+                    </text>
+                  )
+                }}
+                labelLine={false}
               >
                 {expenseAllocationData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
@@ -186,10 +266,11 @@ export function DynamicChart({
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null
+                  const percent = ((payload[0].value as number / totalExpense) * 100).toFixed(1)
                   return (
                     <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
                       <p className="text-white font-medium">{payload[0].payload.name}</p>
-                      <p className="text-white/60">{fmt(payload[0].value as number)}đ</p>
+                      <p className="text-white/60">{fmt(payload[0].value as number)}đ ({percent}%)</p>
                     </div>
                   )
                 }}
@@ -209,6 +290,7 @@ export function DynamicChart({
             </div>
           )
         }
+        const totalBalance = accountDistributionData.reduce((sum, item) => sum + item.value, 0)
         return (
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
@@ -220,6 +302,28 @@ export function DynamicChart({
                 outerRadius={100}
                 paddingAngle={2}
                 dataKey="value"
+                label={({ cx, cy, midAngle, innerRadius, outerRadius, value, name }) => {
+                  if (midAngle === undefined) return null
+                  const RADIAN = Math.PI / 180
+                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+                  const percent = ((value / totalBalance) * 100).toFixed(0)
+                  return (
+                    <text
+                      x={x}
+                      y={y}
+                      fill="white"
+                      textAnchor={x > cx ? 'start' : 'end'}
+                      dominantBaseline="central"
+                      fontSize={10}
+                      fontWeight={500}
+                    >
+                      {percent}%
+                    </text>
+                  )
+                }}
+                labelLine={false}
               >
                 {accountDistributionData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={ACCOUNT_COLORS[entry.accountType] || CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
@@ -228,10 +332,12 @@ export function DynamicChart({
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null
+                  const value = payload[0].value as number
+                  const percent = ((value / totalBalance) * 100).toFixed(1)
                   return (
                     <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
                       <p className="text-white font-medium">{payload[0].payload.name}</p>
-                      <p className="text-white/60">{fmt(payload[0].value as number)}đ</p>
+                      <p className="text-white/60">{fmt(value)}đ ({percent}%)</p>
                     </div>
                   )
                 }}
@@ -297,7 +403,24 @@ export function DynamicChart({
 
   return (
     <div className="bg-white/6 border border-white/18 rounded-[0.625rem] p-5 backdrop-blur-sm h-full">
-      <h3 className="text-white font-semibold text-sm mb-4">{getChartTitle()}</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-white font-semibold text-sm">{getChartTitle()}</h3>
+        <div className="flex gap-1">
+          {TIME_RANGES.map(r => (
+            <button
+              key={r.key}
+              onClick={() => setTimeRange(r.key)}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                timeRange === r.key
+                  ? 'bg-[#74d3ae]/20 text-[#74d3ae] border border-[#74d3ae]/40'
+                  : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
       {renderChart()}
     </div>
   )
