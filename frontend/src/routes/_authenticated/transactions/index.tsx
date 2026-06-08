@@ -26,16 +26,15 @@ function TransactionsPage() {
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)         // ← separate open state
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [deleteTransactionId, setDeleteTransactionId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
 
-  // Fetch ALL transactions — filtering is done client-side
   const { data: allTransactions = [], isLoading, isError } = useTransactions()
   const { data: categories = [] } = useCategories()
 
-  // Client-side filtering
   const filtered = useMemo(() => {
     let list = allTransactions
     if (filters.type) list = list.filter(t => t.type === filters.type)
@@ -56,14 +55,31 @@ function TransactionsPage() {
 
   const handleFiltersChange = (f: typeof filters) => {
     setFilters(f)
-    setCurrentPage(1) // reset to page 1 when filter changes
+    setCurrentPage(1)
+  }
+
+  const handleViewDetails = (t: Transaction) => {
+    setSelectedTransaction(t)
+    setDetailsOpen(true)
+  }
+
+  const handleEditFromDetails = (t: Transaction) => {
+    setDetailsOpen(false)          // close details first
+    setSelectedTransaction(t)
+    setEditModalOpen(true)         // then open edit
+  }
+
+  const handleDeleteFromDetails = (id: string) => {
+    setDetailsOpen(false)          // close details first
+    setDeleteTransactionId(id)
+    setDeleteDialogOpen(true)
   }
 
   if (isLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-white">Transactions</h1>
-        <div className="text-white/60">Loading...</div>
+        <h1 className="text-2xl font-bold mb-4 text-white">Giao dịch</h1>
+        <div className="text-white/60">Đang tải...</div>
       </div>
     )
   }
@@ -71,8 +87,8 @@ function TransactionsPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-white">Transactions</h1>
-        <div className="text-[#dd9787]">Error loading transactions</div>
+        <h1 className="text-2xl font-bold mb-4 text-white">Giao dịch</h1>
+        <div className="text-[#dd9787]">Lỗi tải dữ liệu</div>
       </div>
     )
   }
@@ -100,7 +116,7 @@ function TransactionsPage() {
         categories={categories}
         onEdit={(t) => { setSelectedTransaction(t); setEditModalOpen(true) }}
         onDelete={(id) => { setDeleteTransactionId(id); setDeleteDialogOpen(true) }}
-        onViewDetails={(t) => setSelectedTransaction(t)}
+        onViewDetails={handleViewDetails}
       />
 
       {filtered.length > itemsPerPage && (
@@ -114,12 +130,16 @@ function TransactionsPage() {
       <AddTransactionModal open={addModalOpen} onOpenChange={setAddModalOpen} />
       <EditTransactionModal open={editModalOpen} onOpenChange={setEditModalOpen} transaction={selectedTransaction} />
       <DeleteConfirmationDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} transactionId={deleteTransactionId} />
-      <TransactionDetailsView
-        transaction={selectedTransaction}
-        onClose={() => setSelectedTransaction(null)}
-        onEdit={(t) => { setSelectedTransaction(t); setEditModalOpen(true) }}
-        onDelete={(id) => { setDeleteTransactionId(id); setDeleteDialogOpen(true) }}
-      />
+
+      {/* DetailsView uses its own open state so it doesn't conflict with EditModal */}
+      {detailsOpen && (
+        <TransactionDetailsView
+          transaction={selectedTransaction}
+          onClose={() => setDetailsOpen(false)}
+          onEdit={handleEditFromDetails}
+          onDelete={handleDeleteFromDetails}
+        />
+      )}
     </div>
   )
 }
