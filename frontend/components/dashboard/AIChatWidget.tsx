@@ -49,49 +49,46 @@ function DebtPickerPopup({ debts, amount, paymentDate, onSelect, onCancel }: Deb
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-white/15 rounded-xl p-4 w-full max-w-sm mx-4 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
+      <div className="bg-popover border border-border rounded-xl p-4 w-full max-w-sm mx-4 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-white font-semibold text-sm">Chọn khoản nợ để ghi nhận</p>
-            <p className="text-white/40 text-xs mt-0.5">Thanh toán: <span className="text-[#74d3ae]">{fmt(amount)}</span></p>
+            <p className="text-foreground font-semibold text-sm">Chọn khoản nợ để ghi nhận</p>
+            <p className="text-muted-foreground text-xs mt-0.5">Thanh toán: <span className="text-primary">{fmt(amount)}</span></p>
           </div>
-          <button onClick={onCancel} className="text-white/40 hover:text-white transition-colors p-1">
+          <button onClick={onCancel} className="text-muted-foreground hover:text-foreground transition-colors p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto space-y-2">
           {debts.length === 0 ? (
-            <p className="text-white/40 text-sm text-center py-4">Không có khoản nợ đang hoạt động</p>
+            <p className="text-muted-foreground text-sm text-center py-4">Không có khoản nợ đang hoạt động</p>
           ) : (
             debts.map(debt => (
               <button
                 key={debt.debt_id}
                 onClick={() => onSelect(debt)}
-                className="w-full text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#74d3ae]/40 rounded-lg p-3 transition-all"
+                className="w-full text-left bg-muted/30 hover:bg-muted/60 border border-border hover:border-primary/40 rounded-lg p-3 transition-all"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-white text-sm font-medium truncate">{debt.name}</p>
+                  <p className="text-foreground text-sm font-medium truncate">{debt.name}</p>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded ml-2 shrink-0 ${
                     debt.debt_type === 'debt'
-                      ? 'bg-[#dd9787]/20 text-[#dd9787]'
-                      : 'bg-[#74d3ae]/20 text-[#74d3ae]'
+                      ? 'bg-destructive/20 text-destructive'
+                      : 'bg-primary/20 text-primary'
                   }`}>
                     {debt.debt_type === 'debt' ? 'Tôi nợ' : 'Nợ tôi'}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 mt-1 text-xs text-white/40">
+                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                   {debt.lender && <span>👤 {debt.lender}</span>}
                   {debt.debtor && <span>👤 {debt.debtor}</span>}
-                  <span className="ml-auto text-white/50">Còn: {fmt(debt.outstanding_balance)}</span>
+                  <span className="ml-auto">Còn: {fmt(debt.outstanding_balance)}</span>
                 </div>
               </button>
             ))
           )}
         </div>
-        <button
-          onClick={onCancel}
-          className="mt-3 w-full text-white/50 text-xs border border-white/10 rounded-lg py-2 hover:bg-white/5 transition-all"
-        >
+        <button onClick={onCancel} className="mt-3 w-full text-muted-foreground text-xs border border-border rounded-lg py-2 hover:bg-muted/30 transition-all">
           Hủy
         </button>
       </div>
@@ -117,8 +114,8 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 const TYPE_COLOR: Record<string, string> = {
-  income: 'text-[#74d3ae]',
-  expense: 'text-[#dd9787]',
+  income: 'text-primary',
+  expense: 'text-destructive',
   investment: 'text-sky-400',
 }
 
@@ -135,19 +132,19 @@ function SavingsPickerPopup({ savings, amount, contributionDate, onSelect, onCan
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-white/15 rounded-xl p-4 w-full max-w-sm mx-4 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
+      <div className="bg-popover border border-border rounded-xl p-4 w-full max-w-sm mx-4 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-white font-semibold text-sm">Chọn quỹ tiết kiệm</p>
-            <p className="text-white/40 text-xs mt-0.5">Nạp: <span className="text-[#74d3ae]">{fmt(amount)}</span></p>
+            <p className="text-foreground font-semibold text-sm">Chọn quỹ tiết kiệm</p>
+            <p className="text-muted-foreground text-xs mt-0.5">Nạp: <span className="text-primary">{fmt(amount)}</span></p>
           </div>
-          <button onClick={onCancel} className="text-white/40 hover:text-white transition-colors p-1">
+          <button onClick={onCancel} className="text-muted-foreground hover:text-foreground transition-colors p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto space-y-2">
           {savings.length === 0 ? (
-            <p className="text-white/40 text-sm text-center py-4">Không có quỹ nào đang hoạt động</p>
+            <p className="text-muted-foreground text-sm text-center py-4">Không có quỹ nào đang hoạt động</p>
           ) : (
             savings.map(goal => {
               const pct = goal.target_amount > 0
@@ -157,16 +154,16 @@ function SavingsPickerPopup({ savings, amount, contributionDate, onSelect, onCan
                 <button
                   key={goal.savings_id}
                   onClick={() => onSelect(goal)}
-                  className="w-full text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#74d3ae]/40 rounded-lg p-3 transition-all"
+                  className="w-full text-left bg-muted/30 hover:bg-muted/60 border border-border hover:border-primary/40 rounded-lg p-3 transition-all"
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-white text-sm font-medium truncate">{goal.name}</p>
-                    <span className="text-[10px] text-[#74d3ae] ml-2 shrink-0">{pct.toFixed(0)}%</span>
+                    <p className="text-foreground text-sm font-medium truncate">{goal.name}</p>
+                    <span className="text-[10px] text-primary ml-2 shrink-0">{pct.toFixed(0)}%</span>
                   </div>
-                  <div className="w-full bg-white/10 rounded-full h-1 mb-1.5">
-                    <div className="bg-[#74d3ae] h-1 rounded-full" style={{ width: `${pct}%` }} />
+                  <div className="w-full bg-border/40 rounded-full h-1 mb-1.5">
+                    <div className="bg-primary h-1 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
-                  <div className="flex justify-between text-xs text-white/40">
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>{fmt(goal.current_balance)}</span>
                     <span>/ {fmt(goal.target_amount)}</span>
                   </div>
@@ -175,7 +172,7 @@ function SavingsPickerPopup({ savings, amount, contributionDate, onSelect, onCan
             })
           )}
         </div>
-        <button onClick={onCancel} className="mt-3 w-full text-white/50 text-xs border border-white/10 rounded-lg py-2 hover:bg-white/5 transition-all">
+        <button onClick={onCancel} className="mt-3 w-full text-muted-foreground text-xs border border-border rounded-lg py-2 hover:bg-muted/30 transition-all">
           Hủy
         </button>
       </div>
@@ -434,12 +431,12 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
     const cardContent = () => {
       if (opType === 'new_debt') {
         return (
-          <div className="text-white/60 space-y-0.5 text-xs">
+          <div className="text-muted-foreground space-y-0.5 text-xs">
             <div className="flex items-center gap-2 mb-1">
-              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${p.debt_type === 'debt' ? 'bg-[#dd9787]/20 text-[#dd9787]' : 'bg-[#74d3ae]/20 text-[#74d3ae]'}`}>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${p.debt_type === 'debt' ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'}`}>
                 {p.debt_type === 'debt' ? 'Tôi nợ' : 'Người nợ tôi'}
               </span>
-              <span className="font-bold text-base text-white">{fmt(p.amount)}</span>
+              <span className="font-bold text-base text-foreground">{fmt(p.amount)}</span>
             </div>
             {p.lender && <p>👤 Người cho vay: {p.lender}</p>}
             {p.debtor && <p>👤 Người vay: {p.debtor}</p>}
@@ -450,9 +447,9 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
       }
       if (opType === 'debt_payment') {
         return (
-          <div className="text-white/60 space-y-0.5 text-xs">
-            <p className="text-white font-bold text-sm">Thanh toán khoản nợ</p>
-            <p className="text-[#74d3ae] text-base font-bold">{fmt(p.amount)}</p>
+          <div className="text-muted-foreground space-y-0.5 text-xs">
+            <p className="text-foreground font-bold text-sm">Thanh toán khoản nợ</p>
+            <p className="text-primary text-base font-bold">{fmt(p.amount)}</p>
             {p.lender && <p>👤 Cho: {p.lender}</p>}
             {p.debt_name && <p>📋 {p.debt_name}</p>}
           </div>
@@ -460,8 +457,8 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
       }
       if (opType === 'new_savings') {
         return (
-          <div className="text-white/60 space-y-0.5 text-xs">
-            <p className="text-white font-bold text-sm">Tạo quỹ tiết kiệm mới</p>
+          <div className="text-muted-foreground space-y-0.5 text-xs">
+            <p className="text-foreground font-bold text-sm">Tạo quỹ tiết kiệm mới</p>
             {p.savings_name && <p>🐷 {p.savings_name}</p>}
             {p.target_amount ? <p>🎯 Mục tiêu: {fmt(p.target_amount)}</p> : <p>💰 {fmt(p.amount)}</p>}
             {p.note && <p>📝 {p.note}</p>}
@@ -470,9 +467,9 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
       }
       if (opType === 'savings_contribution') {
         return (
-          <div className="text-white/60 space-y-0.5 text-xs">
-            <p className="text-white font-bold text-sm">Nạp tiền vào quỹ</p>
-            <p className="text-[#74d3ae] text-base font-bold">{fmt(p.amount)}</p>
+          <div className="text-muted-foreground space-y-0.5 text-xs">
+            <p className="text-foreground font-bold text-sm">Nạp tiền vào quỹ</p>
+            <p className="text-primary text-base font-bold">{fmt(p.amount)}</p>
             {p.savings_name && <p>🐷 Quỹ: {p.savings_name}</p>}
             {p.note && <p>📝 {p.note}</p>}
           </div>
@@ -480,7 +477,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
       }
       // Default: transaction
       return (
-        <div className="text-white/60 space-y-0.5 text-xs">
+        <div className="text-muted-foreground space-y-0.5 text-xs">
           <div className="flex items-center justify-between">
             <span className={`font-bold text-base tabular-nums ${TYPE_COLOR[p.type ?? '']}`}>{fmt(p.amount)}</span>
             <span className={`text-[10px] font-medium ${TYPE_COLOR[p.type ?? '']}`}>{TYPE_LABEL[p.type ?? '']}</span>
@@ -488,7 +485,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
           <p>🏷 {p.category} &nbsp;·&nbsp; 💳 {p.account}</p>
           {p.note && <p>📝 {p.note}</p>}
           {p.location && <p>📍 {p.location}</p>}
-          <p className="text-white/30">{p.transaction_date}</p>
+          <p className="text-muted-foreground/50">{p.transaction_date}</p>
           {p.account_is_new && <p className="text-amber-400">🆕 Tài khoản mới đã được tạo</p>}
         </div>
       )
@@ -499,10 +496,10 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
         key={entry.id}
         className={`rounded-xl border px-3 py-2.5 text-xs space-y-1.5 transition-all ${
           entry.confirmed
-            ? 'border-[#74d3ae]/30 bg-[#74d3ae]/5 opacity-60'
+            ? 'border-primary/30 bg-primary/5 opacity-60'
             : entry.rejected
-            ? 'border-white/10 bg-white/3 opacity-40'
-            : 'border-white/15 bg-white/6'
+            ? 'border-border/50 bg-muted/20 opacity-40'
+            : 'border-border bg-card'
         }`}
       >
         {cardContent()}
@@ -510,24 +507,24 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
           <div className="flex gap-2 pt-1">
             <button
               onClick={() => confirmEntry(entry.id, p)}
-              className="flex items-center gap-1 text-[#74d3ae] border border-[#74d3ae]/40 hover:bg-[#74d3ae]/10 rounded-lg px-2.5 py-1 transition-all text-[11px] font-medium"
+              className="flex items-center gap-1 text-primary border border-primary/40 hover:bg-primary/10 rounded-lg px-2.5 py-1 transition-all text-[11px] font-medium"
             >
               <CheckCircle className="w-3.5 h-3.5" /> Xác nhận
             </button>
             <button
               onClick={() => rejectEntry(entry.id)}
-              className="flex items-center gap-1 text-white/40 border border-white/10 hover:bg-white/5 rounded-lg px-2.5 py-1 transition-all text-[11px]"
+              className="flex items-center gap-1 text-muted-foreground border border-border hover:bg-muted/30 rounded-lg px-2.5 py-1 transition-all text-[11px]"
             >
               <XCircle className="w-3.5 h-3.5" /> Hủy
             </button>
           </div>
         )}
         {entry.confirmed && (
-          <p className="text-[#74d3ae] text-[11px] flex items-center gap-1">
+          <p className="text-primary text-[11px] flex items-center gap-1">
             <CheckCircle className="w-3 h-3" /> Đã lưu
           </p>
         )}
-        {entry.rejected && <p className="text-white/30 text-[11px]">Đã hủy</p>}
+        {entry.rejected && <p className="text-muted-foreground/50 text-[11px]">Đã hủy</p>}
       </div>
     )
   }
@@ -608,35 +605,35 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
         onClick={() => setOpen(o => !o)}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 ${
           open
-            ? 'bg-zinc-800 border border-white/20 rotate-45'
-            : 'bg-gradient-to-br from-[#74d3ae] to-[#678d58] hover:scale-110'
+            ? 'bg-popover border border-border rotate-45'
+            : 'bg-gradient-to-br from-primary to-[#5c0099] hover:scale-110'
         }`}
         title="AI Transaction Parser"
       >
         {open ? (
-          <X className="w-5 h-5 text-white" />
+          <X className="w-5 h-5 text-foreground" />
         ) : (
           <>
-            <Sparkles className="w-6 h-6 text-white" />
-            <span className="absolute inset-0 rounded-full animate-ping bg-[#74d3ae]/30 pointer-events-none" />
+            <Sparkles className="w-6 h-6 text-primary-foreground" />
+            <span className="absolute inset-0 rounded-full animate-ping bg-primary/30 pointer-events-none" />
           </>
         )}
       </button>
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[380px] max-h-[520px] flex flex-col rounded-2xl border border-white/12 bg-zinc-950/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+        <div className="fixed bottom-24 right-6 z-50 w-[380px] max-h-[520px] flex flex-col rounded-2xl border border-border bg-popover/95 backdrop-blur-xl shadow-2xl overflow-hidden">
           {/* Panel header */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 shrink-0">
-            <Sparkles className="w-4 h-4 text-[#74d3ae]" />
-            <span className="text-sm font-semibold text-white">AI Nhập giao dịch</span>
-            <span className="ml-auto text-[10px] text-white/30 font-mono">Gemini</span>
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">AI Nhập giao dịch</span>
+            <span className="ml-auto text-[10px] text-muted-foreground font-mono">Gemini</span>
           </div>
 
           {/* Entries */}
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
             {entries.length === 0 && (
-              <p className="text-white/30 text-xs text-center pt-4">
+              <p className="text-muted-foreground/60 text-xs text-center pt-4">
                 Nhập hoặc nói mô tả giao dịch của bạn...
               </p>
             )}
@@ -644,7 +641,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
               if (e.id.startsWith('u-')) {
                 return (
                   <div key={e.id} className="flex justify-end">
-                    <span className="bg-[#74d3ae]/15 text-white text-xs px-3 py-1.5 rounded-xl max-w-[80%]">
+                    <span className="bg-primary/15 text-foreground text-xs px-3 py-1.5 rounded-xl max-w-[80%]">
                       {e.text}
                     </span>
                   </div>
@@ -652,7 +649,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
               }
               if (e.error) {
                 return (
-                  <div key={e.id} className="text-xs text-[#dd9787] bg-[#dd9787]/10 rounded-xl px-3 py-2">
+                  <div key={e.id} className="text-xs text-destructive bg-destructive/10 rounded-xl px-3 py-2">
                     💬 {e.error}
                   </div>
                 )
@@ -662,7 +659,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
             })}
 
             {loading && (
-              <div className="flex items-center gap-2 text-white/40 text-xs px-1">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs px-1">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 Đang phân tích...
               </div>
@@ -676,7 +673,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
                 <button
                   key={s}
                   onClick={() => handleSubmit(s)}
-                  className="shrink-0 text-[10px] text-white/50 border border-white/10 hover:border-[#74d3ae]/50 hover:text-white rounded-full px-2.5 py-1 transition-all whitespace-nowrap"
+                  className="shrink-0 text-[10px] text-muted-foreground border border-border hover:border-primary/50 hover:text-foreground rounded-full px-2.5 py-1 transition-all whitespace-nowrap"
                 >
                   {s}
                 </button>
@@ -686,22 +683,22 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
 
           {/* Input bar */}
           <div className="px-3 pb-3 shrink-0">
-            {micError && <p className="text-[#dd9787] text-[10px] mb-1 px-1">{micError}</p>}
-            {interim && <p className="text-white/40 text-xs italic px-1 mb-1">🎤 {interim}</p>}
-            <div className="flex items-center gap-2 bg-white/6 border border-white/12 rounded-xl px-3 py-2">
+            {micError && <p className="text-destructive text-[10px] mb-1 px-1">{micError}</p>}
+            {interim && <p className="text-muted-foreground text-xs italic px-1 mb-1">🎤 {interim}</p>}
+            <div className="flex items-center gap-2 bg-input border border-border rounded-xl px-3 py-2">
               <input
                 ref={inputRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmit(input)}
                 placeholder="Ăn trưa 45k momo..."
-                className="flex-1 bg-transparent text-white text-xs placeholder-white/30 outline-none"
+                className="flex-1 bg-transparent text-foreground text-xs placeholder-muted-foreground/50 outline-none"
                 disabled={loading || listening}
               />
               <button
                 onClick={handleMic}
                 className={`p-1 rounded-lg transition-all ${
-                  listening ? 'text-[#dd9787] bg-[#dd9787]/10 animate-pulse' : 'text-white/40 hover:text-white'
+                  listening ? 'text-destructive bg-destructive/10 animate-pulse' : 'text-muted-foreground hover:text-foreground'
                 }`}
                 title={listening ? 'Bấm để dừng và gửi' : 'Bấm để nói'}
               >
@@ -710,7 +707,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
               <button
                 onClick={() => handleSubmit(input)}
                 disabled={!input.trim() || loading}
-                className="p-1 rounded-lg text-[#74d3ae] hover:bg-[#74d3ae]/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="p-1 rounded-lg text-primary hover:bg-primary/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
                 <Send className="w-4 h-4" />
               </button>

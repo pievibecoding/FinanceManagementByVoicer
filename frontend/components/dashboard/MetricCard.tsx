@@ -13,20 +13,20 @@ export function MetricCard({ title, value, trend, icon, positive = true, onClick
   return (
     <div
       onClick={onClick}
-      className={`bg-white/6 border rounded-[0.625rem] p-6 backdrop-blur-sm transition-all cursor-pointer ${
-        selected ? 'border-[#74d3ae]/60 bg-[#74d3ae]/10' : 'border-white/18 hover:bg-white/10'
+      className={`bg-card border rounded-[var(--radius)] p-6 backdrop-blur-sm transition-all cursor-pointer ${
+        selected ? 'border-primary/60 bg-primary/10' : 'border-border hover:bg-muted/40'
       } ${className}`}
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-2xl">{icon}</span>
         {trend && (
-          <span className={`text-xs ${positive ? 'text-[#74d3ae]' : 'text-[#dd9787]'}`}>
+          <span className={`text-xs ${positive ? 'text-primary' : 'text-destructive'}`}>
             {positive ? '↑' : '↓'} {trend}
           </span>
         )}
       </div>
-      <h3 className="text-white/60 text-sm uppercase mb-1">{title}</h3>
-      <p className="text-white text-2xl font-bold tabular-nums">{value}</p>
+      <h3 className="text-muted-foreground text-sm uppercase mb-1">{title}</h3>
+      <p className="text-foreground text-2xl font-bold tabular-nums">{value}</p>
     </div>
   );
 }

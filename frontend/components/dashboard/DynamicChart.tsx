@@ -43,15 +43,15 @@ const TIME_RANGES: { key: TimeRange; label: string }[] = [
 ]
 
 const ACCOUNT_COLORS: Record<string, string> = {
-  'Bank': '#678d58',
-  'E-Wallet': '#74d3ae',
-  'Investment': '#0ea5e9',
-  'Cash': '#f59e0b',
+  'Bank':       '#5c9efa',
+  'E-Wallet':   '#c86bfa',
+  'Investment': '#ffd500',
+  'Cash':       '#f59e0b',
 }
 
 const CATEGORY_COLORS = [
-  '#74d3ae', '#678d58', '#dd9787', '#0ea5e9', '#f59e0b',
-  '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'
+  '#c86bfa', '#ffd500', '#ff6b9d', '#5c9efa', '#f59e0b',
+  '#34d399', '#fb923c', '#a78bfa', '#38bdf8', '#f472b6'
 ]
 
 function formatVND(value: number) {
@@ -173,8 +173,8 @@ export function DynamicChart({
       .reduce((sum, tx) => sum + tx.amount, 0)
     
     return [
-      { name: 'Thu nhập', value: income, fill: '#74d3ae' },
-      { name: 'Chi tiêu', value: expense, fill: '#dd9787' },
+      { name: 'Thu nhập', value: income, fill: '#c86bfa' },
+      { name: 'Chi tiêu', value: expense, fill: '#ffd500' },
     ]
   }, [filteredTransactions])
 
@@ -187,13 +187,13 @@ export function DynamicChart({
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
               <XAxis
                 dataKey="name"
-                tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+                tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 tickFormatter={formatVND}
-                tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+                tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 width={40}
@@ -203,9 +203,9 @@ export function DynamicChart({
                   if (!active || !payload?.length) return null
                   const value = payload[0].value as number
                   return (
-                    <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
-                      <p className="text-white/60 mb-1">{payload[0].payload.name}</p>
-                      <p className="text-[#74d3ae] font-medium">{fmt(value)}đ</p>
+                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
+                      <p className="text-muted-foreground mb-1">{payload[0].payload.name}</p>
+                      <p className="text-primary font-medium">{fmt(value)}đ</p>
                     </div>
                   )
                 }}
@@ -213,9 +213,9 @@ export function DynamicChart({
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke="#74d3ae"
+                stroke="#c86bfa"
                 strokeWidth={2}
-                dot={{ fill: '#74d3ae', strokeWidth: 2, r: 3 }}
+                dot={{ fill: '#c86bfa', strokeWidth: 2, r: 3 }}
                 activeDot={{ r: 5 }}
               />
             </LineChart>
@@ -225,7 +225,7 @@ export function DynamicChart({
       case 'expense-allocation':
         if (expenseAllocationData.length === 0) {
           return (
-            <div className="flex items-center justify-center h-full text-white/40 text-sm">
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
               Chưa có dữ liệu chi tiêu tháng này
             </div>
           )
@@ -236,12 +236,9 @@ export function DynamicChart({
             <PieChart>
               <Pie
                 data={expenseAllocationData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={2}
-                dataKey="value"
+                cx="50%" cy="50%"
+                innerRadius={60} outerRadius={100}
+                paddingAngle={2} dataKey="value"
                 label={({ cx, cy, midAngle, innerRadius, outerRadius, value, name }) => {
                   if (midAngle === undefined) return null
                   const RADIAN = Math.PI / 180
@@ -250,15 +247,7 @@ export function DynamicChart({
                   const y = cy + radius * Math.sin(-midAngle * RADIAN)
                   const percent = ((value / totalExpense) * 100).toFixed(0)
                   return (
-                    <text
-                      x={x}
-                      y={y}
-                      fill="white"
-                      textAnchor={x > cx ? 'start' : 'end'}
-                      dominantBaseline="central"
-                      fontSize={10}
-                      fontWeight={500}
-                    >
+                    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight={500}>
                       {percent}%
                     </text>
                   )
@@ -274,16 +263,14 @@ export function DynamicChart({
                   if (!active || !payload?.length) return null
                   const percent = ((payload[0].value as number / totalExpense) * 100).toFixed(1)
                   return (
-                    <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
-                      <p className="text-white font-medium">{payload[0].payload.name}</p>
-                      <p className="text-white/60">{fmt(payload[0].value as number)}đ ({percent}%)</p>
+                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
+                      <p className="text-foreground font-medium">{payload[0].payload.name}</p>
+                      <p className="text-muted-foreground">{fmt(payload[0].value as number)}đ ({percent}%)</p>
                     </div>
                   )
                 }}
               />
-              <Legend
-                formatter={(value) => <span className="text-xs text-white/50">{value}</span>}
-              />
+              <Legend formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>} />
             </PieChart>
           </ResponsiveContainer>
         )
@@ -291,7 +278,7 @@ export function DynamicChart({
       case 'account-distribution':
         if (accountDistributionData.length === 0) {
           return (
-            <div className="flex items-center justify-center h-full text-white/40 text-sm">
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
               Chưa có tài khoản nào
             </div>
           )
@@ -302,12 +289,9 @@ export function DynamicChart({
             <PieChart>
               <Pie
                 data={accountDistributionData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={2}
-                dataKey="value"
+                cx="50%" cy="50%"
+                innerRadius={60} outerRadius={100}
+                paddingAngle={2} dataKey="value"
                 label={({ cx, cy, midAngle, innerRadius, outerRadius, value, name }) => {
                   if (midAngle === undefined) return null
                   const RADIAN = Math.PI / 180
@@ -316,15 +300,7 @@ export function DynamicChart({
                   const y = cy + radius * Math.sin(-midAngle * RADIAN)
                   const percent = ((value / totalBalance) * 100).toFixed(0)
                   return (
-                    <text
-                      x={x}
-                      y={y}
-                      fill="white"
-                      textAnchor={x > cx ? 'start' : 'end'}
-                      dominantBaseline="central"
-                      fontSize={10}
-                      fontWeight={500}
-                    >
+                    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight={500}>
                       {percent}%
                     </text>
                   )
@@ -341,16 +317,14 @@ export function DynamicChart({
                   const value = payload[0].value as number
                   const percent = ((value / totalBalance) * 100).toFixed(1)
                   return (
-                    <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
-                      <p className="text-white font-medium">{payload[0].payload.name}</p>
-                      <p className="text-white/60">{fmt(value)}đ ({percent}%)</p>
+                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
+                      <p className="text-foreground font-medium">{payload[0].payload.name}</p>
+                      <p className="text-muted-foreground">{fmt(value)}đ ({percent}%)</p>
                     </div>
                   )
                 }}
               />
-              <Legend
-                formatter={(value) => <span className="text-xs text-white/50">{value}</span>}
-              />
+              <Legend formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>} />
             </PieChart>
           </ResponsiveContainer>
         )
@@ -359,7 +333,7 @@ export function DynamicChart({
         const activeSavings = savings.filter(s => s.status !== 'cancelled')
         if (activeSavings.length === 0) {
           return (
-            <div className="flex items-center justify-center h-full text-white/40 text-sm">
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
               Chưa có quỹ tiết kiệm nào
             </div>
           )
@@ -387,14 +361,14 @@ export function DynamicChart({
                 const pct = totalSaved > 0 ? ((item.value / totalSaved) * 100).toFixed(1) : '0'
                 const progress = item.target > 0 ? ((item.value / item.target) * 100).toFixed(0) : '0'
                 return (
-                  <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
-                    <p className="text-white font-medium">{item.name}</p>
-                    <p className="text-[#74d3ae]">{fmt(item.value)}đ ({pct}% tổng)</p>
-                    <p className="text-white/40">Mục tiêu: {fmt(item.target)}đ ({progress}% đạt)</p>
+                  <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
+                    <p className="text-foreground font-medium">{item.name}</p>
+                    <p className="text-primary">{fmt(item.value)}đ ({pct}% tổng)</p>
+                    <p className="text-muted-foreground">Mục tiêu: {fmt(item.target)}đ ({progress}% đạt)</p>
                   </div>
                 )
               }} />
-              <Legend formatter={(v) => <span className="text-xs text-white/50">{v}</span>} />
+              <Legend formatter={(v) => <span className="text-xs text-muted-foreground">{v}</span>} />
             </PieChart>
           </ResponsiveContainer>
         )
@@ -404,7 +378,7 @@ export function DynamicChart({
         const myDebts = debts.filter(d => d.status === 'active' && d.debt_type === 'debt')
         const myLoans = debts.filter(d => d.status === 'active' && d.debt_type === 'loan')
         if (myDebts.length === 0 && myLoans.length === 0) {
-          return <div className="flex items-center justify-center h-full text-white/40 text-sm">Không có khoản nợ/vay đang hoạt động</div>
+          return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Không có khoản nợ/vay đang hoạt động</div>
         }
         const myDebtData = myDebts.map(d => ({ name: d.lender || d.name, value: d.outstanding_balance }))
         const myLoanData = myLoans.map(d => ({ name: d.debtor || d.name, value: d.outstanding_balance }))
@@ -413,10 +387,10 @@ export function DynamicChart({
 
         const MiniDonut = ({ data, total, title, color }: { data: {name:string;value:number}[]; total:number; title:string; color:string }) => (
           <div className="flex-1 flex flex-col min-w-0">
-            <p className="text-white/50 text-xs text-center mb-0.5">{title}</p>
+            <p className="text-muted-foreground text-xs text-center mb-0.5">{title}</p>
             <p className="text-center text-sm font-bold mb-1" style={{ color }}>{fmt(total)}đ</p>
             {data.length === 0
-              ? <div className="flex-1 flex items-center justify-center text-white/30 text-xs">Không có</div>
+              ? <div className="flex-1 flex items-center justify-center text-muted-foreground/50 text-xs">Không có</div>
               : <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie data={data} cx="50%" cy="50%" innerRadius={40} outerRadius={75} paddingAngle={2} dataKey="value" labelLine={false}
@@ -435,13 +409,13 @@ export function DynamicChart({
                       if (!active || !payload?.length) return null
                       const item = payload[0].payload
                       return (
-                        <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
-                          <p className="text-white font-medium">{item.name}</p>
+                        <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
+                          <p className="text-foreground font-medium">{item.name}</p>
                           <p style={{ color }}>{fmt(item.value)}đ ({total > 0 ? ((item.value/total)*100).toFixed(1) : 0}%)</p>
                         </div>
                       )
                     }} />
-                    <Legend formatter={(v) => <span className="text-[10px] text-white/40">{v}</span>} />
+                    <Legend formatter={(v) => <span className="text-[10px] text-muted-foreground">{v}</span>} />
                   </PieChart>
                 </ResponsiveContainer>
             }
@@ -450,9 +424,9 @@ export function DynamicChart({
 
         return (
           <div className="flex gap-3 h-full">
-            <MiniDonut data={myDebtData} total={totalDebt} title="Tôi đang nợ" color="#dd9787" />
-            <div className="w-px bg-white/10 self-stretch" />
-            <MiniDonut data={myLoanData} total={totalLoan} title="Người nợ tôi" color="#74d3ae" />
+            <MiniDonut data={myDebtData} total={totalDebt} title="Tôi đang nợ" color="#ff4d4d" />
+            <div className="w-px bg-border self-stretch" />
+            <MiniDonut data={myLoanData} total={totalLoan} title="Người nợ tôi" color="#c86bfa" />
           </div>
         )
       }
@@ -465,18 +439,23 @@ export function DynamicChart({
             monthlyIncome[m] = (monthlyIncome[m] ?? 0) + tx.amount
           })
         const incomeData = Object.entries(monthlyIncome).sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ name: formatMonth(month), value }))
-        if (incomeData.length === 0) return <div className="flex items-center justify-center h-full text-white/40 text-sm">Chưa có thu nhập trong kỳ này</div>
+        if (incomeData.length === 0) return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Chưa có thu nhập trong kỳ này</div>
         return (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeData} barSize={24}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={formatVND} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(200,107,250,0.10)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={formatVND} tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
               <Tooltip content={({ active, payload }) => {
                 if (!active || !payload?.length) return null
-                return <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl"><p className="text-white/60 mb-0.5">{payload[0].payload.name}</p><p className="text-[#74d3ae] font-medium">{fmt(payload[0].value as number)}đ</p></div>
+                return (
+                  <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
+                    <p className="text-muted-foreground mb-0.5">{payload[0].payload.name}</p>
+                    <p className="text-primary font-medium">{fmt(payload[0].value as number)}đ</p>
+                  </div>
+                )
               }} />
-              <Bar dataKey="value" fill="#74d3ae" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="value" fill="#c86bfa" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )
@@ -486,25 +465,14 @@ export function DynamicChart({
         return (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeExpenseData} barGap={2} barSize={60}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tickFormatter={formatVND}
-                tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={40}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(200,107,250,0.10)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={formatVND} tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null
                   return (
-                    <div className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
+                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
                       {payload.map((p: any) => (
                         <p key={p.name} style={{ color: p.fill }} className="font-medium">
                           {p.name}: {fmt(p.value)}đ
@@ -538,9 +506,9 @@ export function DynamicChart({
   }
 
   return (
-    <div className="bg-white/6 border border-white/18 rounded-[0.625rem] p-5 backdrop-blur-sm h-full flex flex-col">
+    <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm h-full flex flex-col">
       <div className="flex items-center justify-between mb-4 shrink-0">
-        <h3 className="text-white font-semibold text-sm">{getChartTitle()}</h3>
+        <h3 className="text-foreground font-semibold text-sm">{getChartTitle()}</h3>
         <div className="flex gap-1">
           {TIME_RANGES.map(r => (
             <button
@@ -548,8 +516,8 @@ export function DynamicChart({
               onClick={() => setTimeRange(r.key)}
               className={`px-2 py-1 rounded text-xs font-medium transition-all ${
                 timeRange === r.key
-                  ? 'bg-[#74d3ae]/20 text-[#74d3ae] border border-[#74d3ae]/40'
-                  : 'text-white/40 hover:text-white/70'
+                  ? 'bg-primary/20 text-primary border border-primary/40'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {r.label}

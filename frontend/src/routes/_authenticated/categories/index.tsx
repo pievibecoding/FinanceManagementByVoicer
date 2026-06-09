@@ -30,8 +30,8 @@ export const Route = createFileRoute('/_authenticated/categories/')({
     if (isLoading) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-white">Categories</h1>
-          <div className="text-white/60">Loading...</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">Categories</h1>
+          <div className="text-muted-foreground">Loading...</div>
         </div>
       )
     }
@@ -39,8 +39,8 @@ export const Route = createFileRoute('/_authenticated/categories/')({
     if (isError) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-white">Categories</h1>
-          <div className="text-[#dd9787]">Error loading categories</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">Categories</h1>
+          <div className="text-destructive">Error loading categories</div>
         </div>
       )
     }
@@ -48,11 +48,9 @@ export const Route = createFileRoute('/_authenticated/categories/')({
     return (
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">Categories</h1>
-          <button
-            onClick={() => setAddModalOpen(true)}
-            className="px-4 py-2 bg-[#74d3ae] border border-[#74d3ae] rounded-lg text-white hover:bg-[#74d3ae]/80 transition-all"
-          >
+          <h1 className="text-2xl font-bold text-foreground">Categories</h1>
+          <button onClick={() => setAddModalOpen(true)}
+            className="px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all">
             Add Category
           </button>
         </div>
@@ -60,16 +58,11 @@ export const Route = createFileRoute('/_authenticated/categories/')({
         {categories && categories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {categories.map((category) => (
-              <CategoryCard
-                key={category.category_id}
-                category={category}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
+              <CategoryCard key={category.category_id} category={category} onEdit={handleEdit} onDelete={handleDelete} />
             ))}
           </div>
         ) : (
-          <div className="bg-white/6 border border-white/18 rounded-[0.625rem] p-8 text-center text-white/60">
+          <div className="bg-card border border-border rounded-[var(--radius)] p-8 text-center text-muted-foreground">
             No categories found. Add your first category to get started.
           </div>
         )}

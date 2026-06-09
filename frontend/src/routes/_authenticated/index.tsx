@@ -37,13 +37,13 @@ function DashboardPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-white">Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-4 text-foreground">Dashboard</h1>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white/6 border border-white/18 rounded-[0.625rem] p-6 animate-pulse h-28" />
+            <div key={i} className="bg-card border border-border rounded-[var(--radius)] p-6 animate-pulse h-28" />
           ))}
         </div>
-        <div className="text-white/40 text-sm">Đang tải dữ liệu...</div>
+        <div className="text-muted-foreground text-sm">Đang tải dữ liệu...</div>
       </div>
     )
   }
@@ -51,8 +51,8 @@ function DashboardPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-white">Dashboard</h1>
-        <div className="bg-[#dd9787]/10 border border-[#dd9787]/30 rounded-xl p-4 text-[#dd9787] text-sm">
+        <h1 className="text-2xl font-bold mb-4 text-foreground">Dashboard</h1>
+        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 text-destructive text-sm">
           Không thể tải dữ liệu. Kiểm tra kết nối backend.
         </div>
       </div>
@@ -71,7 +71,7 @@ function DashboardPage() {
     <div className="h-full overflow-y-auto">
       <div className="p-6 flex flex-col gap-5" style={{ minHeight: '100%' }}>
         {/* Page title */}
-        <h1 className="text-xl font-bold text-white shrink-0">Dashboard</h1>
+        <h1 className="text-xl font-bold text-foreground shrink-0">Dashboard</h1>
 
         {/* Row 1 — Metric cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 shrink-0">

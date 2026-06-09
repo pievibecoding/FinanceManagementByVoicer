@@ -22,8 +22,8 @@ export const Route = createFileRoute('/_authenticated/analytics/')({
     if (isLoading) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-white">Analytics</h1>
-          <div className="text-white/60">Loading...</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">Analytics</h1>
+          <div className="text-muted-foreground">Loading...</div>
         </div>
       )
     }
@@ -31,15 +31,15 @@ export const Route = createFileRoute('/_authenticated/analytics/')({
     if (isError) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-white">Analytics</h1>
-          <div className="text-[#dd9787]">Error loading analytics data</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">Analytics</h1>
+          <div className="text-destructive">Error loading analytics data</div>
         </div>
       )
     }
 
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-white mb-6">Analytics</h1>
+        <h1 className="text-2xl font-bold text-foreground mb-6">Analytics</h1>
 
         <div className="space-y-6">
           {overview && <AnalyticsOverview data={overview} />}
