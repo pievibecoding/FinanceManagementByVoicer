@@ -1,46 +1,70 @@
 :root {
   --radius: 0.625rem;
-  
-  /* Glassmorphism Brand Colors */
-  --celadon: #74d3ae;
-  --sage-green: #678d58;
-  --muted-olive: #a6c48a;
-  --champagne-mist: #f6e7cb;
-  --sweet-salmon: #dd9787;
-  
-  /* Glassmorphism Colors */
-  --background: #0f1f0f;
-  --foreground: #ffffff;
-  --card: rgba(255, 255, 255, 0.06);
-  --card-foreground: #ffffff;
-  --popover: rgba(255, 255, 255, 0.10);
-  --popover-foreground: #ffffff;
-  --primary: #dd9787;
-  --primary-foreground: #1a0f2e;
-  --secondary: rgba(255, 255, 255, 0.10);
-  --secondary-foreground: #ffffff;
-  --muted: rgba(255, 255, 255, 0.06);
-  --muted-foreground: rgba(255, 255, 255, 0.70);
-  --accent: #74d3ae;
-  --accent-foreground: #0f1f0f;
-  --destructive: #e74c3c;
-  --border: rgba(255, 255, 255, 0.18);
-  --input: rgba(255, 255, 255, 0.06);
-  --ring: #dd9787;
-  --chart-1: #74d3ae;
-  --chart-2: #678d58;
-  --chart-3: #dd9787;
-  --chart-4: #a6c48a;
-  --chart-5: #f6e7cb;
 
-  --sidebar: rgba(255, 255, 255, 0.06);
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #dd9787;
-  --sidebar-primary-foreground: #1a0f2e;
-  --sidebar-accent: rgba(255, 255, 255, 0.10);
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.18);
-  --sidebar-ring: #dd9787;
+  /* Brand Palette */
+  --indigo:        #3d0066;
+  --indigo-2:      #5c0099;
+  --mauve-magic:   #c86bfa;
+  --school-bus-yellow: #fdc500;
+  --gold:          #ffd500;
+  --bright-lemon:  #ffee32;
+  --ink-black:     #03071e;
+
+  /* Semantic tokens — dark purple/gold theme */
+
+  /* Background: ink-black với tím nhẹ */
+  --background: #0a0318;
+  /* Chữ trên nền: trắng sáng để tương phản cao */
+  --foreground: #f0e6ff;
+
+  /* Card: tím đậm glassmorphism, đủ sáng hơn background */
+  --card: rgba(92, 0, 153, 0.20);
+  --card-foreground: #f0e6ff;
+
+  /* Popover: tím đậm đặc hơn một chút */
+  --popover: rgba(61, 0, 102, 0.85);
+  --popover-foreground: #f0e6ff;
+
+  /* Primary: mauve-magic (tím sáng) — contrast tốt trên nền tối */
+  --primary: #c86bfa;
+  /* Foreground của primary: ink-black để chữ trên nút primary dễ đọc */
+  --primary-foreground: #03071e;
+
+  /* Secondary: tím trung gian, nền button secondary */
+  --secondary: rgba(92, 0, 153, 0.35);
+  --secondary-foreground: #f0e6ff;
+
+  /* Muted: overlay nhẹ, dùng cho vùng phụ */
+  --muted: rgba(92, 0, 153, 0.18);
+  --muted-foreground: rgba(240, 230, 255, 0.60);
+
+  /* Accent: vàng gold — nổi bật, dùng cho highlight/badge */
+  --accent: #ffd500;
+  /* Foreground accent: ink-black để chữ trên vùng vàng dễ đọc */
+  --accent-foreground: #03071e;
+
+  --destructive: #ff4d4d;
+
+  --border: rgba(200, 107, 250, 0.25);
+  --input: rgba(92, 0, 153, 0.22);
+  --ring: #c86bfa;
+
+  /* Charts: đa dạng, đủ contrast lẫn nhau trên nền tối */
+  --chart-1: #c86bfa;   /* mauve-magic */
+  --chart-2: #ffd500;   /* gold */
+  --chart-3: #ff6b9d;   /* hồng — tương phản với tím và vàng */
+  --chart-4: #5c9efa;   /* xanh dương nhạt */
+  --chart-5: #ffee32;   /* bright-lemon */
+
+  /* Sidebar: tím đậm hơn background một bậc */
+  --sidebar: rgba(61, 0, 102, 0.55);
+  --sidebar-foreground: #f0e6ff;
+  --sidebar-primary: #c86bfa;
+  --sidebar-primary-foreground: #03071e;
+  --sidebar-accent: rgba(255, 213, 0, 0.15);
+  --sidebar-accent-foreground: #ffd500;
+  --sidebar-border: rgba(200, 107, 250, 0.20);
+  --sidebar-ring: #c86bfa;
 }
 
 .dark {

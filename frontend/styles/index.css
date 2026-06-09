@@ -17,9 +17,9 @@
     @apply min-h-svh w-full bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar;
     /* Glassmorphism background gradient */
     background: 
-      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(103, 141, 88, 0.35) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 50% at 80% 80%, rgba(116, 211, 174, 0.25) 0%, transparent 60%),
-      linear-gradient(160deg, #0f1f0f 0%, #1a2e1a 50%, #0a150a 100%);
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(92, 0, 153, 0.40) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 80%, rgba(200, 107, 250, 0.15) 0%, transparent 60%),
+      linear-gradient(160deg, #03071e 0%, #0d0128 50%, #050013 100%);
   }
 
   /* Override Radix scroll locking for sticky headers */
