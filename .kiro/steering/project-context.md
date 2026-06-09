@@ -49,7 +49,9 @@ frontend/index.html → /src/main.tsx
   /transactions   → src/routes/_authenticated/transactions/index.tsx
   /categories     → src/routes/_authenticated/categories/index.tsx
   /budgets        → src/routes/_authenticated/budgets/index.tsx
-  /analytics      → src/routes/_authenticated/analytics/index.tsx
+  /analytics      → src/routes/_authenticated/analytics/index.tsx  ⚠️ broken (calls non-existent endpoints)
+  /debts          → src/routes/_authenticated/debts/index.tsx
+  /savings        → src/routes/_authenticated/savings/index.tsx
   /settings       → src/routes/_authenticated/settings/index.tsx (stub)
 ```
 
@@ -122,6 +124,10 @@ frontend/
 │   ├── useAccounts.ts            ← useAccounts, useAddAccount, useUpdateAccount, useDeleteAccount
 │   ├── useCategories.ts          ← useCategories, useAddCategory, useUpdateCategory, useDeleteCategory
 │   ├── useBudgets.ts             ← useBudgets, useUpsertBudget, useDeleteBudget
+│   ├── useDebts.ts               ← useDebts, useCreateDebt, useUpdateDebt, useDeleteDebt,
+│   │                               useDebtPayments, useCreatePayment, useDeletePayment
+│   ├── useSavings.ts             ← useSavings, useCreateSavings, useUpdateSavings, useDeleteSavings,
+│   │                               useSavingsContributions, useCreateContribution, useDeleteContribution
 │   ├── useAnalytics.ts           ← ⚠️ calls non-existent Flask endpoints
 │   ├── use-dialog-state.tsx
 │   ├── use-mobile.tsx
@@ -140,9 +146,11 @@ frontend/
 │   ├── dashboard/
 │   │   ├── MetricCard.tsx
 │   │   ├── IncomeExpenseChart.tsx  ← bar chart, 6 time range options (7d/30d/3m/6m/12m/ytd)
+│   │   ├── DynamicChart.tsx        ← multi-mode chart (asset fluctuation, pie, bar) driven by MetricCard selection
 │   │   ├── AccountsSummary.tsx     ← shows real current_balance computed from transactions
 │   │   ├── BudgetOverview.tsx      ← grid progress bars, current month only
 │   │   └── AIChatWidget.tsx        ← floating button, continuous mic, confirm/reject parsed tx
+│   │                                  supports: transaction, new_debt, debt_payment, new_savings, savings_contribution
 │   ├── transactions/
 │   │   ├── TransactionTable.tsx    ← shows category name (not ID), receives categories prop
 │   │   ├── TransactionDetailsView.tsx ← view-only panel, Edit/Delete buttons
@@ -165,9 +173,10 @@ frontend/
 ├── context/                       ← UI providers (theme, font, direction, layout, search)
 ├── lib/                           ← utils.ts (cn helper), cookies.ts, handle-server-error.ts
 ├── config/                        ← fonts.ts
-└── styles/
-    ├── index.css                  ← Tailwind v4 + shadcn tokens
-    └── theme.css
+├── styles/
+    ├── index.css                  ← Tailwind v4 + shadcn tokens + body background gradient
+    ├── theme.css                  ← CSS variables: brand palette + semantic tokens (--primary, --destructive, etc.)
+    └── tokens.ts                  ← JS/TS color tokens — single source of truth for hex used in Recharts/inline styles
 ```
 
 ---
@@ -186,6 +195,10 @@ frontend/
 10. **Express 5 wildcard** — use `/api/*path` (named wildcard), not `/api/*`.
 11. **DELETE proxy** — no `Content-Type` header and no body sent for DELETE requests.
 12. **Analytics page** — currently calls `/api/analytics/overview` etc. which **do not exist** in Flask. The only analytics endpoint is `POST /api/sql-query`.
+13. **Color system** — two layers:
+    - CSS tokens in `styles/theme.css` (`:root {}`) — used via Tailwind utilities (`text-primary`, `bg-destructive`, `border-border`, etc.)
+    - JS tokens in `styles/tokens.ts` — hex values used directly in Recharts (`fill`, `stroke`, `dot`) and inline styles. **When changing the color scheme, update BOTH files.**
+    - Tailwind arbitrary dynamic values like `` `border-[${hex}]` `` do NOT work at runtime — use `style={{ borderColor: hex }}` instead.
 
 ---
 
@@ -295,6 +308,8 @@ FLASK_BACKEND_URL=http://localhost:5000   (server-side only, used by server.ts)
 |---|---|
 | Analytics page | ⚠️ Errors — calls non-existent `/api/analytics/*` endpoints |
 | Voice/AI chat integration | ✅ `AIChatWidget.tsx` on dashboard (floating button) |
+| Debts management | ✅ `/debts` route — full CRUD + payment history |
+| Savings goals | ✅ `/savings` route — full CRUD + contribution history |
 | Payees management | ❌ No route, no hook, no dedicated page |
 | Recurring transactions | ❌ No route, no hook, no dedicated page |
 | Settings page | ❌ Stub only |

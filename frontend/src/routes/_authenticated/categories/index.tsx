@@ -6,9 +6,11 @@ import { AddCategoryModal } from '@/components/categories/AddCategoryModal'
 import { EditCategoryModal } from '@/components/categories/EditCategoryModal'
 import { DeleteConfirmationDialog } from '@/components/categories/DeleteConfirmationDialog'
 import type { Category } from '@/api/categories'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/_authenticated/categories/')({
   component: () => {
+    const { t } = useTranslation()
     const [addModalOpen, setAddModalOpen] = useState(false)
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -30,8 +32,8 @@ export const Route = createFileRoute('/_authenticated/categories/')({
     if (isLoading) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">Categories</h1>
-          <div className="text-muted-foreground">Loading...</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('categories.title')}</h1>
+          <div className="text-muted-foreground">{t('common.loading')}</div>
         </div>
       )
     }
@@ -39,8 +41,8 @@ export const Route = createFileRoute('/_authenticated/categories/')({
     if (isError) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">Categories</h1>
-          <div className="text-destructive">Error loading categories</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('categories.title')}</h1>
+          <div className="text-destructive">{t('categories.error')}</div>
         </div>
       )
     }
@@ -48,10 +50,10 @@ export const Route = createFileRoute('/_authenticated/categories/')({
     return (
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Categories</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('categories.title')}</h1>
           <button onClick={() => setAddModalOpen(true)}
             className="px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all">
-            Add Category
+            {t('categories.add')}
           </button>
         </div>
 
@@ -63,7 +65,7 @@ export const Route = createFileRoute('/_authenticated/categories/')({
           </div>
         ) : (
           <div className="bg-card border border-border rounded-[var(--radius)] p-8 text-center text-muted-foreground">
-            No categories found. Add your first category to get started.
+            {t('categories.empty')}
           </div>
         )}
 

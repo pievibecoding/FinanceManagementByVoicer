@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { Mic, MicOff, Send, X, Sparkles, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { debtsApi } from '@/api/debts'
 import { savingsApi } from '@/api/savings'
 import type { Debt } from '@/api/debts'
 import type { SavingsGoal } from '@/api/savings'
 import { palette } from '@/styles/tokens'
+import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 
 interface ParsedData {
   valid: boolean
@@ -47,14 +49,15 @@ interface DebtPickerPopupProps {
 }
 
 function DebtPickerPopup({ debts, amount, paymentDate, onSelect, onCancel }: DebtPickerPopupProps) {
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
+  const { t } = useTranslation()
+  const { formatCurrency } = useLocaleFormat()
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-popover border border-border rounded-xl p-4 w-full max-w-sm mx-4 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-foreground font-semibold text-sm">Chọn khoản nợ để ghi nhận</p>
-            <p className="text-muted-foreground text-xs mt-0.5">Thanh toán: <span className="text-primary">{fmt(amount)}</span></p>
+            <p className="text-foreground font-semibold text-sm">{t('debts.payment')}</p>
+            <p className="text-muted-foreground text-xs mt-0.5">{t('debts.paymentAmount').split('(')[0].trim()}: <span className="text-primary">{formatCurrency(amount)}</span></p>
           </div>
           <button onClick={onCancel} className="text-muted-foreground hover:text-foreground transition-colors p-1">
             <X className="w-4 h-4" />
@@ -62,7 +65,7 @@ function DebtPickerPopup({ debts, amount, paymentDate, onSelect, onCancel }: Deb
         </div>
         <div className="flex-1 overflow-y-auto space-y-2">
           {debts.length === 0 ? (
-            <p className="text-muted-foreground text-sm text-center py-4">Không có khoản nợ đang hoạt động</p>
+            <p className="text-muted-foreground text-sm text-center py-4">{t('debts.noDebts')}</p>
           ) : (
             debts.map(debt => (
               <button
@@ -77,41 +80,38 @@ function DebtPickerPopup({ debts, amount, paymentDate, onSelect, onCancel }: Deb
                       ? 'bg-destructive/20 text-destructive'
                       : 'bg-primary/20 text-primary'
                   }`}>
-                    {debt.debt_type === 'debt' ? 'Tôi nợ' : 'Nợ tôi'}
+                    {debt.debt_type === 'debt' ? t('debts.iOwe') : t('debts.owedToMe')}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                   {debt.lender && <span>👤 {debt.lender}</span>}
                   {debt.debtor && <span>👤 {debt.debtor}</span>}
-                  <span className="ml-auto">Còn: {fmt(debt.outstanding_balance)}</span>
+                  <span className="ml-auto">{t('debts.remaining')}: {formatCurrency(debt.outstanding_balance)}</span>
                 </div>
               </button>
             ))
           )}
         </div>
         <button onClick={onCancel} className="mt-3 w-full text-muted-foreground text-xs border border-border rounded-lg py-2 hover:bg-muted/30 transition-all">
-          Hủy
+          {t('common.cancel')}
         </button>
       </div>
     </div>
   )
 }
 
-const SUGGESTIONS = [
-  'Ăn trưa 45k momo',
-  'Cà phê 30k tiền mặt',
-  'Tôi vay Hiền 500k',
-  'Để dành 200k quỹ du lịch',
-  'Cho Nam mượn 1 củ',
+const SUGGESTION_KEYS = [
+  'transactions.aiSuggestionLunch',
+  'transactions.aiSuggestionCoffee',
+  'transactions.aiSuggestionDebt',
+  'transactions.aiSuggestionSavings',
+  'transactions.aiSuggestionLoan',
 ]
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('vi-VN').format(n) + 'đ'
-
 const TYPE_LABEL: Record<string, string> = {
-  income: 'Thu nhập',
-  expense: 'Chi tiêu',
-  investment: 'Đầu tư',
+  income: 'types.income',
+  expense: 'types.expense',
+  investment: 'types.investment',
 }
 
 const TYPE_COLOR: Record<string, string> = {
@@ -130,14 +130,15 @@ interface SavingsPickerPopupProps {
 }
 
 function SavingsPickerPopup({ savings, amount, contributionDate, onSelect, onCancel }: SavingsPickerPopupProps) {
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
+  const { t } = useTranslation()
+  const { formatCurrency } = useLocaleFormat()
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-popover border border-border rounded-xl p-4 w-full max-w-sm mx-4 mb-4 sm:mb-0 max-h-[70vh] flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-foreground font-semibold text-sm">Chọn quỹ tiết kiệm</p>
-            <p className="text-muted-foreground text-xs mt-0.5">Nạp: <span className="text-primary">{fmt(amount)}</span></p>
+            <p className="text-foreground font-semibold text-sm">{t('savingsPage.contribution')}</p>
+            <p className="text-muted-foreground text-xs mt-0.5">{t('savingsPage.amount').split('(')[0].trim()}: <span className="text-primary">{formatCurrency(amount)}</span></p>
           </div>
           <button onClick={onCancel} className="text-muted-foreground hover:text-foreground transition-colors p-1">
             <X className="w-4 h-4" />
@@ -145,7 +146,7 @@ function SavingsPickerPopup({ savings, amount, contributionDate, onSelect, onCan
         </div>
         <div className="flex-1 overflow-y-auto space-y-2">
           {savings.length === 0 ? (
-            <p className="text-muted-foreground text-sm text-center py-4">Không có quỹ nào đang hoạt động</p>
+            <p className="text-muted-foreground text-sm text-center py-4">{t('savingsPage.empty')}</p>
           ) : (
             savings.map(goal => {
               const pct = goal.target_amount > 0
@@ -165,8 +166,8 @@ function SavingsPickerPopup({ savings, amount, contributionDate, onSelect, onCan
                     <div className="bg-primary h-1 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{fmt(goal.current_balance)}</span>
-                    <span>/ {fmt(goal.target_amount)}</span>
+                    <span>{formatCurrency(goal.current_balance)}</span>
+                    <span>/ {formatCurrency(goal.target_amount)}</span>
                   </div>
                 </button>
               )
@@ -174,14 +175,17 @@ function SavingsPickerPopup({ savings, amount, contributionDate, onSelect, onCan
           )}
         </div>
         <button onClick={onCancel} className="mt-3 w-full text-muted-foreground text-xs border border-border rounded-lg py-2 hover:bg-muted/30 transition-all">
-          Hủy
+          {t('common.cancel')}
         </button>
       </div>
     </div>
   )
 }
 
-export function AIChatWidget() {  const [open, setOpen] = useState(false)
+export function AIChatWidget() {
+  const { t } = useTranslation()
+  const { formatCurrency } = useLocaleFormat()
+  const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
@@ -235,18 +239,18 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
 
       if (res.status === 422) {
         const body = await res.json().catch(() => ({}))
-        setEntries(prev => [...prev, { id: entryId, text: trimmed, error: body.error ?? 'Không phải giao dịch tài chính.' }])
+        setEntries(prev => [...prev, { id: entryId, text: trimmed, error: body.error ?? t('transactions.notFinancial') }])
         return
       }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? `Lỗi ${res.status}`)
+        throw new Error(body.error ?? `HTTP ${res.status}`)
       }
 
       const parsed: ParsedData = await res.json()
       setEntries(prev => [...prev, { id: entryId, text: trimmed, parsed }])
     } catch (err: any) {
-      setEntries(prev => [...prev, { id: entryId, text: trimmed, error: err.message ?? 'Lỗi kết nối.' }])
+      setEntries(prev => [...prev, { id: entryId, text: trimmed, error: err.message ?? t('transactions.connectionError') }])
     } finally {
       setLoading(false)
     }
@@ -259,7 +263,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
     try {
       if (opType === 'new_debt') {
         await debtsApi.createDebt({
-          name: parsed.debt_name || parsed.note || 'Khoản nợ mới',
+          name: parsed.debt_name || parsed.note || t('debts.new'),
           debt_type: (parsed.debt_type as 'debt' | 'loan') ?? 'debt',
           lender: parsed.lender || null,
           debtor: parsed.debtor || null,
@@ -309,7 +313,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
         }
       } else if (opType === 'new_savings') {
         await savingsApi.createSavings({
-          name: parsed.savings_name || parsed.note || 'Quỹ tiết kiệm',
+          name: parsed.savings_name || parsed.note || t('savingsPage.new'),
           target_amount: parsed.target_amount || parsed.amount,
           note: parsed.note || null,
         })
@@ -370,7 +374,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
   // ── Microphone ────────────────────────────────────────────────────────────
   const handleMic = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR) { setMicError('Trình duyệt không hỗ trợ microphone.'); return }
+    if (!SR) { setMicError(t('transactions.micUnsupported')); return }
 
     if (listening) {
       recognitionRef.current?._stop?.()
@@ -400,7 +404,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
     }
 
     rec.onerror = (e: any) => {
-      if (e.error === 'not-allowed') setMicError('Không có quyền microphone.')
+      if (e.error === 'not-allowed') setMicError(t('transactions.micDenied'))
       recognitionRef.current = null
       setListening(false)
       setInterim('')
@@ -435,12 +439,12 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
           <div className="text-muted-foreground space-y-0.5 text-xs">
             <div className="flex items-center gap-2 mb-1">
               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${p.debt_type === 'debt' ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'}`}>
-                {p.debt_type === 'debt' ? 'Tôi nợ' : 'Người nợ tôi'}
+                {p.debt_type === 'debt' ? t('debts.iOwe') : t('debts.owedToMe')}
               </span>
-              <span className="font-bold text-base text-foreground">{fmt(p.amount)}</span>
+              <span className="font-bold text-base text-foreground">{formatCurrency(p.amount)}</span>
             </div>
-            {p.lender && <p>👤 Người cho vay: {p.lender}</p>}
-            {p.debtor && <p>👤 Người vay: {p.debtor}</p>}
+            {p.lender && <p>👤 {t('debts.lender')}: {p.lender}</p>}
+            {p.debtor && <p>👤 {t('debts.debtor')}: {p.debtor}</p>}
             {p.debt_name && <p>📋 {p.debt_name}</p>}
             {p.note && <p>📝 {p.note}</p>}
           </div>
@@ -449,9 +453,9 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
       if (opType === 'debt_payment') {
         return (
           <div className="text-muted-foreground space-y-0.5 text-xs">
-            <p className="text-foreground font-bold text-sm">Thanh toán khoản nợ</p>
-            <p className="text-primary text-base font-bold">{fmt(p.amount)}</p>
-            {p.lender && <p>👤 Cho: {p.lender}</p>}
+            <p className="text-foreground font-bold text-sm">{t('debts.payment')}</p>
+            <p className="text-primary text-base font-bold">{formatCurrency(p.amount)}</p>
+            {p.lender && <p>👤 {p.lender}</p>}
             {p.debt_name && <p>📋 {p.debt_name}</p>}
           </div>
         )
@@ -459,9 +463,9 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
       if (opType === 'new_savings') {
         return (
           <div className="text-muted-foreground space-y-0.5 text-xs">
-            <p className="text-foreground font-bold text-sm">Tạo quỹ tiết kiệm mới</p>
+            <p className="text-foreground font-bold text-sm">{t('savingsPage.new')}</p>
             {p.savings_name && <p>🐷 {p.savings_name}</p>}
-            {p.target_amount ? <p>🎯 Mục tiêu: {fmt(p.target_amount)}</p> : <p>💰 {fmt(p.amount)}</p>}
+            {p.target_amount ? <p>🎯 {t('savingsPage.goal')}: {formatCurrency(p.target_amount)}</p> : <p>💰 {formatCurrency(p.amount)}</p>}
             {p.note && <p>📝 {p.note}</p>}
           </div>
         )
@@ -469,9 +473,9 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
       if (opType === 'savings_contribution') {
         return (
           <div className="text-muted-foreground space-y-0.5 text-xs">
-            <p className="text-foreground font-bold text-sm">Nạp tiền vào quỹ</p>
-            <p className="text-primary text-base font-bold">{fmt(p.amount)}</p>
-            {p.savings_name && <p>🐷 Quỹ: {p.savings_name}</p>}
+            <p className="text-foreground font-bold text-sm">{t('savingsPage.contribution')}</p>
+            <p className="text-primary text-base font-bold">{formatCurrency(p.amount)}</p>
+            {p.savings_name && <p>🐷 {p.savings_name}</p>}
             {p.note && <p>📝 {p.note}</p>}
           </div>
         )
@@ -480,14 +484,14 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
       return (
         <div className="text-muted-foreground space-y-0.5 text-xs">
           <div className="flex items-center justify-between">
-            <span className={`font-bold text-base tabular-nums ${TYPE_COLOR[p.type ?? '']}`}>{fmt(p.amount)}</span>
-            <span className={`text-[10px] font-medium ${TYPE_COLOR[p.type ?? '']}`}>{TYPE_LABEL[p.type ?? '']}</span>
+            <span className={`font-bold text-base tabular-nums ${TYPE_COLOR[p.type ?? '']}`}>{formatCurrency(p.amount)}</span>
+            <span className={`text-[10px] font-medium ${TYPE_COLOR[p.type ?? '']}`}>{p.type ? t(TYPE_LABEL[p.type] ?? p.type) : ''}</span>
           </div>
           <p>🏷 {p.category} &nbsp;·&nbsp; 💳 {p.account}</p>
           {p.note && <p>📝 {p.note}</p>}
           {p.location && <p>📍 {p.location}</p>}
           <p className="text-muted-foreground/50">{p.transaction_date}</p>
-          {p.account_is_new && <p className="text-amber-400">🆕 Tài khoản mới đã được tạo</p>}
+          {p.account_is_new && <p className="text-amber-400">🆕 {t('transactions.newAccountCreated')}</p>}
         </div>
       )
     }
@@ -510,22 +514,22 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
               onClick={() => confirmEntry(entry.id, p)}
               className="flex items-center gap-1 text-primary border border-primary/40 hover:bg-primary/10 rounded-lg px-2.5 py-1 transition-all text-[11px] font-medium"
             >
-              <CheckCircle className="w-3.5 h-3.5" /> Xác nhận
+              <CheckCircle className="w-3.5 h-3.5" /> {t('common.confirm')}
             </button>
             <button
               onClick={() => rejectEntry(entry.id)}
               className="flex items-center gap-1 text-muted-foreground border border-border hover:bg-muted/30 rounded-lg px-2.5 py-1 transition-all text-[11px]"
             >
-              <XCircle className="w-3.5 h-3.5" /> Hủy
+              <XCircle className="w-3.5 h-3.5" /> {t('common.cancel')}
             </button>
           </div>
         )}
         {entry.confirmed && (
           <p className="text-primary text-[11px] flex items-center gap-1">
-            <CheckCircle className="w-3 h-3" /> Đã lưu
+            <CheckCircle className="w-3 h-3" /> {t('transactions.saved')}
           </p>
         )}
-        {entry.rejected && <p className="text-muted-foreground/50 text-[11px]">Đã hủy</p>}
+        {entry.rejected && <p className="text-muted-foreground/50 text-[11px]">{t('transactions.cancelled')}</p>}
       </div>
     )
   }
@@ -608,7 +612,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
           open ? 'bg-popover border border-border rotate-45' : 'hover:scale-110'
         }`}
         style={open ? undefined : { background: `linear-gradient(135deg, ${palette.primary}, ${palette.indigoDark})` }}
-        title="AI Transaction Parser"
+        title={t('transactions.aiButtonTitle')}
       >
         {open ? (
           <X className="w-5 h-5 text-foreground" />
@@ -626,7 +630,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
           {/* Panel header */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">AI Nhập giao dịch</span>
+            <span className="text-sm font-semibold text-foreground">{t('transactions.aiTitle')}</span>
             <span className="ml-auto text-[10px] text-muted-foreground font-mono">Gemini</span>
           </div>
 
@@ -634,7 +638,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
             {entries.length === 0 && (
               <p className="text-muted-foreground/60 text-xs text-center pt-4">
-                Nhập hoặc nói mô tả giao dịch của bạn...
+                {t('transactions.aiEmpty')}
               </p>
             )}
             {entries.map(e => {
@@ -661,7 +665,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
             {loading && (
               <div className="flex items-center gap-2 text-muted-foreground text-xs px-1">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Đang phân tích...
+                {t('transactions.aiParsing')}
               </div>
             )}
           </div>
@@ -669,15 +673,18 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
           {/* Suggestions */}
           <div className="px-3 pb-1 shrink-0">
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {SUGGESTIONS.map(s => (
-                <button
-                  key={s}
-                  onClick={() => handleSubmit(s)}
-                  className="shrink-0 text-[10px] text-muted-foreground border border-border hover:border-primary/50 hover:text-foreground rounded-full px-2.5 py-1 transition-all whitespace-nowrap"
-                >
-                  {s}
-                </button>
-              ))}
+              {SUGGESTION_KEYS.map(key => {
+                const suggestion = t(key)
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleSubmit(suggestion)}
+                    className="shrink-0 text-[10px] text-muted-foreground border border-border hover:border-primary/50 hover:text-foreground rounded-full px-2.5 py-1 transition-all whitespace-nowrap"
+                  >
+                    {suggestion}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -691,7 +698,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmit(input)}
-                placeholder="Ăn trưa 45k momo..."
+                placeholder={t('transactions.aiInputPlaceholder')}
                 className="flex-1 bg-transparent text-foreground text-xs placeholder-muted-foreground/50 outline-none"
                 disabled={loading || listening}
               />
@@ -700,7 +707,7 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
                 className={`p-1 rounded-lg transition-all ${
                   listening ? 'text-destructive bg-destructive/10 animate-pulse' : 'text-muted-foreground hover:text-foreground'
                 }`}
-                title={listening ? 'Bấm để dừng và gửi' : 'Bấm để nói'}
+                title={listening ? t('transactions.micStopAndSend') : t('transactions.micStart')}
               >
                 {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>

@@ -1,5 +1,7 @@
 import type { Transaction } from '@/api/dashboard'
 import type { Budget } from '@/api/budgets'
+import { useTranslation } from 'react-i18next'
+import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 
 interface Category {
   category_id: number
@@ -13,7 +15,8 @@ interface BudgetOverviewProps {
 }
 
 export function BudgetOverview({ budgets, categories, transactions }: BudgetOverviewProps) {
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
+  const { t } = useTranslation()
+  const { formatCurrency } = useLocaleFormat()
 
   const currentMonth = new Date().toISOString().slice(0, 7)
 
@@ -31,7 +34,7 @@ export function BudgetOverview({ budgets, categories, transactions }: BudgetOver
     .map(b => {
       const cat = categories.find(c => c.category_id === b.category_id)
       const spent = spendingMap[b.category_id] ?? 0
-      return { ...b, category_name: cat?.category_name ?? `Danh mục ${b.category_id}`, spent }
+      return { ...b, category_name: cat?.category_name ?? t('categories.fallbackWithId', { id: b.category_id }), spent }
     })
     .filter(item => item.spent > 0 || item.amount_limit > 0)
     .sort((a, b) => b.spent / b.amount_limit - a.spent / a.amount_limit)
@@ -39,15 +42,15 @@ export function BudgetOverview({ budgets, categories, transactions }: BudgetOver
   if (items.length === 0) {
     return (
       <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm">
-        <h3 className="text-foreground font-semibold text-sm mb-2">Ngân sách tháng này</h3>
-        <p className="text-muted-foreground text-sm">Chưa có ngân sách nào được thiết lập.</p>
+        <h3 className="text-foreground font-semibold text-sm mb-2">{t('dashboard.currentMonthBudget')}</h3>
+        <p className="text-muted-foreground text-sm">{t('dashboard.noBudgetSetup')}</p>
       </div>
     )
   }
 
   return (
     <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm">
-      <h3 className="text-foreground font-semibold text-sm mb-4">Ngân sách tháng này</h3>
+      <h3 className="text-foreground font-semibold text-sm mb-4">{t('dashboard.currentMonthBudget')}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {items.map(item => {
           const pct = item.amount_limit > 0 ? Math.min((item.spent / item.amount_limit) * 100, 100) : 0
@@ -63,7 +66,7 @@ export function BudgetOverview({ budgets, categories, transactions }: BudgetOver
                   {item.category_name}
                 </span>
                 <span className={`text-xs font-bold ${pctColor}`}>
-                  {over ? 'Vượt!' : `${pct.toFixed(0)}%`}
+                  {over ? t('budgets.overLimit') : `${pct.toFixed(0)}%`}
                 </span>
               </div>
               <div className="w-full bg-border/40 rounded-full h-1.5 mb-2">
@@ -73,8 +76,8 @@ export function BudgetOverview({ budgets, categories, transactions }: BudgetOver
                 />
               </div>
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>{fmt(item.spent)}đ</span>
-                <span>{fmt(item.amount_limit)}đ</span>
+                <span>{formatCurrency(item.spent)}</span>
+                <span>{formatCurrency(item.amount_limit)}</span>
               </div>
             </div>
           )

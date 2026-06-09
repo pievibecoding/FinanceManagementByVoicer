@@ -10,12 +10,14 @@ import { DeleteConfirmationDialog } from '@/components/transactions/DeleteConfir
 import { TransactionDetailsView } from '@/components/transactions/TransactionDetailsView'
 import { Pagination } from '@/components/transactions/Pagination'
 import type { Transaction } from '@/api/transactions'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/_authenticated/transactions/')({
   component: TransactionsPage,
 })
 
 function TransactionsPage() {
+  const { t } = useTranslation()
   const [filters, setFilters] = useState<{
     startDate?: string
     endDate?: string
@@ -78,8 +80,8 @@ function TransactionsPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-foreground">Giao dịch</h1>
-        <div className="text-muted-foreground">Đang tải...</div>
+        <h1 className="text-2xl font-bold mb-4 text-foreground">{t('transactions.title')}</h1>
+        <div className="text-muted-foreground">{t('common.loading')}</div>
       </div>
     )
   }
@@ -87,8 +89,8 @@ function TransactionsPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-foreground">Giao dịch</h1>
-        <div className="text-destructive">Lỗi tải dữ liệu</div>
+        <h1 className="text-2xl font-bold mb-4 text-foreground">{t('transactions.title')}</h1>
+        <div className="text-destructive">{t('transactions.error')}</div>
       </div>
     )
   }
@@ -96,12 +98,12 @@ function TransactionsPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Giao dịch</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t('transactions.title')}</h1>
         <button
           onClick={() => setAddModalOpen(true)}
           className="px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all"
         >
-          + Thêm giao dịch
+          + {t('transactions.add')}
         </button>
       </div>
 

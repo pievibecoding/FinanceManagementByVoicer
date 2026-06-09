@@ -11,8 +11,11 @@ export function useSavings() {
   const totalSaved = savings
     .filter(s => s.status !== 'cancelled')
     .reduce((sum, s) => sum + s.current_balance, 0)
+  const nearestGoal = savings
+    .filter(s => s.status === 'active' && s.target_date)
+    .sort((a, b) => String(a.target_date).localeCompare(String(b.target_date)))[0] ?? null
 
-  return { ...query, savings, totalSaved }
+  return { ...query, savings, totalSaved, nearestGoal }
 }
 
 export function useCreateSavings() {

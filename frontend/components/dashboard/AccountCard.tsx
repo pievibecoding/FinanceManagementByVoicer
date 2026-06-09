@@ -1,5 +1,6 @@
 import { Account } from '@/api/dashboard';
 import { accountBorderColors } from '@/styles/tokens';
+import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 
 interface AccountCardProps {
   account: Account;
@@ -7,6 +8,8 @@ interface AccountCardProps {
 }
 
 export function AccountCard({ account, onClick }: AccountCardProps) {
+  const { formatCurrency } = useLocaleFormat();
+
   const getAccountIcon = (type: string) => {
     const icons: Record<string, string> = {
       'Bank': '🏦', 'Cash': '💵', 'Credit Card': '💳', 'Other': '📁',
@@ -16,8 +19,6 @@ export function AccountCard({ account, onClick }: AccountCardProps) {
 
   const getAccountBorderColor = (type: string): string =>
     accountBorderColors[type] ?? '';
-
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN').format(amount);
 
   return (
     <div
@@ -33,7 +34,7 @@ export function AccountCard({ account, onClick }: AccountCardProps) {
       </div>
 
       <p className="text-foreground text-xl font-bold tabular-nums mb-1">
-        {formatCurrency(account.initial_balance)} VND
+        {formatCurrency(account.initial_balance)}
       </p>
 
       <p className="text-muted-foreground text-sm capitalize">{account.account_type}</p>

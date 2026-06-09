@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { authApi } from '../../api/auth';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   onSwitchToRegister: () => void;
@@ -9,6 +10,7 @@ interface Props {
 
 export function LoginForm({ onSwitchToRegister }: Props) {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState<string | null>(null);
@@ -19,7 +21,7 @@ export function LoginForm({ onSwitchToRegister }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!email || !password) { setError('Vui lòng nhập email và mật khẩu'); return; }
+    if (!email || !password) { setError(t('auth.missingCredentials')); return; }
     setLoading(true);
     try {
       console.log('Attempting login with:', email);
@@ -29,7 +31,7 @@ export function LoginForm({ onSwitchToRegister }: Props) {
       console.log('Login successful, token set');
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message ?? 'Đăng nhập thất bại');
+      setError(err.message ?? t('auth.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -43,7 +45,7 @@ export function LoginForm({ onSwitchToRegister }: Props) {
       const res = await authApi.googleAuth(credentialResponse.credential);
       login(res.access_token, res.user_id, res.email ?? '', res.name ?? '');
     } catch (err: any) {
-      setError(err.message ?? 'Đăng nhập Google thất bại');
+      setError(err.message ?? t('auth.googleLoginFailed'));
     } finally {
       setLoading(false);
     }
@@ -51,14 +53,14 @@ export function LoginForm({ onSwitchToRegister }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold text-center text-white">Đăng nhập</h2>
+      <h2 className="text-xl font-bold text-center text-white">{t('auth.signInTitle')}</h2>
 
       {hasGoogle && (
         <>
           <div className="flex justify-center">
             <GoogleLogin
               onSuccess={handleGoogle}
-              onError={() => setError('Đăng nhập Google thất bại')}
+              onError={() => setError(t('auth.googleLoginFailed'))}
               text="continue_with"
               shape="rectangular"
               width="320"
@@ -66,14 +68,14 @@ export function LoginForm({ onSwitchToRegister }: Props) {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-zinc-700" />
-            <span className="text-xs text-zinc-500">hoặc</span>
+            <span className="text-xs text-zinc-500">{t('auth.or')}</span>
             <div className="flex-1 h-px bg-zinc-700" />
           </div>
         </>
       )}
 
       <div className="flex flex-col gap-1">
-        <label className="text-sm text-zinc-400">Email</label>
+        <label className="text-sm text-zinc-400">{t('auth.email')}</label>
         <input
           type="email"
           value={email}
@@ -86,7 +88,7 @@ export function LoginForm({ onSwitchToRegister }: Props) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-sm text-zinc-400">Mật khẩu</label>
+        <label className="text-sm text-zinc-400">{t('auth.password')}</label>
         <input
           type="password"
           value={password}
@@ -105,13 +107,13 @@ export function LoginForm({ onSwitchToRegister }: Props) {
         disabled={loading}
         className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold rounded-lg py-2 text-sm transition-all"
       >
-        {loading ? 'Đang xử lý...' : 'Đăng nhập'}
+        {loading ? t('auth.loading') : t('auth.signInButton')}
       </button>
 
       <p className="text-center text-sm text-zinc-500">
-        Chưa có tài khoản?{' '}
+        {t('auth.noAccount')}{' '}
         <button type="button" onClick={onSwitchToRegister} className="text-emerald-400 underline">
-          Đăng ký
+          {t('auth.signUpButton')}
         </button>
       </p>
     </form>

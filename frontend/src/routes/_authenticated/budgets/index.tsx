@@ -7,9 +7,11 @@ import { AddBudgetModal } from '@/components/budgets/AddBudgetModal'
 import { EditBudgetModal } from '@/components/budgets/EditBudgetModal'
 import { DeleteConfirmationDialog } from '@/components/budgets/DeleteConfirmationDialog'
 import type { Budget } from '@/api/budgets'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/_authenticated/budgets/')({
   component: () => {
+    const { t } = useTranslation()
     const [currentMonth, setCurrentMonth] = useState(() => {
       const now = new Date()
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -32,8 +34,8 @@ export const Route = createFileRoute('/_authenticated/budgets/')({
     if (isLoading) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">Budgets</h1>
-          <div className="text-muted-foreground">Loading...</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('budgets.title')}</h1>
+          <div className="text-muted-foreground">{t('common.loading')}</div>
         </div>
       )
     }
@@ -41,8 +43,8 @@ export const Route = createFileRoute('/_authenticated/budgets/')({
     if (isError) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">Budgets</h1>
-          <div className="text-destructive">Error loading budgets</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('budgets.title')}</h1>
+          <div className="text-destructive">{t('budgets.error')}</div>
         </div>
       )
     }
@@ -55,22 +57,22 @@ export const Route = createFileRoute('/_authenticated/budgets/')({
     return (
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Budgets</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('budgets.title')}</h1>
           <button onClick={() => setIsAddModalOpen(true)}
             className="bg-primary text-primary-foreground py-2 px-4 rounded-[var(--radius)] hover:bg-primary/80 transition-colors font-medium">
-            Add Budget
+            {t('budgets.add')}
           </button>
         </div>
 
         <div className="mb-6">
-          <label className="block text-muted-foreground text-sm mb-2">Select Month</label>
+          <label className="block text-muted-foreground text-sm mb-2">{t('budgets.selectMonth')}</label>
           <input type="month" value={currentMonth} onChange={(e) => setCurrentMonth(e.target.value)}
             className="bg-input border border-border rounded-[var(--radius)] p-3 text-foreground focus:outline-none focus:border-primary" />
         </div>
 
         {!budgetsWithCategories || budgetsWithCategories.length === 0 ? (
           <div className="text-muted-foreground text-center py-12">
-            No budgets found for {currentMonth}. Click "Add Budget" to create one.
+            {t('budgets.empty', { month: currentMonth })}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

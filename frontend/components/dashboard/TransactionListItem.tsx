@@ -1,4 +1,6 @@
 import { Transaction } from '@/api/dashboard';
+import { useTranslation } from 'react-i18next';
+import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 
 interface TransactionListItemProps {
   transaction: Transaction;
@@ -6,10 +8,8 @@ interface TransactionListItemProps {
 }
 
 export function TransactionListItem({ transaction, onClick }: TransactionListItemProps) {
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN').format(amount);
+  const { t } = useTranslation();
+  const { formatDate, formatCurrency } = useLocaleFormat();
 
   const getCategoryIcon = (categoryId: string) => {
     const icons: Record<string, string> = {
@@ -29,12 +29,12 @@ export function TransactionListItem({ transaction, onClick }: TransactionListIte
       <div className="flex items-center gap-3">
         <span className="text-2xl">{getCategoryIcon(transaction.category_id)}</span>
         <div>
-          <p className="text-foreground font-medium">{transaction.note || 'Transaction'}</p>
+          <p className="text-foreground font-medium">{transaction.note || t('transactions.fallbackName')}</p>
           <p className="text-muted-foreground text-sm">{formatDate(transaction.transaction_date)}</p>
         </div>
       </div>
       <span className={`font-bold tabular-nums ${isIncome ? 'text-primary' : 'text-destructive'}`}>
-        {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)} VND
+        {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
       </span>
     </div>
   );

@@ -8,20 +8,21 @@ import { DynamicChart } from '@/components/dashboard/DynamicChart'
 import { BudgetOverview } from '@/components/dashboard/BudgetOverview'
 import { AIChatWidget } from '@/components/dashboard/AIChatWidget'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 
 export const Route = createFileRoute('/_authenticated/')({
   component: DashboardPage,
 })
 
 function DashboardPage() {
+  const { t } = useTranslation()
+  const { formatCurrency } = useLocaleFormat()
   const { data, isLoading, isError } = useDashboardMetrics()
   const { data: categories = [] } = useCategories()
   const { debts = [] } = useDebts()
   const { savings = [] } = useSavings()
   const [selectedMetric, setSelectedMetric] = useState('net-worth')
-
-  const fmt = (n: number) =>
-    new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
   const CHART_MAP: Record<string, string> = {
     'net-worth': 'asset-fluctuation',
@@ -37,13 +38,13 @@ function DashboardPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-foreground">Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-4 text-foreground">{t('dashboard.title')}</h1>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-card border border-border rounded-[var(--radius)] p-6 animate-pulse h-28" />
           ))}
         </div>
-        <div className="text-muted-foreground text-sm">Đang tải dữ liệu...</div>
+        <div className="text-muted-foreground text-sm">{t('dashboard.loading')}</div>
       </div>
     )
   }
@@ -51,9 +52,9 @@ function DashboardPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-foreground">Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-4 text-foreground">{t('dashboard.title')}</h1>
         <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 text-destructive text-sm">
-          Không thể tải dữ liệu. Kiểm tra kết nối backend.
+          {t('dashboard.loadError')}
         </div>
       </div>
     )
@@ -71,53 +72,53 @@ function DashboardPage() {
     <div className="h-full overflow-y-auto">
       <div className="p-6 flex flex-col gap-5" style={{ minHeight: '100%' }}>
         {/* Page title */}
-        <h1 className="text-xl font-bold text-foreground shrink-0">Dashboard</h1>
+        <h1 className="text-xl font-bold text-foreground shrink-0">{t('dashboard.title')}</h1>
 
         {/* Row 1 — Metric cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 shrink-0">
           <MetricCard
-            title="Tổng tài sản ròng"
-            value={fmt(data.netWorth)}
+            title={t('dashboard.netWorth')}
+            value={formatCurrency(data.netWorth)}
             icon="💰"
             positive={data.netWorth >= 0}
             onClick={() => setSelectedMetric('net-worth')}
             selected={selectedMetric === 'net-worth'}
           />
           <MetricCard
-            title="Số dư hiện tại"
-            value={fmt(data.totalBalance)}
+            title={t('dashboard.totalBalance')}
+            value={formatCurrency(data.totalBalance)}
             icon="🏦"
             positive={data.totalBalance >= 0}
             onClick={() => setSelectedMetric('total-balance')}
             selected={selectedMetric === 'total-balance'}
           />
           <MetricCard
-            title="Thu nhập tháng"
-            value={fmt(data.monthlyIncome)}
+            title={t('dashboard.monthlyIncome')}
+            value={formatCurrency(data.monthlyIncome)}
             icon="📈"
             positive={true}
             onClick={() => setSelectedMetric('monthly-income')}
             selected={selectedMetric === 'monthly-income'}
           />
           <MetricCard
-            title="Chi tiêu tháng"
-            value={fmt(data.monthlyExpenses)}
+            title={t('dashboard.monthlyExpense')}
+            value={formatCurrency(data.monthlyExpenses)}
             icon="📉"
             positive={false}
             onClick={() => setSelectedMetric('monthly-expense')}
             selected={selectedMetric === 'monthly-expense'}
           />
           <MetricCard
-            title="Nợ"
-            value={fmt(data.totalDebt)}
+            title={t('dashboard.totalDebt')}
+            value={formatCurrency(data.totalDebt)}
             icon="💳"
             positive={false}
             onClick={() => setSelectedMetric('total-debt')}
             selected={selectedMetric === 'total-debt'}
           />
           <MetricCard
-            title="Tiết kiệm"
-            value={fmt(data.totalSaved)}
+            title={t('dashboard.totalSaved')}
+            value={formatCurrency(data.totalSaved)}
             icon="🐷"
             positive={true}
             onClick={() => setSelectedMetric('net-savings')}

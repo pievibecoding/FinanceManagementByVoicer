@@ -5,9 +5,11 @@ import { AnalyticsOverview } from '@/components/analytics/AnalyticsOverview'
 import { SpendingByCategory } from '@/components/analytics/SpendingByCategory'
 import { IncomeVsExpense } from '@/components/analytics/IncomeVsExpense'
 import { MonthlyTrends } from '@/components/analytics/MonthlyTrends'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/_authenticated/analytics/')({
   component: () => {
+    const { t } = useTranslation()
     const [startDate, setStartDate] = useState<string>()
     const [endDate] = useState<string>()
 
@@ -22,8 +24,8 @@ export const Route = createFileRoute('/_authenticated/analytics/')({
     if (isLoading) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">Analytics</h1>
-          <div className="text-muted-foreground">Loading...</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('analytics.title')}</h1>
+          <div className="text-muted-foreground">{t('common.loading')}</div>
         </div>
       )
     }
@@ -31,15 +33,15 @@ export const Route = createFileRoute('/_authenticated/analytics/')({
     if (isError) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">Analytics</h1>
-          <div className="text-destructive">Error loading analytics data</div>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('analytics.title')}</h1>
+          <div className="text-destructive">{t('analytics.error')}</div>
         </div>
       )
     }
 
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-foreground mb-6">Analytics</h1>
+        <h1 className="text-2xl font-bold text-foreground mb-6">{t('analytics.title')}</h1>
 
         <div className="space-y-6">
           {overview && <AnalyticsOverview data={overview} />}

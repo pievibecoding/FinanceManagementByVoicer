@@ -1,18 +1,20 @@
 import type { CategorySpending } from '@/api/analytics';
+import { useTranslation } from 'react-i18next';
+import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 
 interface SpendingByCategoryProps {
   data: CategorySpending[];
 }
 
 export function SpendingByCategory({ data }: SpendingByCategoryProps) {
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  const { t } = useTranslation();
+  const { formatCurrency } = useLocaleFormat();
 
   if (!data || data.length === 0) {
     return (
       <div className="bg-card border border-border rounded-[var(--radius)] p-6">
-        <h3 className="text-lg font-bold text-foreground mb-4">Spending by Category</h3>
-        <div className="text-muted-foreground text-center py-8">No data available</div>
+        <h3 className="text-lg font-bold text-foreground mb-4">{t('analytics.spendingByCategory')}</h3>
+        <div className="text-muted-foreground text-center py-8">{t('analytics.noData')}</div>
       </div>
     );
   }
@@ -21,7 +23,7 @@ export function SpendingByCategory({ data }: SpendingByCategoryProps) {
 
   return (
     <div className="bg-card border border-border rounded-[var(--radius)] p-6">
-      <h3 className="text-lg font-bold text-foreground mb-4">Spending by Category</h3>
+      <h3 className="text-lg font-bold text-foreground mb-4">{t('analytics.spendingByCategory')}</h3>
       <div className="space-y-4">
         {data.map((item) => (
           <div key={item.category_name} className="space-y-2">
@@ -40,7 +42,7 @@ export function SpendingByCategory({ data }: SpendingByCategoryProps) {
                 style={{ width: `${(item.total_amount / maxAmount) * 100}%` }} />
             </div>
             <div className="text-muted-foreground text-sm">
-              {item.transaction_count} transaction{item.transaction_count !== 1 ? 's' : ''}
+              {t('analytics.transactionCount', { count: item.transaction_count })}
             </div>
           </div>
         ))}

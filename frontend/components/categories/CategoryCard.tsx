@@ -1,4 +1,5 @@
 import type { Category } from '@/api/categories';
+import { useTranslation } from 'react-i18next';
 
 interface CategoryCardProps {
   category: Category;
@@ -7,6 +8,7 @@ interface CategoryCardProps {
 }
 
 export function CategoryCard({ category, onEdit, onDelete }: CategoryCardProps) {
+  const { t } = useTranslation();
   return (
     <div className="bg-card border border-border rounded-[var(--radius)] p-4 backdrop-blur-sm hover:bg-muted/40 transition-all cursor-pointer">
       <div className="flex items-start justify-between mb-3">
@@ -19,7 +21,7 @@ export function CategoryCard({ category, onEdit, onDelete }: CategoryCardProps) 
           </div>
           <div>
             <h3 className="text-foreground font-medium">{category.category_name}</h3>
-            <p className="text-muted-foreground text-sm capitalize">{category.category_type}</p>
+            <p className="text-muted-foreground text-sm capitalize">{t(`types.${category.category_type}`, category.category_type)}</p>
           </div>
         </div>
         <div className="flex gap-2">

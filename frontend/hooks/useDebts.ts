@@ -14,8 +14,11 @@ export function useDebts() {
   const totalLoan = debts
     .filter(d => d.debt_type === 'loan' && d.status === 'active')
     .reduce((sum, d) => sum + d.outstanding_balance, 0)
+  const nextPayment = debts
+    .filter(d => d.debt_type === 'debt' && d.status === 'active' && d.due_date)
+    .sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)))[0] ?? null
 
-  return { ...query, debts, totalDebt, totalLoan }
+  return { ...query, debts, totalDebt, totalLoan, nextPayment }
 }
 
 export function useCreateDebt() {

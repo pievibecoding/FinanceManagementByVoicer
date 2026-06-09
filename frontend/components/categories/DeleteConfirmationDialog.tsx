@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useDeleteCategory } from '@/hooks/useCategories';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 
@@ -8,27 +9,23 @@ interface DeleteConfirmationDialogProps {
 }
 
 export function DeleteConfirmationDialog({ open, onOpenChange, categoryId }: DeleteConfirmationDialogProps) {
+  const { t } = useTranslation();
   const deleteCategory = useDeleteCategory();
 
   const handleConfirm = () => {
     if (!categoryId) return;
-    
-    deleteCategory.mutate(categoryId, {
-      onSuccess: () => {
-        onOpenChange(false);
-      },
-    });
+    deleteCategory.mutate(categoryId, { onSuccess: () => { onOpenChange(false); } });
   };
 
   return (
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Category"
-      desc="Are you sure you want to delete this category? This action cannot be undone."
+      title={t('categories.deleteTitle')}
+      desc={t('categories.deleteDescription')}
       handleConfirm={handleConfirm}
-      confirmText="Delete"
-      cancelBtnText="Cancel"
+      confirmText={t('common.delete')}
+      cancelBtnText={t('common.cancel')}
       isLoading={deleteCategory.isPending}
       destructive
     />

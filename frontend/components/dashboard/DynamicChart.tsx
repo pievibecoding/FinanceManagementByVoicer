@@ -19,6 +19,8 @@ import type { Category } from '@/api/categories'
 import type { SavingsGoal } from '@/api/savings'
 import type { Debt } from '@/api/debts'
 import { chartColors, categoryColors, accountChartColors, palette } from '@/styles/tokens'
+import { useTranslation } from 'react-i18next'
+import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 
 interface DynamicChartProps {
   chartType: 'asset-fluctuation' | 'expense-allocation' | 'account-distribution' | 'income-expense' | 'savings-breakdown' | 'debt-breakdown' | 'monthly-income-breakdown' | 'net-savings-trend'
@@ -33,25 +35,19 @@ interface DynamicChartProps {
 
 type TimeRange = '1d' | '1w' | '1m' | '3m' | '6m' | '1y' | 'all'
 
-const TIME_RANGES: { key: TimeRange; label: string }[] = [
-  { key: '1d', label: '1 ngày' },
-  { key: '1w', label: '1 tuần' },
-  { key: '1m', label: '1 tháng' },
-  { key: '3m', label: '3 tháng' },
-  { key: '6m', label: '6 tháng' },
-  { key: '1y', label: '1 năm' },
-  { key: 'all', label: 'Tất cả' },
+const TIME_RANGES: { key: TimeRange; labelKey: string }[] = [
+  { key: '1d', labelKey: 'dashboard.ranges.oneDay' },
+  { key: '1w', labelKey: 'dashboard.ranges.oneWeek' },
+  { key: '1m', labelKey: 'dashboard.ranges.oneMonth' },
+  { key: '3m', labelKey: 'dashboard.ranges.threeMonths' },
+  { key: '6m', labelKey: 'dashboard.ranges.sixMonths' },
+  { key: '1y', labelKey: 'dashboard.ranges.oneYear' },
+  { key: 'all', labelKey: 'dashboard.ranges.all' },
 ]
 
 const ACCOUNT_COLORS: Record<string, string> = accountChartColors
 
 const CATEGORY_COLORS = [...categoryColors]
-
-function formatVND(value: number) {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}tr`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k`
-  return `${value}`
-}
 
 function formatMonth(month: string) {
   const [year, monthNum] = month.split('-')
@@ -81,8 +77,9 @@ export function DynamicChart({
   savings = [],
   debts = [],
 }: DynamicChartProps) {
+  const { t } = useTranslation()
   const [timeRange, setTimeRange] = useState<TimeRange>('1m')
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
+  const { formatCurrency, formatCompactNumber } = useLocaleFormat()
 
   const startDate = getStartDate(timeRange)
 
@@ -131,7 +128,7 @@ export function DynamicChart({
       .map(([catId, amount]) => {
         const cat = categories.find(c => String(c.category_id) === catId)
         return {
-          name: cat?.category_name || `Danh mục ${catId}`,
+          name: cat?.category_name || t('categories.fallbackWithId', { id: catId }),
           value: amount || 0,
         }
       })
@@ -166,10 +163,10 @@ export function DynamicChart({
       .reduce((sum, tx) => sum + tx.amount, 0)
     
     return [
-      { name: 'Thu nhập', value: income, fill: chartColors.income },
-      { name: 'Chi tiêu', value: expense, fill: chartColors.expense },
+      { name: t('types.income'), value: income, fill: chartColors.income },
+      { name: t('types.expense'), value: expense, fill: chartColors.expense },
     ]
-  }, [filteredTransactions])
+  }, [filteredTransactions, t])
 
   const renderChart = () => {
     switch (chartType) {
@@ -185,7 +182,7 @@ export function DynamicChart({
                 tickLine={false}
               />
               <YAxis
-                tickFormatter={formatVND}
+                tickFormatter={(value) => formatCompactNumber(Number(value))}
                 tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
@@ -198,7 +195,7 @@ export function DynamicChart({
                   return (
                     <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
                       <p className="text-muted-foreground mb-1">{payload[0].payload.name}</p>
-                      <p className="text-primary font-medium">{fmt(value)}đ</p>
+                      <p className="text-primary font-medium">{formatCurrency(value)}</p>
                     </div>
                   )
                 }}
@@ -219,7 +216,7 @@ export function DynamicChart({
         if (expenseAllocationData.length === 0) {
           return (
             <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              Chưa có dữ liệu chi tiêu tháng này
+              {t('dashboard.noExpenseDataThisMonth')}
             </div>
           )
         }
@@ -258,7 +255,7 @@ export function DynamicChart({
                   return (
                     <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
                       <p className="text-foreground font-medium">{payload[0].payload.name}</p>
-                      <p className="text-muted-foreground">{fmt(payload[0].value as number)}đ ({percent}%)</p>
+                      <p className="text-muted-foreground">{formatCurrency(payload[0].value as number)} ({percent}%)</p>
                     </div>
                   )
                 }}
@@ -272,7 +269,7 @@ export function DynamicChart({
         if (accountDistributionData.length === 0) {
           return (
             <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              Chưa có tài khoản nào
+              {t('accounts.emptyShort')}
             </div>
           )
         }
@@ -312,7 +309,7 @@ export function DynamicChart({
                   return (
                     <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
                       <p className="text-foreground font-medium">{payload[0].payload.name}</p>
-                      <p className="text-muted-foreground">{fmt(value)}đ ({percent}%)</p>
+                      <p className="text-muted-foreground">{formatCurrency(value)} ({percent}%)</p>
                     </div>
                   )
                 }}
@@ -327,7 +324,7 @@ export function DynamicChart({
         if (activeSavings.length === 0) {
           return (
             <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              Chưa có quỹ tiết kiệm nào
+              {t('savingsPage.emptyShort')}
             </div>
           )
         }
@@ -356,8 +353,8 @@ export function DynamicChart({
                 return (
                   <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
                     <p className="text-foreground font-medium">{item.name}</p>
-                    <p className="text-primary">{fmt(item.value)}đ ({pct}% tổng)</p>
-                    <p className="text-muted-foreground">Mục tiêu: {fmt(item.target)}đ ({progress}% đạt)</p>
+                    <p className="text-primary">{formatCurrency(item.value)} ({t('dashboard.percentTotal', { percent: pct })})</p>
+                    <p className="text-muted-foreground">{t('savingsPage.goal')}: {formatCurrency(item.target)} ({t('dashboard.percentAchieved', { percent: progress })})</p>
                   </div>
                 )
               }} />
@@ -371,7 +368,7 @@ export function DynamicChart({
         const myDebts = debts.filter(d => d.status === 'active' && d.debt_type === 'debt')
         const myLoans = debts.filter(d => d.status === 'active' && d.debt_type === 'loan')
         if (myDebts.length === 0 && myLoans.length === 0) {
-          return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Không có khoản nợ/vay đang hoạt động</div>
+          return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">{t('dashboard.noActiveDebtsLoans')}</div>
         }
         const myDebtData = myDebts.map(d => ({ name: d.lender || d.name, value: d.outstanding_balance }))
         const myLoanData = myLoans.map(d => ({ name: d.debtor || d.name, value: d.outstanding_balance }))
@@ -381,9 +378,9 @@ export function DynamicChart({
         const MiniDonut = ({ data, total, title, color }: { data: {name:string;value:number}[]; total:number; title:string; color:string }) => (
           <div className="flex-1 flex flex-col min-w-0">
             <p className="text-muted-foreground text-xs text-center mb-0.5">{title}</p>
-            <p className="text-center text-sm font-bold mb-1" style={{ color }}>{fmt(total)}đ</p>
+            <p className="text-center text-sm font-bold mb-1" style={{ color }}>{formatCurrency(total)}</p>
             {data.length === 0
-              ? <div className="flex-1 flex items-center justify-center text-muted-foreground/50 text-xs">Không có</div>
+              ? <div className="flex-1 flex items-center justify-center text-muted-foreground/50 text-xs">{t('common.none')}</div>
               : <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie data={data} cx="50%" cy="50%" innerRadius={40} outerRadius={75} paddingAngle={2} dataKey="value" labelLine={false}
@@ -404,7 +401,7 @@ export function DynamicChart({
                       return (
                         <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
                           <p className="text-foreground font-medium">{item.name}</p>
-                          <p style={{ color }}>{fmt(item.value)}đ ({total > 0 ? ((item.value/total)*100).toFixed(1) : 0}%)</p>
+                          <p style={{ color }}>{formatCurrency(item.value)} ({total > 0 ? ((item.value/total)*100).toFixed(1) : 0}%)</p>
                         </div>
                       )
                     }} />
@@ -417,9 +414,9 @@ export function DynamicChart({
 
         return (
           <div className="flex gap-3 h-full">
-            <MiniDonut data={myDebtData} total={totalDebt} title="Tôi đang nợ" color={palette.destructive} />
+            <MiniDonut data={myDebtData} total={totalDebt} title={t('debts.myDebts')} color={palette.destructive} />
             <div className="w-px bg-border self-stretch" />
-            <MiniDonut data={myLoanData} total={totalLoan} title="Người nợ tôi" color={palette.primary} />
+            <MiniDonut data={myLoanData} total={totalLoan} title={t('debts.myLoans')} color={palette.primary} />
           </div>
         )
       }
@@ -432,19 +429,19 @@ export function DynamicChart({
             monthlyIncome[m] = (monthlyIncome[m] ?? 0) + tx.amount
           })
         const incomeData = Object.entries(monthlyIncome).sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ name: formatMonth(month), value }))
-        if (incomeData.length === 0) return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Chưa có thu nhập trong kỳ này</div>
+        if (incomeData.length === 0) return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">{t('dashboard.noIncomeInPeriod')}</div>
         return (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeData} barSize={24}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(200,107,250,0.10)" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={formatVND} tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
+              <YAxis tickFormatter={(value) => formatCompactNumber(Number(value))} tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
               <Tooltip content={({ active, payload }) => {
                 if (!active || !payload?.length) return null
                 return (
                   <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
                     <p className="text-muted-foreground mb-0.5">{payload[0].payload.name}</p>
-                    <p className="text-primary font-medium">{fmt(payload[0].value as number)}đ</p>
+                    <p className="text-primary font-medium">{formatCurrency(payload[0].value as number)}</p>
                   </div>
                 )
               }} />
@@ -460,7 +457,7 @@ export function DynamicChart({
             <BarChart data={incomeExpenseData} barGap={2} barSize={60}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(200,107,250,0.10)" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={formatVND} tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
+              <YAxis tickFormatter={(value) => formatCompactNumber(Number(value))} tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null
@@ -468,7 +465,7 @@ export function DynamicChart({
                     <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
                       {payload.map((p: any) => (
                         <p key={p.name} style={{ color: p.fill }} className="font-medium">
-                          {p.name}: {fmt(p.value)}đ
+                          {p.name}: {formatCurrency(p.value)}
                         </p>
                       ))}
                     </div>
@@ -487,13 +484,13 @@ export function DynamicChart({
 
   const getChartTitle = () => {
     switch (chartType) {
-      case 'asset-fluctuation': return 'Biến động tài sản'
-      case 'expense-allocation': return 'Tỷ lệ phân bổ chi tiêu'
-      case 'account-distribution': return 'Số dư theo tài khoản'
-      case 'income-expense': return 'Thu chi'
-      case 'savings-breakdown': return 'Phân bổ quỹ tiết kiệm'
-      case 'debt-breakdown': return 'Tổng quan nợ/vay'
-      case 'monthly-income-breakdown': return 'Thu nhập theo tháng'
+      case 'asset-fluctuation': return t('dashboard.charts.assetFluctuation')
+      case 'expense-allocation': return t('dashboard.charts.expenseAllocation')
+      case 'account-distribution': return t('dashboard.charts.accountDistribution')
+      case 'income-expense': return t('dashboard.charts.incomeExpense')
+      case 'savings-breakdown': return t('dashboard.charts.savingsBreakdown')
+      case 'debt-breakdown': return t('dashboard.charts.debtBreakdown')
+      case 'monthly-income-breakdown': return t('dashboard.charts.monthlyIncomeBreakdown')
       default: return ''
     }
   }
@@ -513,7 +510,7 @@ export function DynamicChart({
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {r.label}
+              {t(r.labelKey)}
             </button>
           ))}
         </div>

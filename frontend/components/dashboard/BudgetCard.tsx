@@ -1,3 +1,5 @@
+import { useLocaleFormat } from '@/hooks/useLocaleFormat';
+
 interface BudgetCardProps {
   category: string;
   limit: number;
@@ -7,6 +9,7 @@ interface BudgetCardProps {
 }
 
 export function BudgetCard({ category, limit, spent, remaining, onClick }: BudgetCardProps) {
+  const { formatCurrency } = useLocaleFormat();
   const percentage = limit > 0 ? (spent / limit) * 100 : 0;
 
   const getProgressColor = () => {
@@ -20,8 +23,6 @@ export function BudgetCard({ category, limit, spent, remaining, onClick }: Budge
     if (percentage < 80) return 'text-amber-400';
     return 'text-destructive';
   };
-
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN').format(amount);
 
   return (
     <div
@@ -43,8 +44,8 @@ export function BudgetCard({ category, limit, spent, remaining, onClick }: Budge
       </div>
 
       <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">{formatCurrency(spent)} VND</span>
-        <span className="text-muted-foreground">/ {formatCurrency(limit)} VND</span>
+        <span className="text-muted-foreground">{formatCurrency(spent)}</span>
+        <span className="text-muted-foreground">/ {formatCurrency(limit)}</span>
       </div>
     </div>
   );

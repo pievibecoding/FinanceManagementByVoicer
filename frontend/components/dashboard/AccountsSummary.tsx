@@ -1,5 +1,7 @@
 import type { Account, Transaction } from '@/api/dashboard'
 import { accountBorderColors } from '@/styles/tokens'
+import { useTranslation } from 'react-i18next'
+import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 
 interface AccountsSummaryProps {
   accounts: Account[]
@@ -26,14 +28,15 @@ const ACCOUNT_ICONS: Record<string, string> = {
 const ACCOUNT_COLORS: Record<string, string> = accountBorderColors
 
 export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps) {
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
+  const { t } = useTranslation()
+  const { formatCurrency } = useLocaleFormat()
 
   return (
     <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm h-full">
-      <h3 className="text-foreground font-semibold text-sm mb-4">Tài khoản</h3>
+      <h3 className="text-foreground font-semibold text-sm mb-4">{t('accounts.title')}</h3>
 
       {accounts.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Chưa có tài khoản nào.</p>
+        <p className="text-muted-foreground text-sm">{t('accounts.emptyShort')}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {accounts.map(acc => {
@@ -53,7 +56,7 @@ export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps
                   </div>
                 </div>
                 <p className={`text-sm font-bold tabular-nums ${isNegative ? 'text-destructive' : 'text-foreground'}`}>
-                  {fmt(balance)}đ
+                  {formatCurrency(balance)}
                 </p>
               </div>
             )

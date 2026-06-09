@@ -1,4 +1,6 @@
 import type { Account } from '@/api/accounts';
+import { useTranslation } from 'react-i18next';
+import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 
 interface AccountCardProps {
   account: Account;
@@ -7,9 +9,8 @@ interface AccountCardProps {
 }
 
 export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN').format(amount);
-  };
+  const { t } = useTranslation();
+  const { formatCurrency } = useLocaleFormat();
 
   const getAccountIcon = (type: string) => {
     const icons: Record<string, string> = {
@@ -23,6 +24,18 @@ export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
     return icons[type] || '💰';
   };
 
+  const accountTypeLabel = (type: string) => {
+    const keyMap: Record<string, string> = {
+      cash: 'accounts.cash',
+      bank: 'accounts.bank',
+      credit_card: 'accounts.creditCard',
+      investment: 'accounts.investment',
+      savings: 'accounts.savings',
+      wallet: 'accounts.wallet',
+    };
+    return t(keyMap[type] ?? type, type);
+  };
+
   return (
     <div className="bg-card border border-border rounded-[var(--radius)] p-4 backdrop-blur-sm hover:bg-muted/40 transition-all cursor-pointer">
       <div className="flex items-start justify-between mb-3">
@@ -30,7 +43,7 @@ export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
           <span className="text-2xl">{getAccountIcon(account.account_type)}</span>
           <div>
             <h3 className="text-foreground font-medium">{account.account_name}</h3>
-            <p className="text-muted-foreground text-sm capitalize">{account.account_type}</p>
+            <p className="text-muted-foreground text-sm capitalize">{accountTypeLabel(account.account_type)}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -40,8 +53,8 @@ export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
       </div>
       <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <span className="text-muted-foreground text-sm">Balance</span>
-          <span className="text-foreground font-bold tabular-nums">{formatCurrency(account.initial_balance)} VND</span>
+          <span className="text-muted-foreground text-sm">{t('accounts.balance')}</span>
+          <span className="text-foreground font-bold tabular-nums">{formatCurrency(account.initial_balance)}</span>
         </div>
       </div>
     </div>

@@ -1,5 +1,7 @@
 import type { Budget } from '@/api/budgets';
 import type { Category } from '@/api/categories';
+import { useTranslation } from 'react-i18next';
+import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 
 interface BudgetCardProps {
   budget: Budget;
@@ -9,8 +11,8 @@ interface BudgetCardProps {
 }
 
 export function BudgetCard({ budget, category, onEdit, onDelete }: BudgetCardProps) {
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  const { t } = useTranslation();
+  const { formatCurrency } = useLocaleFormat();
 
   return (
     <div className="bg-card border border-border rounded-[var(--radius)] p-4 backdrop-blur-sm">
@@ -24,26 +26,26 @@ export function BudgetCard({ budget, category, onEdit, onDelete }: BudgetCardPro
           </div>
           <div>
             <h3 className="text-foreground font-medium capitalize">{category.category_name}</h3>
-            <p className="text-muted-foreground text-sm capitalize">{category.category_type}</p>
+            <p className="text-muted-foreground text-sm capitalize">{t(`types.${category.category_type}`, category.category_type)}</p>
           </div>
         </div>
         <div className="flex gap-2">
           <button onClick={() => onEdit(budget)} className="text-muted-foreground hover:text-foreground transition-colors">
-            Edit
+            {t('common.edit')}
           </button>
           <button onClick={() => onDelete(budget)} className="text-destructive hover:text-destructive/80 transition-colors">
-            Delete
+            {t('common.delete')}
           </button>
         </div>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-sm">Budget Limit</span>
+          <span className="text-muted-foreground text-sm">{t('budgets.limit')}</span>
           <span className="text-foreground font-medium">{formatCurrency(budget.amount_limit)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-sm">Month</span>
+          <span className="text-muted-foreground text-sm">{t('budgets.month')}</span>
           <span className="text-foreground font-medium">{budget.month}</span>
         </div>
       </div>

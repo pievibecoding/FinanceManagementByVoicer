@@ -10,6 +10,8 @@ import {
 } from 'recharts'
 import type { Transaction } from '@/api/dashboard'
 import { chartColors } from '@/styles/tokens'
+import { useTranslation } from 'react-i18next'
+import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 
 interface IncomeExpenseChartProps {
   transactions: Transaction[]
@@ -17,20 +19,14 @@ interface IncomeExpenseChartProps {
 
 type RangeKey = '7d' | '30d' | '3m' | '6m' | '12m' | 'ytd'
 
-const RANGES: { key: RangeKey; label: string }[] = [
-  { key: '7d',  label: '7 ngày' },
-  { key: '30d', label: '30 ngày' },
-  { key: '3m',  label: '3 tháng' },
-  { key: '6m',  label: '6 tháng' },
-  { key: '12m', label: '12 tháng' },
-  { key: 'ytd', label: 'Năm nay' },
+const RANGES: { key: RangeKey; labelKey: string }[] = [
+  { key: '7d',  labelKey: 'dashboard.ranges.sevenDays' },
+  { key: '30d', labelKey: 'dashboard.ranges.thirtyDays' },
+  { key: '3m',  labelKey: 'dashboard.ranges.threeMonths' },
+  { key: '6m',  labelKey: 'dashboard.ranges.sixMonths' },
+  { key: '12m', labelKey: 'dashboard.ranges.twelveMonths' },
+  { key: 'ytd', labelKey: 'dashboard.ranges.yearToDate' },
 ]
-
-function formatVND(value: number) {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}tr`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k`
-  return `${value}`
-}
 
 function getStartDate(range: RangeKey): Date {
   const now = new Date()
@@ -95,7 +91,7 @@ function buildChartData(transactions: Transaction[], range: RangeKey) {
 const INCOME_COLOR = chartColors.income
 const EXPENSE_COLOR = chartColors.expense
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, incomeLabel, expenseLabel, formatCurrency }: any) => {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl backdrop-blur-md">
@@ -104,10 +100,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <div key={p.name} className="flex items-center gap-2 py-0.5">
           <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.fill }} />
           <span className="text-foreground font-semibold">
-            {p.name === 'income' ? 'Thu nhập' : 'Chi tiêu'}:
+            {p.name === 'income' ? incomeLabel : expenseLabel}:
           </span>
           <span style={{ color: p.fill }} className="font-bold">
-            {new Intl.NumberFormat('vi-VN').format(p.value)}đ
+            {formatCurrency(p.value)}
           </span>
         </div>
       ))}
@@ -116,6 +112,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
+  const { t } = useTranslation()
+  const { formatCurrency, formatCompactNumber } = useLocaleFormat()
   const [range, setRange] = useState<RangeKey>('6m')
 
   const chartData = useMemo(
@@ -127,7 +125,7 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
     <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-foreground font-semibold text-sm">Thu chi</h3>
+        <h3 className="text-foreground font-semibold text-sm">{t('dashboard.charts.incomeExpense')}</h3>
         <div className="flex gap-1">
           {RANGES.map(r => (
             <button
@@ -139,21 +137,20 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {r.label}
+              {t(r.labelKey)}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Legend manual — đẹp hơn recharts default */}
       <div className="flex gap-4 mb-3">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="w-3 h-3 rounded-sm inline-block" style={{ background: INCOME_COLOR }} />
-          Thu nhập
+          {t('types.income')}
         </div>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="w-3 h-3 rounded-sm inline-block" style={{ background: EXPENSE_COLOR }} />
-          Chi tiêu
+          {t('types.expense')}
         </div>
       </div>
 
@@ -168,13 +165,13 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
             tickLine={false}
           />
           <YAxis
-            tickFormatter={formatVND}
+            tickFormatter={(value) => formatCompactNumber(Number(value))}
             tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             width={38}
           />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(200,107,250,0.06)' }} />
+          <Tooltip content={<CustomTooltip incomeLabel={t('types.income')} expenseLabel={t('types.expense')} formatCurrency={formatCurrency} />} cursor={{ fill: 'rgba(200,107,250,0.06)' }} />
           <Bar dataKey="income" fill={INCOME_COLOR} radius={[4, 4, 0, 0]} name="income" />
           <Bar dataKey="expense" fill={EXPENSE_COLOR} radius={[4, 4, 0, 0]} name="expense" />
         </BarChart>

@@ -1,41 +1,39 @@
 import type { AnalyticsOverview } from '@/api/analytics';
+import { useTranslation } from 'react-i18next';
+import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 
 interface AnalyticsOverviewProps {
   data: AnalyticsOverview;
 }
 
 export function AnalyticsOverview({ data }: AnalyticsOverviewProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(amount);
-  };
+  const { t } = useTranslation();
+  const { formatCurrency } = useLocaleFormat();
 
   const cards = [
     {
-      label: 'Total Income',
+      label: t('analytics.totalIncome'),
       value: formatCurrency(data.total_income),
       color: 'text-primary',
       bgColor: 'bg-primary/10',
       borderColor: 'border-primary/30',
     },
     {
-      label: 'Total Expense',
+      label: t('analytics.totalExpense'),
       value: formatCurrency(data.total_expense),
       color: 'text-destructive',
       bgColor: 'bg-destructive/10',
       borderColor: 'border-destructive/30',
     },
     {
-      label: 'Total Investment',
+      label: t('analytics.totalInvestment'),
       value: formatCurrency(data.total_investment),
       color: 'text-sky-400',
       bgColor: 'bg-sky-400/10',
       borderColor: 'border-sky-400/30',
     },
     {
-      label: 'Net Balance',
+      label: t('analytics.netBalance'),
       value: formatCurrency(data.net_balance),
       color: data.net_balance >= 0 ? 'text-primary' : 'text-destructive',
       bgColor: data.net_balance >= 0 ? 'bg-primary/10' : 'bg-destructive/10',
@@ -52,7 +50,7 @@ export function AnalyticsOverview({ data }: AnalyticsOverviewProps) {
         </div>
       ))}
       <div className="bg-card border border-border rounded-[var(--radius)] p-4 backdrop-blur-sm md:col-span-2 lg:col-span-4">
-        <p className="text-muted-foreground text-sm mb-1">Total Transactions</p>
+        <p className="text-muted-foreground text-sm mb-1">{t('analytics.totalTransactions')}</p>
         <p className="text-foreground text-2xl font-bold">{data.transaction_count}</p>
       </div>
     </div>

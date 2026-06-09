@@ -1,5 +1,6 @@
 import { useDeleteTransaction } from '@/hooks/useTransactions';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { useTranslation } from 'react-i18next';
 
 interface DeleteConfirmationDialogProps {
   open: boolean;
@@ -8,6 +9,7 @@ interface DeleteConfirmationDialogProps {
 }
 
 export function DeleteConfirmationDialog({ open, onOpenChange, transactionId }: DeleteConfirmationDialogProps) {
+  const { t } = useTranslation();
   const deleteTransaction = useDeleteTransaction();
 
   const handleConfirm = () => {
@@ -19,7 +21,7 @@ export function DeleteConfirmationDialog({ open, onOpenChange, transactionId }: 
       },
       onError: (error) => {
         console.error('Delete failed:', error);
-        alert(`Xóa thất bại: ${error.message}`);
+        alert(`${t('transactions.deleteFailed')}: ${error.message}`);
       },
     });
   };
@@ -28,11 +30,11 @@ export function DeleteConfirmationDialog({ open, onOpenChange, transactionId }: 
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Transaction"
-      desc="Are you sure you want to delete this transaction? This action cannot be undone."
+      title={t('transactions.deleteTitle')}
+      desc={t('transactions.deleteDescription')}
       handleConfirm={handleConfirm}
-      confirmText="Delete"
-      cancelBtnText="Cancel"
+      confirmText={t('common.delete')}
+      cancelBtnText={t('common.cancel')}
       isLoading={deleteTransaction.isPending}
       destructive
     />

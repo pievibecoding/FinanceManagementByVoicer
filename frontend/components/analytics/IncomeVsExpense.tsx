@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next';
+import { useLocaleFormat } from '@/hooks/useLocaleFormat';
+
 interface IncomeVsExpenseProps {
   data: {
     income: number;
@@ -7,8 +10,8 @@ interface IncomeVsExpenseProps {
 }
 
 export function IncomeVsExpense({ data }: IncomeVsExpenseProps) {
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  const { t } = useTranslation();
+  const { formatCurrency } = useLocaleFormat();
 
   const total = data.income + data.expense + data.investment;
   const incomePercentage = total > 0 ? (data.income / total) * 100 : 0;
@@ -16,14 +19,14 @@ export function IncomeVsExpense({ data }: IncomeVsExpenseProps) {
   const investmentPercentage = total > 0 ? (data.investment / total) * 100 : 0;
 
   const items = [
-    { label: 'Income',     value: data.income,     barClass: 'bg-primary',     textClass: 'text-primary',     percentage: incomePercentage },
-    { label: 'Expense',    value: data.expense,    barClass: 'bg-destructive',  textClass: 'text-destructive',  percentage: expensePercentage },
-    { label: 'Investment', value: data.investment, barClass: 'bg-sky-400',      textClass: 'text-sky-400',      percentage: investmentPercentage },
+    { label: t('types.income'),     value: data.income,     barClass: 'bg-primary',     textClass: 'text-primary',     percentage: incomePercentage },
+    { label: t('types.expense'),    value: data.expense,    barClass: 'bg-destructive',  textClass: 'text-destructive',  percentage: expensePercentage },
+    { label: t('types.investment'), value: data.investment, barClass: 'bg-sky-400',      textClass: 'text-sky-400',      percentage: investmentPercentage },
   ];
 
   return (
     <div className="bg-card border border-border rounded-[var(--radius)] p-6">
-      <h3 className="text-lg font-bold text-foreground mb-4">Income vs Expense vs Investment</h3>
+      <h3 className="text-lg font-bold text-foreground mb-4">{t('analytics.incomeVsExpense')}</h3>
       <div className="space-y-4">
         {items.map((item) => (
           <div key={item.label} className="space-y-2">
@@ -45,7 +48,7 @@ export function IncomeVsExpense({ data }: IncomeVsExpenseProps) {
       </div>
       <div className="mt-6 pt-4 border-t border-border">
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Total</span>
+          <span className="text-muted-foreground">{t('analytics.total')}</span>
           <span className="text-foreground font-bold">{formatCurrency(total)}</span>
         </div>
       </div>
