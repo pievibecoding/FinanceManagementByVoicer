@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/sidebar'
 import { SignOutDialog } from '@/components/sign-out-dialog'
 import { useTranslation } from 'react-i18next'
+import { LanguageSubMenu } from '@/components/language-switcher'
 
 type NavUserProps = {
   user: {
@@ -106,6 +107,7 @@ export function NavUser({ user }: NavUserProps) {
                     {t('nav.notifications')}
                   </Link>
                 </DropdownMenuItem>
+                <LanguageSubMenu />
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -19,6 +19,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { Badge } from '../ui/badge'
+import { SidebarLanguageSwitcher } from '@/components/language-switcher'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,9 +67,21 @@ export function NavGroup({ title, items }: NavGroupProps) {
       <SidebarMenu>
         {items.map((item) => {
           const key = `${item.title}-${item.url}`
+          const showLanguageSwitcher =
+            title === 'Settings' && item.title === 'Notifications'
 
-          if (!item.items)
-            return <SidebarMenuLink key={key} item={item} href={href} />
+          if (!item.items) {
+            const menuLink = <SidebarMenuLink item={item} href={href} />
+
+            return showLanguageSwitcher ? (
+              <Fragment key={key}>
+                {menuLink}
+                <SidebarLanguageSwitcher />
+              </Fragment>
+            ) : (
+              <Fragment key={key}>{menuLink}</Fragment>
+            )
+          }
 
           if (state === 'collapsed' && !isMobile)
             return (

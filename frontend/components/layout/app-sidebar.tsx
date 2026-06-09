@@ -12,7 +12,6 @@ import { NavGroup } from './nav-group'
 import { NavUser } from './nav-user'
 import { TeamSwitcher } from './team-switcher'
 import { useAuth } from '@/contexts/AuthContext'
-import { LanguageSwitcher } from '@/components/language-switcher'
 
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
@@ -29,9 +28,6 @@ export function AppSidebar() {
     <Sidebar collapsible={collapsible} variant={variant}>
       <SidebarHeader>
         <TeamSwitcher teams={sidebarData.teams} />
-        <div className='px-2'>
-          <LanguageSwitcher />
-        </div>
 
         {/* Replace <TeamSwitch /> with the following <AppTitle />
          /* if you want to use the normal app title instead of TeamSwitch dropdown */}
