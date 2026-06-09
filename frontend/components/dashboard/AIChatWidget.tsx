@@ -5,6 +5,7 @@ import { debtsApi } from '@/api/debts'
 import { savingsApi } from '@/api/savings'
 import type { Debt } from '@/api/debts'
 import type { SavingsGoal } from '@/api/savings'
+import { palette } from '@/styles/tokens'
 
 interface ParsedData {
   valid: boolean
@@ -604,10 +605,9 @@ export function AIChatWidget() {  const [open, setOpen] = useState(false)
       <button
         onClick={() => setOpen(o => !o)}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 ${
-          open
-            ? 'bg-popover border border-border rotate-45'
-            : 'bg-gradient-to-br from-primary to-[#5c0099] hover:scale-110'
+          open ? 'bg-popover border border-border rotate-45' : 'hover:scale-110'
         }`}
+        style={open ? undefined : { background: `linear-gradient(135deg, ${palette.primary}, ${palette.indigoDark})` }}
         title="AI Transaction Parser"
       >
         {open ? (

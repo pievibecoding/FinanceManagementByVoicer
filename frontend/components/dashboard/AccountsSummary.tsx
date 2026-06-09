@@ -1,4 +1,5 @@
 import type { Account, Transaction } from '@/api/dashboard'
+import { accountBorderColors } from '@/styles/tokens'
 
 interface AccountsSummaryProps {
   accounts: Account[]
@@ -22,12 +23,7 @@ const ACCOUNT_ICONS: Record<string, string> = {
   'Cash': '💵',
 }
 
-const ACCOUNT_COLORS: Record<string, string> = {
-  'Bank':       'border-[#5c9efa]/60',
-  'E-Wallet':   'border-primary/60',
-  'Investment': 'border-[#ffd500]/60',
-  'Cash':       'border-amber-500/60',
-}
+const ACCOUNT_COLORS: Record<string, string> = accountBorderColors
 
 export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps) {
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
@@ -46,7 +42,8 @@ export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps
             return (
               <div
                 key={acc.account_id}
-                className={`flex items-center justify-between p-3 rounded-lg bg-muted/30 border ${ACCOUNT_COLORS[acc.account_type] ?? 'border-border'}`}
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border"
+                style={{ borderColor: (ACCOUNT_COLORS[acc.account_type] ?? '') + '99' }}
               >
                 <div className="flex items-center gap-2.5">
                   <span className="text-xl">{ACCOUNT_ICONS[acc.account_type] ?? '📁'}</span>

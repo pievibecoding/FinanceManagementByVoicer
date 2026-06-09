@@ -18,6 +18,7 @@ import type { Transaction, Account } from '@/api/dashboard'
 import type { Category } from '@/api/categories'
 import type { SavingsGoal } from '@/api/savings'
 import type { Debt } from '@/api/debts'
+import { chartColors, categoryColors, accountChartColors, palette } from '@/styles/tokens'
 
 interface DynamicChartProps {
   chartType: 'asset-fluctuation' | 'expense-allocation' | 'account-distribution' | 'income-expense' | 'savings-breakdown' | 'debt-breakdown' | 'monthly-income-breakdown' | 'net-savings-trend'
@@ -42,17 +43,9 @@ const TIME_RANGES: { key: TimeRange; label: string }[] = [
   { key: 'all', label: 'Tất cả' },
 ]
 
-const ACCOUNT_COLORS: Record<string, string> = {
-  'Bank':       '#5c9efa',
-  'E-Wallet':   '#c86bfa',
-  'Investment': '#ffd500',
-  'Cash':       '#f59e0b',
-}
+const ACCOUNT_COLORS: Record<string, string> = accountChartColors
 
-const CATEGORY_COLORS = [
-  '#c86bfa', '#ffd500', '#ff6b9d', '#5c9efa', '#f59e0b',
-  '#34d399', '#fb923c', '#a78bfa', '#38bdf8', '#f472b6'
-]
+const CATEGORY_COLORS = [...categoryColors]
 
 function formatVND(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}tr`
@@ -173,8 +166,8 @@ export function DynamicChart({
       .reduce((sum, tx) => sum + tx.amount, 0)
     
     return [
-      { name: 'Thu nhập', value: income, fill: '#c86bfa' },
-      { name: 'Chi tiêu', value: expense, fill: '#ffd500' },
+      { name: 'Thu nhập', value: income, fill: chartColors.income },
+      { name: 'Chi tiêu', value: expense, fill: chartColors.expense },
     ]
   }, [filteredTransactions])
 
@@ -213,9 +206,9 @@ export function DynamicChart({
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke="#c86bfa"
+                stroke={chartColors.income}
                 strokeWidth={2}
-                dot={{ fill: '#c86bfa', strokeWidth: 2, r: 3 }}
+                dot={{ fill: chartColors.income, strokeWidth: 2, r: 3 }}
                 activeDot={{ r: 5 }}
               />
             </LineChart>
@@ -424,9 +417,9 @@ export function DynamicChart({
 
         return (
           <div className="flex gap-3 h-full">
-            <MiniDonut data={myDebtData} total={totalDebt} title="Tôi đang nợ" color="#ff4d4d" />
+            <MiniDonut data={myDebtData} total={totalDebt} title="Tôi đang nợ" color={palette.destructive} />
             <div className="w-px bg-border self-stretch" />
-            <MiniDonut data={myLoanData} total={totalLoan} title="Người nợ tôi" color="#c86bfa" />
+            <MiniDonut data={myLoanData} total={totalLoan} title="Người nợ tôi" color={palette.primary} />
           </div>
         )
       }
@@ -455,7 +448,7 @@ export function DynamicChart({
                   </div>
                 )
               }} />
-              <Bar dataKey="value" fill="#c86bfa" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="value" fill={chartColors.income} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )

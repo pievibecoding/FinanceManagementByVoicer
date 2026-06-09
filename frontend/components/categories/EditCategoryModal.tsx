@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUpdateCategory } from '@/hooks/useCategories';
 import type { Category } from '@/api/categories';
+import { defaultCategoryColor } from '@/styles/tokens';
 
 interface EditCategoryModalProps {
   open: boolean;
@@ -15,7 +16,7 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
     category_name: '',
     category_type: 'expense',
     icon: '📦',
-    color: '#c86bfa',
+    color: defaultCategoryColor,
   });
 
   useEffect(() => {

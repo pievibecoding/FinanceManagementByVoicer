@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import type { Transaction } from '@/api/dashboard'
+import { chartColors } from '@/styles/tokens'
 
 interface IncomeExpenseChartProps {
   transactions: Transaction[]
@@ -91,8 +92,8 @@ function buildChartData(transactions: Transaction[], range: RangeKey) {
   return Object.entries(buckets).map(([name, v]) => ({ name, ...v }))
 }
 
-const INCOME_COLOR = '#c86bfa'  // mauve-magic
-const EXPENSE_COLOR = '#ffd500' // gold
+const INCOME_COLOR = chartColors.income
+const EXPENSE_COLOR = chartColors.expense
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null

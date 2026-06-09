@@ -1,4 +1,5 @@
 import { Account } from '@/api/dashboard';
+import { accountBorderColors } from '@/styles/tokens';
 
 interface AccountCardProps {
   account: Account;
@@ -13,21 +14,15 @@ export function AccountCard({ account, onClick }: AccountCardProps) {
     return icons[type] || '📁';
   };
 
-  const getAccountBorderColor = (type: string) => {
-    const colors: Record<string, string> = {
-      'Bank':        'border-[#5c9efa]',
-      'Cash':        'border-primary',
-      'Credit Card': 'border-purple-500',
-      'Other':       'border-border',
-    };
-    return colors[type] || 'border-border';
-  };
+  const getAccountBorderColor = (type: string): string =>
+    accountBorderColors[type] ?? '';
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN').format(amount);
 
   return (
     <div
-      className={`bg-card border ${getAccountBorderColor(account.account_type)} rounded-[var(--radius)] p-4 backdrop-blur-sm hover:bg-muted/40 transition-all cursor-pointer`}
+      className="bg-card border rounded-[var(--radius)] p-4 backdrop-blur-sm hover:bg-muted/40 transition-all cursor-pointer"
+      style={{ borderColor: getAccountBorderColor(account.account_type) || undefined }}
       onClick={onClick}
     >
       <div className="flex items-center justify-between mb-2">

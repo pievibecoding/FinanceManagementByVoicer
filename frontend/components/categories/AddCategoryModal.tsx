@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAddCategory } from '@/hooks/useCategories';
+import { defaultCategoryColor } from '@/styles/tokens';
 
 interface AddCategoryModalProps {
   open: boolean;
@@ -13,7 +14,7 @@ export function AddCategoryModal({ open, onOpenChange }: AddCategoryModalProps) 
     category_name: '',
     category_type: 'expense',
     icon: '📦',
-    color: '#c86bfa',
+    color: defaultCategoryColor,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,7 +26,7 @@ export function AddCategoryModal({ open, onOpenChange }: AddCategoryModalProps) 
           category_name: '',
           category_type: 'expense',
           icon: '📦',
-          color: '#c86bfa',
+          color: defaultCategoryColor,
         });
       },
     });
