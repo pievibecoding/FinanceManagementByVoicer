@@ -22,12 +22,11 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
           <SidebarInset
             className={cn(
               '@container/content',
-              'h-svh overflow-hidden',
               'has-data-[layout=fixed]:h-svh',
               'peer-data-[variant=inset]:has-data-[layout=fixed]:h-[calc(100svh-(var(--spacing)*4))]'
             )}
           >
-            {children ?? <div className="h-full overflow-hidden"><Outlet /></div>}
+            {children ?? <Outlet />}
           </SidebarInset>
         </SidebarProvider>
       </LayoutProvider>
