@@ -363,6 +363,172 @@
     "english": "Tiếng Anh",
     "vietnamese": "Tiếng Việt"
   },
+  "settingsCore": {
+    "title": "Cài đặt",
+    "description": "Quản lý thông tin tài khoản, tùy chọn ứng dụng và trạng thái gói cho thiết bị này.",
+    "actions": {
+      "configure": "Cấu hình"
+    },
+    "profile": {
+      "title": "Hồ sơ",
+      "description": "Thông tin tài khoản đang đăng nhập.",
+      "fallbackName": "Người dùng tài chính",
+      "active": "Đang hoạt động",
+      "userId": "ID người dùng",
+      "email": "Email",
+      "plan": "Gói",
+      "readOnlyNotice": "Phiên bản này chưa kết nối chỉnh sửa hồ sơ với server. Thông tin này được lấy từ tài khoản đang đăng nhập."
+    },
+    "account": {
+      "title": "Tùy chọn",
+      "description": "Các điều khiển cấp thiết bị cho phiên sử dụng hiện tại.",
+      "language": "Ngôn ngữ",
+      "languageDescription": "Chuyển giữa tiếng Việt và tiếng Anh.",
+      "theme": "Giao diện",
+      "themeDescription": "Chọn sáng, tối hoặc theo hệ thống.",
+      "notifications": "Thông báo",
+      "notificationsDescription": "Xem các tùy chọn thông báo cục bộ."
+    },
+    "billing": {
+      "title": "Thanh toán và gói",
+      "description": "Trạng thái gói hiện tại của không gian tài chính cá nhân.",
+      "free": "Chưa có thanh toán",
+      "notice": "Thanh toán và nâng cấp trả phí chưa được kết nối trong phiên bản này. Bạn vẫn có thể dùng các tính năng tài chính cá nhân hiện tại mà không cần checkout.",
+      "upgradeTitle": "Nâng cấp Pro",
+      "upgradeDescription": "Luồng nâng cấp được dành cho tích hợp gói trả phí trong tương lai.",
+      "notAvailable": "Chưa có trong v1",
+      "features": {
+        "transactions": "Giao dịch và tài khoản",
+        "budgets": "Ngân sách, nợ và tiết kiệm",
+        "ai": "Trợ lý AI nhập giao dịch"
+      }
+    }
+  },
+  "notificationsPage": {
+    "title": "Thông báo",
+    "description": "Xem các tùy chọn nhắc nhở tài chính cho phiên sử dụng này.",
+    "preferencesTitle": "Tùy chọn thông báo",
+    "preferencesDescription": "Các điều khiển này dùng được cục bộ và chưa tạo kênh gửi thông báo phía server.",
+    "deliveryTitle": "Trạng thái gửi",
+    "deliveryDescription": "Gửi thông báo từ server nằm ngoài phạm vi v1.",
+    "localOnlyNotice": "Thay đổi trên trang này là tùy chọn UI cục bộ cho phiên hiện tại. Chúng chưa được lưu vào tài khoản.",
+    "preferences": {
+      "budgetAlerts": {
+        "title": "Cảnh báo ngân sách",
+        "description": "Nhắc khi một danh mục gần chạm hoặc vượt ngân sách."
+      },
+      "debtReminders": {
+        "title": "Nhắc nợ",
+        "description": "Nhắc bạn xem lại các khoản thanh toán nợ sắp tới."
+      },
+      "savingsProgress": {
+        "title": "Tiến độ tiết kiệm",
+        "description": "Làm nổi bật các mục tiêu tiết kiệm đang tiến triển hoặc chậm tiến độ."
+      },
+      "monthlySummary": {
+        "title": "Tổng kết tháng",
+        "description": "Hiển thị gợi ý xem lại tài chính hàng tháng."
+      },
+      "aiConfirmations": {
+        "title": "Xác nhận giao dịch AI",
+        "description": "Giữ bước xác nhận trước khi lưu dữ liệu do AI tạo."
+      }
+    }
+  },
+  "helpCenter": {
+    "title": "Trợ giúp",
+    "description": "Tìm hướng dẫn nhanh cho các luồng tài chính đang có trong ứng dụng.",
+    "searchPlaceholder": "Tìm chủ đề trợ giúp...",
+    "noResults": "Không có chủ đề phù hợp.",
+    "faqTitle": "Câu hỏi thường gặp",
+    "faqDescription": "Câu trả lời ngắn cho các hành vi phổ biến của sản phẩm.",
+    "supportTitle": "Hỗ trợ",
+    "supportDescription": "Nơi tham khảo khi bạn cần thêm trợ giúp.",
+    "supportNotice": "Phiên bản này chưa kết nối hộp thư hỗ trợ thật. Tạm thời hãy lưu chi tiết lỗi, ảnh chụp và các bước tái hiện trong ghi chú dự án.",
+    "topics": {
+      "transactions": {
+        "title": "Thêm giao dịch",
+        "description": "Ghi nhận thu nhập, chi tiêu và đầu tư cùng tài khoản và danh mục.",
+        "steps": [
+          "Mở Giao dịch và chọn Thêm giao dịch.",
+          "Chọn tài khoản, loại, danh mục, số tiền và ngày.",
+          "Kiểm tra chi tiết trước khi lưu."
+        ]
+      },
+      "budgets": {
+        "title": "Ngân sách",
+        "description": "Đặt giới hạn hàng tháng theo danh mục và theo dõi tiến độ chi tiêu.",
+        "steps": [
+          "Mở Ngân sách và chọn tháng.",
+          "Tạo hoặc sửa giới hạn cho danh mục.",
+          "Xem tiến độ ở phần ngân sách trên dashboard."
+        ]
+      },
+      "debts": {
+        "title": "Nợ và cho vay",
+        "description": "Theo dõi tiền bạn nợ và tiền người khác nợ bạn.",
+        "steps": [
+          "Tạo khoản nợ hoặc cho vay với tên đối tác.",
+          "Thêm thanh toán khi có dòng tiền.",
+          "Dùng dashboard để so sánh tổng nợ phải trả và tiền cho vay."
+        ]
+      },
+      "savings": {
+        "title": "Mục tiêu tiết kiệm",
+        "description": "Tạo mục tiêu và ghi nhận các lần nạp tiền theo thời gian.",
+        "steps": [
+          "Tạo mục tiêu với số tiền và ngày dự kiến.",
+          "Thêm lần nạp tiền khi bạn tiết kiệm.",
+          "Theo dõi tiến độ và số tiền còn thiếu."
+        ]
+      },
+      "categories": {
+        "title": "Danh mục",
+        "description": "Tổ chức giao dịch theo nhóm thu nhập, chi tiêu và đầu tư.",
+        "steps": [
+          "Mở Danh mục để xem các nhóm hiện có.",
+          "Dùng tên và màu rõ ràng để dễ quét.",
+          "Gán danh mục khi thêm giao dịch."
+        ]
+      },
+      "charts": {
+        "title": "Biểu đồ dashboard",
+        "description": "Dùng khoảng thời gian và kỳ thời gian để xem xu hướng và phân bổ.",
+        "steps": [
+          "Chọn một thẻ chỉ số để đổi biểu đồ đang xem.",
+          "Dùng kỳ thời gian để xem theo ngày, tuần, tháng, quý hoặc năm.",
+          "Dùng biểu đồ phân bổ để xem danh mục và tài khoản."
+        ]
+      },
+      "assistant": {
+        "title": "Trợ lý AI",
+        "description": "Dùng giọng nói hoặc văn bản để tạo nháp dữ liệu tài chính nhanh hơn.",
+        "steps": [
+          "Mở trợ lý từ nút nổi trên dashboard.",
+          "Mô tả giao dịch, khoản nợ, mục tiêu tiết kiệm hoặc lần nạp.",
+          "Xác nhận kết quả AI phân tích trước khi lưu."
+        ]
+      }
+    },
+    "faq": {
+      "localOnly": {
+        "question": "Cài đặt có được lưu vào tài khoản không?",
+        "answer": "Chưa. Phiên bản này hiển thị các điều khiển frontend dùng được, nhưng chưa có endpoint backend để lưu cài đặt."
+      },
+      "missingData": {
+        "question": "Vì sao biểu đồ hoặc ngân sách bị trống?",
+        "answer": "Phần lớn màn hình chỉ hiển thị dữ liệu theo tháng, khoảng thời gian hoặc user đang đăng nhập. Hãy kiểm tra bộ lọc ngày và dữ liệu tài khoản trước."
+      },
+      "voiceAssistant": {
+        "question": "AI có tự động lưu dữ liệu không?",
+        "answer": "Không. Trợ lý chỉ tạo bản nháp và yêu cầu xác nhận trước khi lưu các loại dữ liệu được hỗ trợ."
+      },
+      "notifications": {
+        "question": "Tôi có nhận push hoặc email thông báo không?",
+        "answer": "Không. Gửi thông báo chưa được triển khai trong v1; trang thông báo hiện chỉ là bề mặt tùy chọn frontend."
+      }
+    }
+  },
   "pages": {
     "settings": "Cài đặt",
     "settingsComingSoon": "Trang cài đặt sắp ra mắt",

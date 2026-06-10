@@ -9,6 +9,10 @@ import { DeleteConfirmationDialog } from '@/components/budgets/DeleteConfirmatio
 import type { Budget } from '@/api/budgets'
 import { useTranslation } from 'react-i18next'
 
+function normalizeId(value: string | number | null | undefined) {
+  return value == null ? '' : String(value)
+}
+
 export const Route = createFileRoute('/_authenticated/budgets/')({
   component: () => {
     const { t } = useTranslation()
@@ -51,7 +55,7 @@ export const Route = createFileRoute('/_authenticated/budgets/')({
 
     const budgetsWithCategories = budgets?.map(budget => ({
       budget,
-      category: categories?.find(c => c.category_id === String(budget.category_id))
+      category: categories?.find(c => normalizeId(c.category_id) === normalizeId(budget.category_id))
     })).filter(item => item.category !== undefined) || []
 
     return (

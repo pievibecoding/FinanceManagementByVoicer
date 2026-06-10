@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 
 interface Category {
-  category_id: number
+  category_id: number | string
   category_name: string
 }
 
@@ -32,7 +32,8 @@ export function BudgetOverview({ budgets, categories, transactions }: BudgetOver
   // Build items: only categories that have a budget AND have been spent this month
   const items = budgets
     .map(b => {
-      const cat = categories.find(c => c.category_id === b.category_id)
+      const budgetCategoryId = String(b.category_id)
+      const cat = categories.find(c => String(c.category_id) === budgetCategoryId)
       const spent = spendingMap[b.category_id] ?? 0
       return { ...b, category_name: cat?.category_name ?? t('categories.fallbackWithId', { id: b.category_id }), spent }
     })
