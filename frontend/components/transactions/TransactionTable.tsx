@@ -18,7 +18,7 @@ interface TransactionTableProps {
 const TYPE_COLOR: Record<string, string> = {
   income: 'text-primary',
   expense: 'text-destructive',
-  investment: 'text-sky-400',
+  investment: 'text-[var(--baby-blue-ice)]',
 }
 
 export function TransactionTable({ transactions, categories, onEdit, onDelete, onViewDetails }: TransactionTableProps) {

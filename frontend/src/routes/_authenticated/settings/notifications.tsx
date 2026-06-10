@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Bell, Bot, CalendarClock, PiggyBank, ReceiptText, WalletCards } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AppCard, PageHeader } from '@/components/common'
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
@@ -44,14 +44,12 @@ function NotificationsPage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold text-foreground">{t('notificationsPage.title')}</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            {t('notificationsPage.description')}
-          </p>
-        </div>
+        <PageHeader
+          title={t('notificationsPage.title')}
+          description={t('notificationsPage.description')}
+        />
 
-        <Card>
+        <AppCard>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="size-4 text-primary" />
@@ -86,9 +84,9 @@ function NotificationsPage() {
               </div>
             ))}
           </CardContent>
-        </Card>
+        </AppCard>
 
-        <Card>
+        <AppCard>
           <CardHeader>
             <CardTitle>{t('notificationsPage.deliveryTitle')}</CardTitle>
             <CardDescription>{t('notificationsPage.deliveryDescription')}</CardDescription>
@@ -98,7 +96,7 @@ function NotificationsPage() {
               {t('notificationsPage.localOnlyNotice')}
             </div>
           </CardContent>
-        </Card>
+        </AppCard>
       </div>
     </div>
   )

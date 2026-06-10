@@ -8,6 +8,8 @@ import { EditBudgetModal } from '@/components/budgets/EditBudgetModal'
 import { DeleteConfirmationDialog } from '@/components/budgets/DeleteConfirmationDialog'
 import type { Budget } from '@/api/budgets'
 import { useTranslation } from 'react-i18next'
+import { Button } from '@/components/ui/button'
+import { EmptyState, ErrorState, PageHeader } from '@/components/common'
 
 function normalizeId(value: string | number | null | undefined) {
   return value == null ? '' : String(value)
@@ -38,8 +40,8 @@ export const Route = createFileRoute('/_authenticated/budgets/')({
     if (isLoading) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('budgets.title')}</h1>
-          <div className="text-muted-foreground">{t('common.loading')}</div>
+          <PageHeader title={t('budgets.title')} />
+          <div className="mt-4 text-muted-foreground">{t('common.loading')}</div>
         </div>
       )
     }
@@ -47,8 +49,8 @@ export const Route = createFileRoute('/_authenticated/budgets/')({
     if (isError) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('budgets.title')}</h1>
-          <div className="text-destructive">{t('budgets.error')}</div>
+          <PageHeader title={t('budgets.title')} />
+          <ErrorState className="mt-4" title={t('budgets.error')} />
         </div>
       )
     }
@@ -60,13 +62,11 @@ export const Route = createFileRoute('/_authenticated/budgets/')({
 
     return (
       <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-foreground">{t('budgets.title')}</h1>
-          <button onClick={() => setIsAddModalOpen(true)}
-            className="bg-primary text-primary-foreground py-2 px-4 rounded-[var(--radius)] hover:bg-primary/80 transition-colors font-medium">
-            {t('budgets.add')}
-          </button>
-        </div>
+        <PageHeader
+          className="mb-6"
+          title={t('budgets.title')}
+          actions={<Button onClick={() => setIsAddModalOpen(true)}>{t('budgets.add')}</Button>}
+        />
 
         <div className="mb-6">
           <label className="block text-muted-foreground text-sm mb-2">{t('budgets.selectMonth')}</label>
@@ -75,9 +75,7 @@ export const Route = createFileRoute('/_authenticated/budgets/')({
         </div>
 
         {!budgetsWithCategories || budgetsWithCategories.length === 0 ? (
-          <div className="text-muted-foreground text-center py-12">
-            {t('budgets.empty', { month: currentMonth })}
-          </div>
+          <EmptyState title={t('budgets.empty', { month: currentMonth })} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {budgetsWithCategories.map(({ budget, category }) => (

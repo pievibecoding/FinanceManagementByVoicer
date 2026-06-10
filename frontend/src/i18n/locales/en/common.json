@@ -437,6 +437,7 @@
   },
   "helpCenter": {
     "title": "Help Center",
+    "back": "Back",
     "description": "Find quick guidance for the finance workflows available in the app.",
     "searchPlaceholder": "Search help topics...",
     "noResults": "No matching help topics.",
@@ -531,10 +532,7 @@
   },
   "pages": {
     "settings": "Settings",
-    "settingsComingSoon": "Settings page - Coming Soon",
     "notifications": "Notifications",
-    "notificationsComingSoon": "Notifications settings page - Coming Soon",
-    "helpCenter": "Help Center",
-    "helpComingSoon": "Help Center page - Coming Soon"
+    "helpCenter": "Help Center"
   }
 }

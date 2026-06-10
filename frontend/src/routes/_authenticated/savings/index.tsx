@@ -13,6 +13,8 @@ import {
 } from '@/hooks/useSavings'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 import type { SavingsGoal, SavingsContribution } from '@/api/savings'
+import { AppCard, EmptyState, ErrorState, PageHeader } from '@/components/common'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/_authenticated/savings/')({
   component: SavingsPage,
@@ -29,8 +31,8 @@ function isOverdue(goal: SavingsGoal): boolean {
 }
 
 function progressColor(pct: number, status: string): string {
-  if (status === 'completed') return 'bg-emerald-400'
-  if (pct >= 80) return 'bg-amber-400'
+  if (status === 'completed') return 'bg-[var(--meter-safe)]'
+  if (pct >= 80) return 'bg-[var(--meter-warning)]'
   return 'bg-primary'
 }
 
@@ -266,14 +268,14 @@ function GoalCard({ goal, onEdit, onDelete, onContribute, onHistory }: GoalCardP
   const overdue = isOverdue(goal)
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+    <AppCard className="rounded-xl p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-foreground font-medium truncate">{goal.name}</p>
           {goal.note && <p className="text-muted-foreground text-xs mt-0.5 truncate">{goal.note}</p>}
         </div>
         <div className="shrink-0 flex items-center gap-1.5">
-          {goal.status === 'completed' && <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-400/20 text-emerald-400">{t('savingsPage.completed')}</span>}
+          {goal.status === 'completed' && <span className="px-2 py-0.5 rounded text-[10px] bg-[var(--meter-safe)]/20 text-[var(--meter-safe)]">{t('savingsPage.completed')}</span>}
           {goal.status === 'cancelled' && <span className="px-2 py-0.5 rounded text-[10px] bg-muted text-muted-foreground">{t('savingsPage.cancelled')}</span>}
           {overdue && goal.status === 'active' && (
             <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-destructive/20 text-destructive">
@@ -313,7 +315,7 @@ function GoalCard({ goal, onEdit, onDelete, onContribute, onHistory }: GoalCardP
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
-    </div>
+    </AppCard>
   )
 }
 
@@ -355,8 +357,8 @@ function SavingsPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-4 text-foreground">{t('savingsPage.title')}</h1>
-        <div className="text-muted-foreground text-sm">{t('common.loadingData')}</div>
+        <PageHeader title={t('savingsPage.title')} />
+        <div className="mt-4 text-muted-foreground text-sm">{t('common.loadingData')}</div>
       </div>
     )
   }
@@ -364,10 +366,8 @@ function SavingsPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-4 text-foreground">{t('savingsPage.title')}</h1>
-        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 text-destructive text-sm">
-          {t('common.loadError')}
-        </div>
+        <PageHeader title={t('savingsPage.title')} />
+        <ErrorState className="mt-4" title={t('common.loadError')} />
       </div>
     )
   }
@@ -377,18 +377,17 @@ function SavingsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('savingsPage.title')}</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-primary text-primary-foreground font-medium py-2 px-4 rounded-[var(--radius)] hover:bg-primary/80 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> {t('savingsPage.create')}
-        </button>
-      </div>
+      <PageHeader
+        title={t('savingsPage.title')}
+        actions={(
+          <Button onClick={() => setShowAddModal(true)}>
+            <Plus className="w-4 h-4" /> {t('savingsPage.create')}
+          </Button>
+        )}
+      />
 
       {/* Summary */}
-      <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-center gap-4">
+      <AppCard className="rounded-xl p-4 flex items-center gap-4">
         <PiggyBank className="w-8 h-8 text-primary shrink-0" />
         <div>
           <p className="text-muted-foreground text-xs">{t('savingsPage.totalSaved')}</p>
@@ -398,7 +397,7 @@ function SavingsPage() {
           <p className="text-muted-foreground text-xs">{t('savingsPage.activeCount', { count: activeGoals.length })}</p>
           <p className="text-muted-foreground text-xs">{t('savingsPage.completedCount', { count: completedGoals.length })}</p>
         </div>
-      </div>
+      </AppCard>
 
       {/* Active goals */}
       {activeGoals.length > 0 && (
@@ -419,7 +418,7 @@ function SavingsPage() {
       {completedGoals.length > 0 && (
         <div>
           <h2 className="text-foreground/80 font-semibold text-sm mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+            <span className="w-2 h-2 rounded-full bg-[var(--meter-safe)] inline-block" />
             {t('savingsPage.completedSection')} ({completedGoals.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -431,10 +430,7 @@ function SavingsPage() {
       )}
 
       {savings.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground/50">
-          <PiggyBank className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>{t('savingsPage.empty')}</p>
-        </div>
+        <EmptyState icon={<PiggyBank className="w-8 h-8" />} title={t('savingsPage.empty')} />
       )}
 
       {showAddModal && <SavingsFormModal onClose={() => setShowAddModal(false)} />}

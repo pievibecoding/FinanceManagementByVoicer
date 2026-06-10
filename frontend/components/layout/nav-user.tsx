@@ -83,7 +83,7 @@ export function NavUser({ user }: NavUserProps) {
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link to='/settings'>
+                  <Link to='/settings' hash='billing'>
                     <Sparkles />
                     {t('nav.upgrade')}
                   </Link>
@@ -98,7 +98,7 @@ export function NavUser({ user }: NavUserProps) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to='/settings'>
+                  <Link to='/settings' hash='billing'>
                     <CreditCard />
                     {t('nav.billing')}
                   </Link>

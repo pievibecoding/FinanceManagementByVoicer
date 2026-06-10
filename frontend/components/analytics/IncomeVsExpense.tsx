@@ -21,7 +21,7 @@ export function IncomeVsExpense({ data }: IncomeVsExpenseProps) {
   const items = [
     { label: t('types.income'),     value: data.income,     barClass: 'bg-primary',     textClass: 'text-primary',     percentage: incomePercentage },
     { label: t('types.expense'),    value: data.expense,    barClass: 'bg-destructive',  textClass: 'text-destructive',  percentage: expensePercentage },
-    { label: t('types.investment'), value: data.investment, barClass: 'bg-sky-400',      textClass: 'text-sky-400',      percentage: investmentPercentage },
+    { label: t('types.investment'), value: data.investment, barClass: 'bg-[var(--baby-blue-ice)]', textClass: 'text-[var(--baby-blue-ice)]', percentage: investmentPercentage },
   ];
 
   return (

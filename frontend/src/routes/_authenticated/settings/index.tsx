@@ -2,11 +2,11 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { BadgeCheck, CreditCard, Languages, Palette, ShieldCheck, Sparkles, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
+import { AppCard, PageHeader } from '@/components/common'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
@@ -34,15 +34,13 @@ function SettingsPage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold text-foreground">{t('settingsCore.title')}</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            {t('settingsCore.description')}
-          </p>
-        </div>
+        <PageHeader
+          title={t('settingsCore.title')}
+          description={t('settingsCore.description')}
+        />
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <Card>
+          <AppCard>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="size-4 text-primary" />
@@ -76,9 +74,9 @@ function SettingsPage() {
                 {t('settingsCore.profile.readOnlyNotice')}
               </div>
             </CardContent>
-          </Card>
+          </AppCard>
 
-          <Card>
+          <AppCard>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheck className="size-4 text-primary" />
@@ -110,10 +108,10 @@ function SettingsPage() {
                 }
               />
             </CardContent>
-          </Card>
+          </AppCard>
         </div>
 
-        <Card id="billing">
+        <AppCard id="billing">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="size-4 text-primary" />
@@ -145,7 +143,7 @@ function SettingsPage() {
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </AppCard>
       </div>
     </div>
   )

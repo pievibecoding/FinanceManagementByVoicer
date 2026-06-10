@@ -13,6 +13,8 @@ import {
 } from '@/hooks/useDebts'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 import type { Debt, DebtPayment } from '@/api/debts'
+import { AppCard, ErrorState, PageHeader } from '@/components/common'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/_authenticated/debts/')({
   component: DebtsPage,
@@ -352,7 +354,7 @@ function DebtRow({ debt, onEdit, onDelete, onPay, onHistory }: DebtRowProps) {
           {alert === 'overdue' ? (
             <><AlertTriangle className="w-3 h-3 text-destructive" /><span className="text-destructive">{t('debts.overdue')}: {formatDate(debt.due_date)}</span></>
           ) : alert === 'soon' ? (
-            <><Clock className="w-3 h-3 text-amber-400" /><span className="text-amber-400">{t('debts.dueSoon')}: {formatDate(debt.due_date)}</span></>
+            <><Clock className="w-3 h-3 text-[var(--meter-warning)]" /><span className="text-[var(--meter-warning)]">{t('debts.dueSoon')}: {formatDate(debt.due_date)}</span></>
           ) : (
             <span className="text-muted-foreground/50">{t('debts.due')}: {formatDate(debt.due_date)}</span>
           )}
@@ -417,8 +419,8 @@ function DebtsPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-4 text-foreground">{t('debts.title')}</h1>
-        <div className="text-muted-foreground text-sm">{t('common.loadingData')}</div>
+        <PageHeader title={t('debts.title')} />
+        <div className="mt-4 text-muted-foreground text-sm">{t('common.loadingData')}</div>
       </div>
     )
   }
@@ -426,10 +428,8 @@ function DebtsPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-4 text-foreground">{t('debts.title')}</h1>
-        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 text-destructive text-sm">
-          {t('common.loadError')}
-        </div>
+        <PageHeader title={t('debts.title')} />
+        <ErrorState className="mt-4" title={t('common.loadError')} />
       </div>
     )
   }
@@ -439,26 +439,25 @@ function DebtsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('debts.title')}</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-primary text-primary-foreground font-medium py-2 px-4 rounded-[var(--radius)] hover:bg-primary/80 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> {t('debts.add')}
-        </button>
-      </div>
+      <PageHeader
+        title={t('debts.title')}
+        actions={(
+          <Button onClick={() => setShowAddModal(true)}>
+            <Plus className="w-4 h-4" /> {t('debts.add')}
+          </Button>
+        )}
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
+        <AppCard className="rounded-xl p-4">
           <p className="text-muted-foreground text-xs mb-1 flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5" /> {t('debts.iOwe')}</p>
           <p className="text-destructive text-xl font-bold">{formatCurrency(totalDebt)}</p>
-        </div>
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-4">
+        </AppCard>
+        <AppCard className="rounded-xl p-4">
           <p className="text-muted-foreground text-xs mb-1 flex items-center gap-1.5"><Banknote className="w-3.5 h-3.5" /> {t('debts.owedToMe')}</p>
           <p className="text-primary text-xl font-bold">{formatCurrency(totalLoan)}</p>
-        </div>
+        </AppCard>
       </div>
 
       {/* Section: Tôi đang nợ */}

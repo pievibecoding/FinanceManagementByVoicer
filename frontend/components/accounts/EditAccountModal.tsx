@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUpdateAccount } from '@/hooks/useAccounts';
 import type { Account } from '@/api/accounts';
+import { FormDialog } from '@/components/common';
+import { Button } from '@/components/ui/button';
 
 interface EditAccountModalProps {
   open: boolean;
@@ -38,12 +40,10 @@ export function EditAccountModal({ open, onOpenChange, account }: EditAccountMod
     });
   };
 
-  if (!open || !account) return null;
+  if (!account) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-popover border border-border rounded-[var(--radius)] p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-foreground mb-4">{t('accounts.edit')}</h2>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={t('accounts.edit')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('accounts.name')}</label>
@@ -87,17 +87,14 @@ export function EditAccountModal({ open, onOpenChange, account }: EditAccountMod
               className={INPUT_CLS} rows={3} />
           </div>
           <div className="flex gap-3 pt-4">
-            <button type="button" onClick={() => onOpenChange(false)}
-              className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-secondary-foreground hover:bg-secondary/80 transition-all">
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="flex-1">
               {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={updateAccount.isPending}
-              className="flex-1 px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all disabled:opacity-50">
+            </Button>
+            <Button type="submit" disabled={updateAccount.isPending} className="flex-1">
               {updateAccount.isPending ? t('common.updating') : t('accounts.edit')}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </FormDialog>
   );
 }

@@ -3,6 +3,8 @@ import { GoogleLogin } from '@react-oauth/google';
 import { authApi } from '../../api/auth';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface Props {
   onSwitchToRegister: () => void;
@@ -53,7 +55,7 @@ export function LoginForm({ onSwitchToRegister }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold text-center text-white">{t('auth.signInTitle')}</h2>
+      <h2 className="text-xl font-bold text-center text-foreground">{t('auth.signInTitle')}</h2>
 
       {hasGoogle && (
         <>
@@ -67,52 +69,50 @@ export function LoginForm({ onSwitchToRegister }: Props) {
             />
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-zinc-700" />
-            <span className="text-xs text-zinc-500">{t('auth.or')}</span>
-            <div className="flex-1 h-px bg-zinc-700" />
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground">{t('auth.or')}</span>
+            <div className="flex-1 h-px bg-border" />
           </div>
         </>
       )}
 
       <div className="flex flex-col gap-1">
-        <label className="text-sm text-zinc-400">{t('auth.email')}</label>
-        <input
+        <label className="text-sm text-muted-foreground">{t('auth.email')}</label>
+        <Input
           type="email"
           value={email}
           onChange={e => setEmail(e.target.value)}
           placeholder="your@email.com"
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
           disabled={loading}
           autoComplete="email"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-sm text-zinc-400">{t('auth.password')}</label>
-        <input
+        <label className="text-sm text-muted-foreground">{t('auth.password')}</label>
+        <Input
           type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
           placeholder="••••••••"
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
           disabled={loading}
           autoComplete="current-password"
         />
       </div>
 
-      {error && <p className="text-sm text-center text-rose-400">{error}</p>}
+      {error && <p className="text-sm text-center text-destructive">{error}</p>}
 
-      <button
+      <Button
         type="submit"
         disabled={loading}
-        className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold rounded-lg py-2 text-sm transition-all"
+        className="w-full"
       >
         {loading ? t('auth.loading') : t('auth.signInButton')}
-      </button>
+      </Button>
 
-      <p className="text-center text-sm text-zinc-500">
+      <p className="text-center text-sm text-muted-foreground">
         {t('auth.noAccount')}{' '}
-        <button type="button" onClick={onSwitchToRegister} className="text-emerald-400 underline">
+        <button type="button" onClick={onSwitchToRegister} className="text-primary underline underline-offset-4">
           {t('auth.signUpButton')}
         </button>
       </p>

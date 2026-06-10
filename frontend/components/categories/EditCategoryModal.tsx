@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useUpdateCategory } from '@/hooks/useCategories';
 import type { Category } from '@/api/categories';
 import { defaultCategoryColor } from '@/styles/tokens';
+import { FormDialog } from '@/components/common';
+import { Button } from '@/components/ui/button';
 
 interface EditCategoryModalProps {
   open: boolean;
@@ -44,12 +46,10 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
     });
   };
 
-  if (!open || !category) return null;
+  if (!category) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-popover border border-border rounded-[var(--radius)] p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-foreground mb-4">{t('categories.edit')}</h2>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={t('categories.edit')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('categories.name')}</label>
@@ -85,17 +85,14 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
             </div>
           </div>
           <div className="flex gap-3 pt-4">
-            <button type="button" onClick={() => onOpenChange(false)}
-              className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-secondary-foreground hover:bg-secondary/80 transition-all">
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="flex-1">
               {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={updateCategory.isPending}
-              className="flex-1 px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all disabled:opacity-50">
+            </Button>
+            <Button type="submit" disabled={updateCategory.isPending} className="flex-1">
               {updateCategory.isPending ? t('common.updating') : t('categories.edit')}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
