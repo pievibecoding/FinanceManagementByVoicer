@@ -2,6 +2,8 @@ import type { Transaction } from '@/api/dashboard'
 import type { Budget } from '@/api/budgets'
 import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
+import { AppCard } from '@/components/common'
+import { budgetMeterColors } from '@/styles/tokens'
 
 interface Category {
   category_id: number | string
@@ -42,48 +44,55 @@ export function BudgetOverview({ budgets, categories, transactions }: BudgetOver
 
   if (items.length === 0) {
     return (
-      <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm">
+      <AppCard className="rounded-[var(--radius)] p-5">
         <h3 className="text-foreground font-semibold text-sm mb-2">{t('dashboard.currentMonthBudget')}</h3>
         <p className="text-muted-foreground text-sm">{t('dashboard.noBudgetSetup')}</p>
-      </div>
+      </AppCard>
     )
   }
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm">
+    <AppCard className="rounded-[var(--radius)] p-5">
       <h3 className="text-foreground font-semibold text-sm mb-4">{t('dashboard.currentMonthBudget')}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {items.map(item => {
-          const pct = item.amount_limit > 0 ? Math.min((item.spent / item.amount_limit) * 100, 100) : 0
+          const rawPct = item.amount_limit > 0 ? (item.spent / item.amount_limit) * 100 : 0
+          const pct = Math.min(rawPct, 100)
           const over = item.spent > item.amount_limit
-          const warn = pct >= 80
-          const barColor = over ? 'bg-destructive' : warn ? 'bg-amber-400' : 'bg-primary'
-          const pctColor = over ? 'text-destructive' : warn ? 'text-amber-400' : 'text-primary'
+          const meterColor = rawPct > 100
+            ? budgetMeterColors.danger
+            : rawPct >= 70
+              ? budgetMeterColors.warning
+              : budgetMeterColors.safe
 
           return (
-            <div key={item.budget_id} className="bg-muted/30 rounded-lg p-3">
+            <AppCard key={item.budget_id} className="rounded-lg p-3">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-foreground text-xs font-medium truncate max-w-[70%]">
                   {item.category_name}
                 </span>
-                <span className={`text-xs font-bold ${pctColor}`}>
+                <span className="text-xs font-bold" style={{ color: meterColor }}>
                   {over ? t('budgets.overLimit') : `${pct.toFixed(0)}%`}
                 </span>
               </div>
               <div className="w-full bg-border/40 rounded-full h-1.5 mb-2">
                 <div
-                  className={`${barColor} h-1.5 rounded-full transition-all duration-500`}
-                  style={{ width: `${pct}%` }}
+                  className="h-1.5 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${pct}%`,
+                    backgroundColor: meterColor,
+                    boxShadow: `0 0 12px ${meterColor}66`,
+                  }}
                 />
               </div>
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>{formatCurrency(item.spent)}</span>
                 <span>{formatCurrency(item.amount_limit)}</span>
               </div>
-            </div>
+            </AppCard>
           )
         })}
       </div>
-    </div>
+    </AppCard>
   )
 }

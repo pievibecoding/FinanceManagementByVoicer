@@ -15,11 +15,94 @@
   }
   body {
     @apply min-h-svh w-full bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar;
-    /* Glassmorphism background gradient */
-    background: 
-      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(92, 0, 153, 0.40) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 50% at 80% 80%, rgba(200, 107, 250, 0.15) 0%, transparent 60%),
-      linear-gradient(160deg, #03071e 0%, #0d0128 50%, #050013 100%);
+    background: var(--body-gradient);
+    background-attachment: fixed;
+  }
+
+  [data-slot='card'] {
+    border-color: transparent;
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+
+  .app-card,
+  .form-surface,
+  .toolbar-surface {
+    border: 1px solid transparent;
+    background-color: var(--card);
+    color: var(--card-foreground);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+
+  .chart-surface {
+    border: 0;
+    background-color: var(--card);
+    color: var(--card-foreground);
+    box-shadow: var(--chart-elevation), inset 0 1px 0 rgba(199, 255, 255, 0.12);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+
+  .interactive-card {
+    transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .interactive-card:hover {
+    background-color: var(--card-hover);
+    box-shadow: var(--glass-shadow-hover);
+  }
+
+  .interactive-card:active {
+    background-color: var(--card-active);
+    transform: translateY(1px);
+  }
+
+  .selected-card,
+  .selected-card:hover,
+  .selected-card:active,
+  [data-selected='true'].interactive-card,
+  [data-selected='true'].interactive-card:hover,
+  [data-selected='true'].interactive-card:active {
+    background-color: var(--selected-card);
+    color: var(--selected-card-foreground);
+    box-shadow:
+      0 20px 54px rgba(147, 74, 221, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  }
+
+  [data-slot='dialog-content'],
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='sheet-content'] {
+    border-color: var(--glass-bright);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+
+  .recharts-wrapper {
+    filter: drop-shadow(var(--chart-elevation));
+  }
+
+  .recharts-surface {
+    overflow: visible;
+  }
+
+  .recharts-bar-rectangle path,
+  .recharts-pie-sector path,
+  .recharts-area-area,
+  .recharts-line-curve {
+    filter: drop-shadow(0 8px 9px rgba(1, 0, 8, 0.28));
+  }
+
+  input,
+  textarea,
+  select {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   /* Override Radix scroll locking for sticky headers */
@@ -34,14 +117,18 @@
   }
 
   select {
-    color-scheme: dark;
+    color-scheme: light;
     background-color: var(--input);
     color: var(--foreground);
   }
 
+  .dark select {
+    color-scheme: dark;
+  }
+
   select option,
   select optgroup {
-    background-color: color-mix(in srgb, var(--background) 88%, var(--indigo-2));
+    background-color: color-mix(in srgb, var(--background) 82%, var(--royal-violet));
     color: var(--foreground);
   }
 

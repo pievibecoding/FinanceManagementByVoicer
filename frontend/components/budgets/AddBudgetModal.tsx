@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useUpsertBudget } from '@/hooks/useBudgets';
 import { useCategories } from '@/hooks/useCategories';
 import type { Category } from '@/api/categories';
+import { FormDialog } from '@/components/common';
+import { Button } from '@/components/ui/button';
 
 interface AddBudgetModalProps {
   isOpen: boolean;
@@ -25,12 +27,8 @@ export function AddBudgetModal({ isOpen, onClose, month }: AddBudgetModalProps) 
     });
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-popover border border-border rounded-[var(--radius)] p-6 w-full max-w-md backdrop-blur-sm">
-        <h2 className="text-xl font-bold text-foreground mb-4">{t('budgets.add')}</h2>
+    <FormDialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }} title={t('budgets.add')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-muted-foreground text-sm mb-2">{t('budgets.category')}</label>
@@ -56,17 +54,14 @@ export function AddBudgetModal({ isOpen, onClose, month }: AddBudgetModalProps) 
               className="w-full bg-input border border-border rounded-[var(--radius)] p-3 text-muted-foreground focus:outline-none" disabled />
           </div>
           <div className="flex gap-3 pt-4">
-            <button type="button" onClick={onClose}
-              className="flex-1 bg-secondary border border-border text-secondary-foreground py-2 px-4 rounded-[var(--radius)] hover:bg-secondary/80 transition-colors">
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
               {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={upsertBudget.isPending}
-              className="flex-1 bg-primary text-primary-foreground py-2 px-4 rounded-[var(--radius)] hover:bg-primary/80 transition-colors font-medium disabled:opacity-50">
+            </Button>
+            <Button type="submit" disabled={upsertBudget.isPending} className="flex-1">
               {upsertBudget.isPending ? t('common.adding') : t('budgets.add')}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </FormDialog>
   );
 }

@@ -4,6 +4,8 @@ import { useUpdateTransaction } from '@/hooks/useTransactions';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useCategories } from '@/hooks/useCategories';
 import type { Transaction } from '@/api/transactions';
+import { FormDialog } from '@/components/common';
+import { Button } from '@/components/ui/button';
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -52,12 +54,10 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     }, { onSuccess: () => { onOpenChange(false); } });
   };
 
-  if (!open || !transaction) return null;
+  if (!transaction) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-popover border border-border rounded-[var(--radius)] p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-foreground mb-4">{t('transactions.edit')}</h2>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={t('transactions.edit')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('transactions.date')}</label>
@@ -116,17 +116,14 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
               className={INPUT_CLS} />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => onOpenChange(false)}
-              className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-secondary-foreground hover:bg-secondary/80 transition-all">
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="flex-1">
               {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={updateTransaction.isPending}
-              className="flex-1 px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all disabled:opacity-50">
+            </Button>
+            <Button type="submit" disabled={updateTransaction.isPending} className="flex-1">
               {updateTransaction.isPending ? t('common.updating') : t('common.update')}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </FormDialog>
   );
 }

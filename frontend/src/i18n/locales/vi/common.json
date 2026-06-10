@@ -437,6 +437,7 @@
   },
   "helpCenter": {
     "title": "Trợ giúp",
+    "back": "Quay lại",
     "description": "Tìm hướng dẫn nhanh cho các luồng tài chính đang có trong ứng dụng.",
     "searchPlaceholder": "Tìm chủ đề trợ giúp...",
     "noResults": "Không có chủ đề phù hợp.",
@@ -531,10 +532,7 @@
   },
   "pages": {
     "settings": "Cài đặt",
-    "settingsComingSoon": "Trang cài đặt sắp ra mắt",
     "notifications": "Thông báo",
-    "notificationsComingSoon": "Trang cài đặt thông báo sắp ra mắt",
-    "helpCenter": "Trợ giúp",
-    "helpComingSoon": "Trang trợ giúp sắp ra mắt"
+    "helpCenter": "Trợ giúp"
   }
 }

@@ -1,6 +1,13 @@
 import type { Transaction } from '@/api/transactions';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface TransactionDetailsViewProps {
   transaction: Transaction | null;
@@ -33,12 +40,11 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
   const isIncome = transaction.type === 'income';
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-popover border border-border rounded-[var(--radius)] p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-foreground">{t('transactions.details')}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">✕</button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t('transactions.details')}</DialogTitle>
+        </DialogHeader>
 
         <div className="space-y-4">
           <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
@@ -99,15 +105,15 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
           )}
 
           <div className="flex gap-3 pt-4">
-            <button onClick={() => onEdit(transaction)} className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-foreground hover:bg-muted/80 transition-all">
+            <Button variant="secondary" onClick={() => onEdit(transaction)} className="flex-1">
               {t('common.edit')}
-            </button>
-            <button onClick={() => onDelete(transaction.transaction_id)} className="flex-1 px-4 py-2 bg-destructive/20 border border-destructive/30 rounded-lg text-destructive hover:bg-destructive/30 transition-all">
+            </Button>
+            <Button variant="destructive" onClick={() => onDelete(transaction.transaction_id)} className="flex-1">
               {t('common.delete')}
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

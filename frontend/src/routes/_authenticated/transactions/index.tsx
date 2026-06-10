@@ -11,6 +11,8 @@ import { TransactionDetailsView } from '@/components/transactions/TransactionDet
 import { Pagination } from '@/components/transactions/Pagination'
 import type { Transaction } from '@/api/transactions'
 import { useTranslation } from 'react-i18next'
+import { Button } from '@/components/ui/button'
+import { EmptyState, ErrorState, PageHeader } from '@/components/common'
 
 export const Route = createFileRoute('/_authenticated/transactions/')({
   component: TransactionsPage,
@@ -80,8 +82,8 @@ function TransactionsPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-foreground">{t('transactions.title')}</h1>
-        <div className="text-muted-foreground">{t('common.loading')}</div>
+        <PageHeader title={t('transactions.title')} />
+        <div className="mt-4 text-muted-foreground">{t('common.loading')}</div>
       </div>
     )
   }
@@ -89,23 +91,23 @@ function TransactionsPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-foreground">{t('transactions.title')}</h1>
-        <div className="text-destructive">{t('transactions.error')}</div>
+        <PageHeader title={t('transactions.title')} />
+        <ErrorState className="mt-4" title={t('transactions.error')} />
       </div>
     )
   }
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('transactions.title')}</h1>
-        <button
-          onClick={() => setAddModalOpen(true)}
-          className="px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all"
-        >
-          + {t('transactions.add')}
-        </button>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title={t('transactions.title')}
+        actions={(
+          <Button onClick={() => setAddModalOpen(true)}>
+            + {t('transactions.add')}
+          </Button>
+        )}
+      />
 
       <FilterPanel
         filters={filters}
@@ -113,13 +115,17 @@ function TransactionsPage() {
         onClearFilters={() => { setFilters({}); setCurrentPage(1) }}
       />
 
-      <TransactionTable
-        transactions={paginated}
-        categories={categories}
-        onEdit={(t) => { setSelectedTransaction(t); setEditModalOpen(true) }}
-        onDelete={(id) => { setDeleteTransactionId(id); setDeleteDialogOpen(true) }}
-        onViewDetails={handleViewDetails}
-      />
+      {filtered.length === 0 ? (
+        <EmptyState title={t('transactions.empty')} />
+      ) : (
+        <TransactionTable
+          transactions={paginated}
+          categories={categories}
+          onEdit={(t) => { setSelectedTransaction(t); setEditModalOpen(true) }}
+          onDelete={(id) => { setDeleteTransactionId(id); setDeleteDialogOpen(true) }}
+          onViewDetails={handleViewDetails}
+        />
+      )}
 
       {filtered.length > itemsPerPage && (
         <Pagination

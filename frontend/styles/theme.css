@@ -1,96 +1,147 @@
 :root {
   --radius: 0.625rem;
 
-  /* Brand Palette */
-  --indigo:        #3d0066;
-  --indigo-2:      #5c0099;
-  --mauve-magic:   #c86bfa;
-  --school-bus-yellow: #fdc500;
-  --gold:          #ffd500;
-  --bright-lemon:  #ffee32;
-  --ink-black:     #03071e;
+  /* Brand concept */
+  --royal-violet: #7400b8ff;
+  --purple-x11: #934addff;
+  --soft-periwinkle: #9876e4ff;
+  --wisteria-blue: #9ea1ebff;
+  --icy-blue: #a3cdf1ff;
+  --frosted-blue: #a6eaf6ff;
+  --icy-aqua: #a8f8f8ff;
+  --icy-aqua-2: #c7ffffff;
+  --ink-black: #050012;
+  --glass-white: rgba(199, 255, 255, 0.10);
+  --glass-bright: rgba(199, 255, 255, 0.22);
+  --glass-shadow: 0 18px 48px rgba(116, 0, 184, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.52);
+  --glass-shadow-hover: 0 22px 58px rgba(116, 0, 184, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.64);
+  --card-hover: rgba(199, 255, 255, 0.72);
+  --card-active: rgba(147, 74, 221, 0.72);
+  --selected-card: rgba(147, 74, 221, 0.86);
+  --selected-card-foreground: #ffffff;
+  --chart-cursor: rgba(147, 74, 221, 0.22);
+  --chart-grid: rgba(116, 0, 184, 0.14);
+  --chart-stroke-strong: rgba(5, 0, 18, 0.58);
+  --meter-safe: #22d33d;
+  --meter-warning: #fcf300;
+  --meter-danger: #ff0a12;
+  --chart-elevation: 0 20px 38px rgba(116, 0, 184, 0.16);
+  --body-gradient:
+    radial-gradient(ellipse 78% 55% at 8% 0%, rgba(168, 248, 248, 0.46) 0%, transparent 62%),
+    radial-gradient(ellipse 72% 58% at 85% 2%, rgba(158, 161, 235, 0.28) 0%, transparent 64%),
+    linear-gradient(145deg, #fefefa 0%, #f4ffff 48%, #f7f4ff 100%);
 
-  /* Semantic tokens — dark purple/gold theme */
+  /* Pastel chart palette */
+  --powder-blush: #ffadadff;
+  --apricot-cream: #ffd6a5ff;
+  --cream: #fdffb6ff;
+  --tea-green: #caffbfff;
+  --electric-aqua: #9bf6ffff;
+  --baby-blue-ice: #a0c4ffff;
+  --periwinkle: #bdb2ffff;
+  --mauve: #ffc6ffff;
 
-  /* Background: ink-black với tím nhẹ */
-  --background: #0a0318;
-  /* Chữ trên nền: trắng sáng để tương phản cao */
-  --foreground: #f0e6ff;
+  /* Semantic tokens - light aqua/violet glassmorphism concept */
+  --background: #fefefa;
+  --foreground: #170026;
 
-  /* Card: tím đậm glassmorphism, đủ sáng hơn background */
-  --card: rgba(92, 0, 153, 0.20);
-  --card-foreground: #f0e6ff;
+  --card: rgba(199, 255, 255, 0.52);
+  --card-foreground: #170026;
 
-  /* Popover: tím đậm đặc hơn một chút */
-  --popover: rgba(61, 0, 102, 0.85);
-  --popover-foreground: #f0e6ff;
+  --popover: rgba(254, 254, 250, 0.92);
+  --popover-foreground: #170026;
 
-  /* Primary: mauve-magic (tím sáng) — contrast tốt trên nền tối */
-  --primary: #c86bfa;
-  /* Foreground của primary: ink-black để chữ trên nút primary dễ đọc */
-  --primary-foreground: #03071e;
+  --primary: #7400b8;
+  --primary-foreground: #ffffff;
 
-  /* Secondary: tím trung gian, nền button secondary */
-  --secondary: rgba(92, 0, 153, 0.35);
-  --secondary-foreground: #f0e6ff;
+  --secondary: rgba(158, 161, 235, 0.22);
+  --secondary-foreground: #170026;
 
-  /* Muted: overlay nhẹ, dùng cho vùng phụ */
-  --muted: rgba(92, 0, 153, 0.18);
-  --muted-foreground: rgba(240, 230, 255, 0.60);
+  --muted: rgba(168, 248, 248, 0.24);
+  --muted-foreground: rgba(23, 0, 38, 0.64);
 
-  /* Accent: vàng gold — nổi bật, dùng cho highlight/badge */
-  --accent: #ffd500;
-  /* Foreground accent: ink-black để chữ trên vùng vàng dễ đọc */
-  --accent-foreground: #03071e;
+  --accent: #934add;
+  --accent-foreground: #ffffff;
 
-  --destructive: #ff4d4d;
+  --destructive: #ff0a12;
 
-  --border: rgba(200, 107, 250, 0.25);
-  --input: rgba(92, 0, 153, 0.22);
-  --ring: #c86bfa;
+  --border: rgba(116, 0, 184, 0.14);
+  --input: rgba(168, 248, 248, 0.28);
+  --ring: #7400b8;
 
-  /* Charts: đa dạng, đủ contrast lẫn nhau trên nền tối */
-  --chart-1: #c86bfa;   /* mauve-magic */
-  --chart-2: #ffd500;   /* gold */
-  --chart-3: #ff6b9d;   /* hồng — tương phản với tím và vàng */
-  --chart-4: #5c9efa;   /* xanh dương nhạt */
-  --chart-5: #ffee32;   /* bright-lemon */
+  --chart-1: var(--powder-blush);
+  --chart-2: var(--apricot-cream);
+  --chart-3: var(--cream);
+  --chart-4: var(--tea-green);
+  --chart-5: var(--electric-aqua);
+  --chart-6: var(--baby-blue-ice);
+  --chart-7: var(--periwinkle);
+  --chart-8: var(--mauve);
 
-  /* Sidebar: tím đậm hơn background một bậc */
-  --sidebar: rgba(61, 0, 102, 0.55);
-  --sidebar-foreground: #f0e6ff;
-  --sidebar-primary: #c86bfa;
-  --sidebar-primary-foreground: #03071e;
-  --sidebar-accent: rgba(255, 213, 0, 0.15);
-  --sidebar-accent-foreground: #ffd500;
-  --sidebar-border: rgba(200, 107, 250, 0.20);
-  --sidebar-ring: #c86bfa;
+  --sidebar: rgba(199, 255, 255, 0.46);
+  --sidebar-foreground: #170026;
+  --sidebar-primary: #7400b8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(147, 74, 221, 0.16);
+  --sidebar-accent-foreground: #170026;
+  --sidebar-border: rgba(116, 0, 184, 0.12);
+  --sidebar-ring: #7400b8;
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.14 0.04 259.21);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --glass-shadow: 0 18px 56px rgba(1, 0, 8, 0.34), inset 0 1px 0 rgba(199, 255, 255, 0.16);
+  --glass-shadow-hover: 0 22px 64px rgba(1, 0, 8, 0.40), inset 0 1px 0 rgba(199, 255, 255, 0.22);
+  --card-hover: rgba(199, 255, 255, 0.16);
+  --card-active: rgba(147, 74, 221, 0.42);
+  --selected-card: rgba(147, 74, 221, 0.86);
+  --selected-card-foreground: #ffffff;
+  --chart-cursor: rgba(147, 74, 221, 0.22);
+  --chart-grid: rgba(199, 255, 255, 0.16);
+  --chart-stroke-strong: rgba(3, 7, 30, 0.72);
+  --meter-safe: #22d33d;
+  --meter-warning: #fcf300;
+  --meter-danger: #ff0a12;
+  --chart-elevation: 0 22px 34px rgba(1, 0, 8, 0.32);
+  --body-gradient:
+    radial-gradient(ellipse 80% 55% at 10% 0%, rgba(168, 248, 248, 0.30) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 55% at 48% 18%, rgba(158, 161, 235, 0.24) 0%, transparent 58%),
+    radial-gradient(ellipse 70% 60% at 84% 4%, rgba(116, 0, 184, 0.38) 0%, transparent 62%),
+    radial-gradient(ellipse 76% 60% at 100% 88%, rgba(199, 255, 255, 0.18) 0%, transparent 64%),
+    linear-gradient(145deg, #050012 0%, #120026 42%, #25003d 72%, #08001a 100%);
+  --background: #050012;
+  --foreground: #f5ffffff;
+  --card: rgba(199, 255, 255, 0.11);
+  --card-foreground: #f5ffffff;
+  --popover: rgba(14, 0, 32, 0.88);
+  --popover-foreground: #f5ffffff;
+  --primary: #a8f8f8;
+  --primary-foreground: #080018;
+  --secondary: rgba(116, 0, 184, 0.34);
+  --secondary-foreground: #f5ffffff;
+  --muted: rgba(199, 255, 255, 0.08);
+  --muted-foreground: rgba(245, 255, 255, 0.68);
+  --accent: #934add;
+  --accent-foreground: #f5ffffff;
+  --destructive: #ff0a12;
+  --border: rgba(199, 255, 255, 0.16);
+  --input: rgba(199, 255, 255, 0.10);
+  --ring: #a8f8f8;
+  --chart-1: var(--powder-blush);
+  --chart-2: var(--apricot-cream);
+  --chart-3: var(--cream);
+  --chart-4: var(--tea-green);
+  --chart-5: var(--electric-aqua);
+  --chart-6: var(--baby-blue-ice);
+  --chart-7: var(--periwinkle);
+  --chart-8: var(--mauve);
+  --sidebar: rgba(12, 0, 31, 0.62);
+  --sidebar-foreground: #f5ffffff;
+  --sidebar-primary: #a8f8f8;
+  --sidebar-primary-foreground: #080018;
+  --sidebar-accent: rgba(116, 0, 184, 0.30);
+  --sidebar-accent-foreground: #f5ffffff;
+  --sidebar-border: rgba(199, 255, 255, 0.14);
+  --sidebar-ring: #a8f8f8;
 }
 
 @theme inline {
@@ -124,6 +175,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);

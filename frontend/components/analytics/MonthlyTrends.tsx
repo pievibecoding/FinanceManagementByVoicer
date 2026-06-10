@@ -32,7 +32,7 @@ export function MonthlyTrends({ data }: MonthlyTrendsProps) {
               <div className="flex gap-4 text-sm">
                 <span className="text-primary">{t('types.income')}: {formatCurrency(trend.income)}</span>
                 <span className="text-destructive">{t('types.expense')}: {formatCurrency(trend.expense)}</span>
-                <span className="text-sky-400">{t('types.investment')}: {formatCurrency(trend.investment)}</span>
+                <span className="text-[var(--baby-blue-ice)]">{t('types.investment')}: {formatCurrency(trend.investment)}</span>
               </div>
             </div>
             <div className="space-y-1">
@@ -51,7 +51,7 @@ export function MonthlyTrends({ data }: MonthlyTrendsProps) {
               <div className="flex items-center gap-2">
                 <div className="w-16 text-muted-foreground text-xs">{t('analytics.investShort')}</div>
                 <div className="flex-1 bg-border/40 rounded-full h-2">
-                  <div className="bg-sky-400 h-2 rounded-full transition-all" style={{ width: `${(trend.investment / maxValue) * 100}%` }} />
+                  <div className="bg-[var(--baby-blue-ice)] h-2 rounded-full transition-all" style={{ width: `${(trend.investment / maxValue) * 100}%` }} />
                 </div>
               </div>
             </div>

@@ -117,7 +117,7 @@ const TYPE_LABEL: Record<string, string> = {
 const TYPE_COLOR: Record<string, string> = {
   income: 'text-primary',
   expense: 'text-destructive',
-  investment: 'text-sky-400',
+  investment: 'text-[var(--baby-blue-ice)]',
 }
 
 // Popup to manually pick which savings goal to contribute to
@@ -491,7 +491,7 @@ export function AIChatWidget() {
           {p.note && <p>📝 {p.note}</p>}
           {p.location && <p>📍 {p.location}</p>}
           <p className="text-muted-foreground/50">{p.transaction_date}</p>
-          {p.account_is_new && <p className="text-amber-400">🆕 {t('transactions.newAccountCreated')}</p>}
+          {p.account_is_new && <p className="text-[var(--meter-warning)]">🆕 {t('transactions.newAccountCreated')}</p>}
         </div>
       )
     }

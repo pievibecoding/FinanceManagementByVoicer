@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next';
+import { AppCard } from '@/components/common';
+import { Button } from '@/components/ui/button';
 
 interface FilterPanelProps {
   filters: {
@@ -19,7 +21,7 @@ export function FilterPanel({ filters, onFiltersChange, onClearFilters }: Filter
   const { t } = useTranslation();
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius)] p-4 backdrop-blur-sm mb-4">
+    <AppCard variant="toolbar" className="mb-4 rounded-[var(--radius)] p-4">
       <div className="flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-[150px]">
           <label className="block text-muted-foreground text-sm mb-1">{t('transactions.search')}</label>
@@ -54,11 +56,10 @@ export function FilterPanel({ filters, onFiltersChange, onClearFilters }: Filter
           </select>
         </div>
 
-        <button onClick={onClearFilters}
-          className="px-4 py-2 bg-secondary border border-border rounded-lg text-secondary-foreground hover:bg-secondary/80 transition-all">
+        <Button variant="secondary" onClick={onClearFilters}>
           {t('transactions.clearFilters')}
-        </button>
+        </Button>
       </div>
-    </div>
+    </AppCard>
   );
 }

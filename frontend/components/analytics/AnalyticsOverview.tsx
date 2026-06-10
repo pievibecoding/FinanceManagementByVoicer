@@ -28,9 +28,9 @@ export function AnalyticsOverview({ data }: AnalyticsOverviewProps) {
     {
       label: t('analytics.totalInvestment'),
       value: formatCurrency(data.total_investment),
-      color: 'text-sky-400',
-      bgColor: 'bg-sky-400/10',
-      borderColor: 'border-sky-400/30',
+      color: 'text-[var(--baby-blue-ice)]',
+      bgColor: 'bg-[var(--baby-blue-ice)]/10',
+      borderColor: 'border-[var(--baby-blue-ice)]/30',
     },
     {
       label: t('analytics.netBalance'),

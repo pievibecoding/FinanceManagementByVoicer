@@ -1,14 +1,15 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Bot, CreditCard, HelpCircle, LayoutDashboard, PiggyBank, PieChart, Search, Tags, WalletCards } from 'lucide-react'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { ArrowLeft, Bot, CreditCard, HelpCircle, LayoutDashboard, PiggyBank, Search, Tags, WalletCards } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AppCard, EmptyState, PageHeader } from '@/components/common'
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 export const Route = createFileRoute('/help')({
@@ -29,6 +30,7 @@ const FAQ_ITEMS = ['localOnly', 'missingData', 'voiceAssistant', 'notifications'
 
 function HelpCenterPage() {
   const { t } = useTranslation()
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const normalizedQuery = query.trim().toLowerCase()
 
@@ -44,13 +46,25 @@ function HelpCenterPage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold text-foreground">{t('helpCenter.title')}</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">{t('helpCenter.description')}</p>
+        <div className="flex flex-col gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={() => router.history.back()}
+          >
+            <ArrowLeft className="size-4" />
+            {t('helpCenter.back')}
+          </Button>
+          <PageHeader
+            title={t('helpCenter.title')}
+            description={t('helpCenter.description')}
+          />
         </div>
 
-        <div className="relative max-w-xl">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="toolbar-surface relative max-w-xl p-2">
+          <Search className="pointer-events-none absolute left-5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -61,7 +75,7 @@ function HelpCenterPage() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visibleTopics.map(({ key, icon: Icon }) => (
-            <Card key={key}>
+            <AppCard key={key}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Icon className="size-4 text-primary" />
@@ -76,20 +90,19 @@ function HelpCenterPage() {
                   <li>{t(`helpCenter.topics.${key}.steps.2`)}</li>
                 </ul>
               </CardContent>
-            </Card>
+            </AppCard>
           ))}
         </div>
 
         {visibleTopics.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              {t('helpCenter.noResults')}
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={<Search className="size-8" />}
+            title={t('helpCenter.noResults')}
+          />
         ) : null}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <Card>
+          <AppCard>
             <CardHeader>
               <CardTitle>{t('helpCenter.faqTitle')}</CardTitle>
               <CardDescription>{t('helpCenter.faqDescription')}</CardDescription>
@@ -106,9 +119,9 @@ function HelpCenterPage() {
                 </div>
               ))}
             </CardContent>
-          </Card>
+          </AppCard>
 
-          <Card>
+          <AppCard>
             <CardHeader>
               <CardTitle>{t('helpCenter.supportTitle')}</CardTitle>
               <CardDescription>{t('helpCenter.supportDescription')}</CardDescription>
@@ -118,7 +131,7 @@ function HelpCenterPage() {
                 {t('helpCenter.supportNotice')}
               </div>
             </CardContent>
-          </Card>
+          </AppCard>
         </div>
       </div>
     </div>
