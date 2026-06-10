@@ -55,11 +55,20 @@
       "threeMonths": "3 months",
       "sixMonths": "6 months",
       "oneYear": "1 year",
+      "custom": "Custom",
       "all": "All",
       "sevenDays": "7 days",
       "thirtyDays": "30 days",
       "twelveMonths": "12 months",
       "yearToDate": "YTD"
+    },
+    "periods": {
+      "auto": "Auto",
+      "day": "Daily",
+      "week": "Weekly",
+      "month": "Monthly",
+      "quarter": "Quarterly",
+      "year": "Yearly"
     },
     "charts": {
       "assetFluctuation": "Asset fluctuation",
@@ -68,7 +77,27 @@
       "incomeExpense": "Income and expense",
       "savingsBreakdown": "Savings breakdown",
       "debtBreakdown": "Debt and loan overview",
-      "monthlyIncomeBreakdown": "Monthly income"
+      "monthlyIncomeBreakdown": "Monthly income",
+      "incomeOverTime": "Income over time"
+    },
+    "chartControls": {
+      "period": "Period",
+      "range": "Range",
+      "startDate": "From",
+      "endDate": "To"
+    },
+    "chartSummary": {
+      "current": "Current",
+      "currentMonth": "This month",
+      "noDataInRange": "No data in this date range",
+      "other": "Other",
+      "snapshot": "Snapshot",
+      "timeSeries": "Time series",
+      "total": "Total",
+      "value": "Value",
+      "assetSnapshotNote": "Account balances are historical; savings and debt values are current snapshot adjustments.",
+      "debtOwed": "Debt owed",
+      "moneyLent": "Money lent"
     }
   },
   "common": {

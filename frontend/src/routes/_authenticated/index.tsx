@@ -134,8 +134,6 @@ function DashboardPage() {
             transactions={data.transactions}
             accounts={data.accounts}
             categories={categories}
-            expenseByCategory={data.expenseByCategory}
-            monthlyNetWorth={data.monthlyNetWorth}
             savings={savings}
             debts={debts}
           />

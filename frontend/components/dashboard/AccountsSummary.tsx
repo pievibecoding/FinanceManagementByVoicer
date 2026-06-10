@@ -8,10 +8,15 @@ interface AccountsSummaryProps {
   transactions: Transaction[]
 }
 
+function normalizeId(value: string | number | null | undefined) {
+  return value == null ? '' : String(value)
+}
+
 function computeBalance(account: Account, transactions: Transaction[]): number {
   let balance = account.initial_balance
+  const accountId = normalizeId(account.account_id)
   transactions.forEach(tx => {
-    if (tx.account_id !== account.account_id) return
+    if (normalizeId(tx.account_id) !== accountId) return
     if (tx.type === 'income') balance += tx.amount
     else balance -= tx.amount
   })
