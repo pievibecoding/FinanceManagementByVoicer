@@ -55,11 +55,20 @@
       "threeMonths": "3 tháng",
       "sixMonths": "6 tháng",
       "oneYear": "1 năm",
+      "custom": "Tùy chỉnh",
       "all": "Tất cả",
       "sevenDays": "7 ngày",
       "thirtyDays": "30 ngày",
       "twelveMonths": "12 tháng",
       "yearToDate": "Năm nay"
+    },
+    "periods": {
+      "auto": "Tự động",
+      "day": "Theo ngày",
+      "week": "Theo tuần",
+      "month": "Theo tháng",
+      "quarter": "Theo quý",
+      "year": "Theo năm"
     },
     "charts": {
       "assetFluctuation": "Biến động tài sản",
@@ -68,7 +77,27 @@
       "incomeExpense": "Thu chi",
       "savingsBreakdown": "Phân bổ quỹ tiết kiệm",
       "debtBreakdown": "Tổng quan nợ/vay",
-      "monthlyIncomeBreakdown": "Thu nhập theo tháng"
+      "monthlyIncomeBreakdown": "Thu nhập theo tháng",
+      "incomeOverTime": "Thu nhập theo thời gian"
+    },
+    "chartControls": {
+      "period": "Kỳ thời gian",
+      "range": "Khoảng",
+      "startDate": "Từ",
+      "endDate": "Đến"
+    },
+    "chartSummary": {
+      "current": "Hiện tại",
+      "currentMonth": "Tháng này",
+      "noDataInRange": "Không có dữ liệu trong khoảng thời gian này",
+      "other": "Khác",
+      "snapshot": "Hiện trạng",
+      "timeSeries": "Theo thời gian",
+      "total": "Tổng",
+      "value": "Giá trị",
+      "assetSnapshotNote": "Số dư tài khoản được tính theo lịch sử; tiết kiệm và nợ là phần điều chỉnh theo hiện trạng hiện tại.",
+      "debtOwed": "Nợ phải trả",
+      "moneyLent": "Tiền cho vay"
     }
   },
   "common": {

@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  Landmark,
   Wallet,
   CreditCard,
   TrendingUp,
@@ -26,7 +27,7 @@ export const sidebarData: SidebarData = {
   teams: [
     {
       name: 'Finance Management',
-      logo: LayoutDashboard,
+      logo: Landmark,
       plan: 'Personal Finance',
     },
   ],

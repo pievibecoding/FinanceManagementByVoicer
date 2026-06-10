@@ -1,39 +1,72 @@
 import { useMemo, useState } from 'react'
 import {
-  LineChart,
-  Line,
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  Brush,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
 } from 'recharts'
+import { useTranslation } from 'react-i18next'
 import type { Transaction, Account } from '@/api/dashboard'
 import type { Category } from '@/api/categories'
 import type { SavingsGoal } from '@/api/savings'
 import type { Debt } from '@/api/debts'
-import { chartColors, categoryColors, accountChartColors, palette } from '@/styles/tokens'
-import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
+import {
+  accountChartColors,
+  categoryColors,
+  chartColors,
+  palette,
+} from '@/styles/tokens'
+
+type ChartType =
+  | 'asset-fluctuation'
+  | 'expense-allocation'
+  | 'account-distribution'
+  | 'income-expense'
+  | 'savings-breakdown'
+  | 'debt-breakdown'
+  | 'monthly-income-breakdown'
 
 interface DynamicChartProps {
-  chartType: 'asset-fluctuation' | 'expense-allocation' | 'account-distribution' | 'income-expense' | 'savings-breakdown' | 'debt-breakdown' | 'monthly-income-breakdown' | 'net-savings-trend'
+  chartType: ChartType
   transactions: Transaction[]
   accounts: Account[]
   categories: Category[]
-  expenseByCategory: Record<number, number>
-  monthlyNetWorth: Record<string, number>
   savings?: SavingsGoal[]
   debts?: Debt[]
 }
 
-type TimeRange = '1d' | '1w' | '1m' | '3m' | '6m' | '1y' | 'all'
+type ChartKind = 'time-series' | 'distribution' | 'current-state'
+type TimeRange = '1d' | '1w' | '1m' | '3m' | '6m' | '1y' | 'all' | 'custom'
+type DateRange = { start: string; end: string }
+
+type SeriesPoint = {
+  date: string
+  label: string
+  value?: number
+  income?: number
+  expense?: number
+}
+
+type DistributionPoint = {
+  name: string
+  value: number
+  color: string
+  detail?: string
+  target?: number
+}
+
+type TimeBucket = 'day' | 'week' | 'month' | 'quarter' | 'year'
+type TimeBucketSelection = 'auto' | TimeBucket
 
 const TIME_RANGES: { key: TimeRange; labelKey: string }[] = [
   { key: '1d', labelKey: 'dashboard.ranges.oneDay' },
@@ -43,28 +76,243 @@ const TIME_RANGES: { key: TimeRange; labelKey: string }[] = [
   { key: '6m', labelKey: 'dashboard.ranges.sixMonths' },
   { key: '1y', labelKey: 'dashboard.ranges.oneYear' },
   { key: 'all', labelKey: 'dashboard.ranges.all' },
+  { key: 'custom', labelKey: 'dashboard.ranges.custom' },
 ]
 
-const ACCOUNT_COLORS: Record<string, string> = accountChartColors
+const TIME_BUCKETS: { key: TimeBucketSelection; labelKey: string }[] = [
+  { key: 'auto', labelKey: 'dashboard.periods.auto' },
+  { key: 'day', labelKey: 'dashboard.periods.day' },
+  { key: 'week', labelKey: 'dashboard.periods.week' },
+  { key: 'month', labelKey: 'dashboard.periods.month' },
+  { key: 'quarter', labelKey: 'dashboard.periods.quarter' },
+  { key: 'year', labelKey: 'dashboard.periods.year' },
+]
 
-const CATEGORY_COLORS = [...categoryColors]
-
-function formatMonth(month: string) {
-  const [year, monthNum] = month.split('-')
-  return `T${monthNum}/${year.slice(2)}`
+const CHART_META: Record<
+  ChartType,
+  {
+    kind: ChartKind
+    titleKey: string
+    defaultRange?: TimeRange
+    brush?: boolean
+  }
+> = {
+  'asset-fluctuation': {
+    kind: 'time-series',
+    titleKey: 'dashboard.charts.assetFluctuation',
+    defaultRange: '1m',
+    brush: true,
+  },
+  'monthly-income-breakdown': {
+    kind: 'time-series',
+    titleKey: 'dashboard.charts.incomeOverTime',
+    defaultRange: '3m',
+    brush: true,
+  },
+  'income-expense': {
+    kind: 'time-series',
+    titleKey: 'dashboard.charts.incomeExpense',
+    defaultRange: '1m',
+    brush: true,
+  },
+  'expense-allocation': {
+    kind: 'distribution',
+    titleKey: 'dashboard.charts.expenseAllocation',
+  },
+  'account-distribution': {
+    kind: 'current-state',
+    titleKey: 'dashboard.charts.accountDistribution',
+  },
+  'savings-breakdown': {
+    kind: 'current-state',
+    titleKey: 'dashboard.charts.savingsBreakdown',
+  },
+  'debt-breakdown': {
+    kind: 'current-state',
+    titleKey: 'dashboard.charts.debtBreakdown',
+  },
 }
 
-function getStartDate(range: TimeRange): Date {
-  const now = new Date()
-  switch (range) {
-    case '1d': return new Date(now.getTime() - 1 * 86400000)
-    case '1w': return new Date(now.getTime() - 7 * 86400000)
-    case '1m': return new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
-    case '3m': return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
-    case '6m': return new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
-    case '1y': return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
-    case 'all': return new Date(0)
+const AXIS_TICK = { fill: 'rgba(240,230,255,0.48)', fontSize: 10 }
+const GRID_STROKE = 'rgba(240,230,255,0.08)'
+const DAY_MS = 86400000
+const DISTRIBUTION_VISIBLE_LIMIT = 8
+
+function normalizeId(value: string | number | null | undefined) {
+  return value == null ? '' : String(value)
+}
+
+function toDateKey(value: Date) {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function parseDateKey(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+function addDays(value: Date, days: number) {
+  const next = new Date(value)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function dateKeyFromTransaction(tx: Transaction) {
+  return tx.transaction_date.slice(0, 10)
+}
+
+function formatDateLabel(dateKey: string) {
+  const [, month, day] = dateKey.split('-')
+  return `${day}/${month}`
+}
+
+function getDaySpan(start: string, end: string) {
+  return Math.max(0, Math.round((parseDateKey(end).getTime() - parseDateKey(start).getTime()) / DAY_MS))
+}
+
+function getBucketForRange(start: string, end: string): TimeBucket {
+  const span = getDaySpan(start, end)
+  if (span <= 31) return 'day'
+  if (span <= 180) return 'week'
+  if (span <= 730) return 'month'
+  return 'quarter'
+}
+
+function getBucketKey(dateKey: string, bucket: TimeBucket) {
+  const date = parseDateKey(dateKey)
+  if (bucket === 'day') return dateKey
+  if (bucket === 'week') {
+    const day = date.getDay()
+    const mondayOffset = day === 0 ? -6 : 1 - day
+    return toDateKey(addDays(date, mondayOffset))
   }
+  if (bucket === 'month') {
+    return `${dateKey.slice(0, 7)}-01`
+  }
+  if (bucket === 'year') {
+    return `${dateKey.slice(0, 4)}-01-01`
+  }
+
+  const quarterStartMonth = Math.floor(date.getMonth() / 3) * 3
+  return toDateKey(new Date(date.getFullYear(), quarterStartMonth, 1))
+}
+
+function formatBucketLabel(bucketKey: string, bucket: TimeBucket) {
+  if (bucket === 'day' || bucket === 'week') return formatDateLabel(bucketKey)
+  const [year, month] = bucketKey.split('-')
+  if (bucket === 'month') return `${month}/${year}`
+  if (bucket === 'year') return year
+  const quarter = Math.floor((Number(month) - 1) / 3) + 1
+  return `Q${quarter}/${year}`
+}
+
+function getRangeStart(range: TimeRange, endDate: Date, transactions: Transaction[]) {
+  switch (range) {
+    case '1d':
+      return addDays(endDate, -1)
+    case '1w':
+      return addDays(endDate, -7)
+    case '1m':
+      return new Date(endDate.getFullYear(), endDate.getMonth() - 1, endDate.getDate())
+    case '3m':
+      return new Date(endDate.getFullYear(), endDate.getMonth() - 3, endDate.getDate())
+    case '6m':
+      return new Date(endDate.getFullYear(), endDate.getMonth() - 6, endDate.getDate())
+    case '1y':
+      return new Date(endDate.getFullYear() - 1, endDate.getMonth(), endDate.getDate())
+    case 'all': {
+      const first = transactions
+        .map((tx) => dateKeyFromTransaction(tx))
+        .sort((a, b) => a.localeCompare(b))[0]
+      return first ? parseDateKey(first) : addDays(endDate, -30)
+    }
+    case 'custom':
+      return addDays(endDate, -30)
+  }
+}
+
+function buildDateKeys(start: string, end: string) {
+  const dates: string[] = []
+  const startDate = parseDateKey(start)
+  const endDate = parseDateKey(end)
+  for (let current = startDate; current <= endDate; current = addDays(current, 1)) {
+    dates.push(toDateKey(current))
+  }
+  return dates
+}
+
+function buildBucketKeys(start: string, end: string, bucket: TimeBucket) {
+  const keys: string[] = []
+  buildDateKeys(start, end).forEach((date) => {
+    const bucketKey = getBucketKey(date, bucket)
+    if (keys.at(-1) !== bucketKey) keys.push(bucketKey)
+  })
+  return keys
+}
+
+function clampDateRange(range: DateRange): DateRange {
+  if (!range.start || !range.end) return range
+  return range.start <= range.end ? range : { start: range.end, end: range.start }
+}
+
+function accountBalanceAtDate(
+  account: Account,
+  transactions: Transaction[],
+  dateKey: string
+) {
+  const accountId = normalizeId(account.account_id)
+  return transactions.reduce((balance, tx) => {
+    if (normalizeId(tx.account_id) !== accountId) return balance
+    if (dateKeyFromTransaction(tx) > dateKey) return balance
+    return tx.type === 'income' ? balance + tx.amount : balance - tx.amount
+  }, account.initial_balance)
+}
+
+function currentAccountBalance(account: Account, transactions: Transaction[]) {
+  return accountBalanceAtDate(account, transactions, '9999-12-31')
+}
+
+function getCurrentMonth() {
+  return new Date().toISOString().slice(0, 7)
+}
+
+function getActiveSavings(savings: SavingsGoal[]) {
+  return savings.filter((item) => item.status !== 'cancelled')
+}
+
+function getActiveDebts(debts: Debt[]) {
+  return debts.filter((item) => item.status === 'active' || item.status === 'overdue')
+}
+
+function sortDistribution(data: DistributionPoint[]) {
+  return [...data].sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+}
+
+function groupDistribution(
+  data: DistributionPoint[],
+  limit: number,
+  otherLabel: string
+) {
+  const sorted = sortDistribution(data)
+  if (sorted.length <= limit) return sorted
+
+  const visible = sorted.slice(0, limit - 1)
+  const hidden = sorted.slice(limit - 1)
+  const otherValue = hidden.reduce((sum, item) => sum + item.value, 0)
+  if (otherValue <= 0) return visible
+
+  return [
+    ...visible,
+    {
+      name: otherLabel,
+      value: otherValue,
+      color: categoryColors[(limit - 1) % categoryColors.length],
+      detail: otherLabel,
+    },
+  ]
 }
 
 export function DynamicChart({
@@ -72,452 +320,657 @@ export function DynamicChart({
   transactions,
   accounts,
   categories,
-  expenseByCategory,
-  monthlyNetWorth,
   savings = [],
   debts = [],
 }: DynamicChartProps) {
   const { t } = useTranslation()
-  const [timeRange, setTimeRange] = useState<TimeRange>('1m')
-  const { formatCurrency, formatCompactNumber } = useLocaleFormat()
+  const { formatCurrency, formatCompactNumber, formatDate } = useLocaleFormat()
+  const meta = CHART_META[chartType] ?? CHART_META['asset-fluctuation']
+  const [timeRange, setTimeRange] = useState<TimeRange>(meta.defaultRange ?? '1m')
+  const [timeBucketSelection, setTimeBucketSelection] =
+    useState<TimeBucketSelection>('auto')
+  const todayKey = toDateKey(new Date())
+  const [customRange, setCustomRange] = useState<DateRange>({
+    start: toDateKey(addDays(new Date(), -30)),
+    end: todayKey,
+  })
 
-  const startDate = getStartDate(timeRange)
+  const dateWindow = useMemo(() => {
+    if (timeRange === 'custom') {
+      return clampDateRange(customRange)
+    }
 
-  // Filter transactions based on time range
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter(tx => {
-      const txDate = new Date(tx.transaction_date)
-      return txDate >= startDate
-    })
-  }, [transactions, startDate])
+    const end = parseDateKey(todayKey)
+    const start = getRangeStart(timeRange, end, transactions)
+    return { start: toDateKey(start), end: todayKey }
+  }, [customRange, timeRange, todayKey, transactions])
 
-  // Filter monthly net worth based on time range
-  const filteredMonthlyNetWorth = useMemo(() => {
-    const result: Record<string, number> = {}
-    Object.entries(monthlyNetWorth).forEach(([month, value]) => {
-      const monthDate = new Date(month + '-01')
-      if (monthDate >= startDate) {
-        result[month] = value
-      }
-    })
-    return result
-  }, [monthlyNetWorth, startDate])
+  const timeBucket = useMemo(() => {
+    if (timeBucketSelection !== 'auto') return timeBucketSelection
+    return getBucketForRange(dateWindow.start, dateWindow.end)
+  }, [dateWindow, timeBucketSelection])
 
-  // Filter expense by category based on time range
-  const filteredExpenseByCategory = useMemo(() => {
-    const result: Record<number, number> = {}
-    filteredTransactions.forEach(tx => {
-      if (tx.type === 'expense') {
-        const catId = Number(tx.category_id)
-        result[catId] = (result[catId] ?? 0) + tx.amount
-      }
-    })
-    return result
-  }, [filteredTransactions])
+  const activeSavings = useMemo(() => getActiveSavings(savings), [savings])
+  const activeDebts = useMemo(() => getActiveDebts(debts), [debts])
+  const savingsOffset = activeSavings.reduce((sum, item) => sum + item.current_balance, 0)
+  const debtOffset = activeDebts
+    .filter((item) => item.debt_type === 'debt')
+    .reduce((sum, item) => sum + item.outstanding_balance, 0)
 
-  // Asset Fluctuation Chart (Line chart)
-  const assetFluctuationData = useMemo(() => {
-    return Object.entries(filteredMonthlyNetWorth)
-      .map(([month, value]) => ({ name: formatMonth(month), value: value || 0 }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [filteredMonthlyNetWorth])
-
-  // Expense Allocation Chart (Donut chart)
-  const expenseAllocationData = useMemo(() => {
-    return Object.entries(filteredExpenseByCategory)
-      .map(([catId, amount]) => {
-        const cat = categories.find(c => String(c.category_id) === catId)
-        return {
-          name: cat?.category_name || t('categories.fallbackWithId', { id: catId }),
-          value: amount || 0,
-        }
-      })
-      .filter(item => item.value > 0)
-  }, [filteredExpenseByCategory, categories])
-
-  // Account Distribution Chart (Donut chart)
-  const accountDistributionData = useMemo(() => {
-    return accounts.map(acc => {
-      let balance = acc.initial_balance
-      filteredTransactions.forEach(tx => {
-        if (tx.account_id !== acc.account_id) return
-        if (tx.type === 'income') balance += tx.amount
-        else balance -= tx.amount
-      })
+  const dailyNetWorthData = useMemo<SeriesPoint[]>(() => {
+    return buildBucketKeys(dateWindow.start, dateWindow.end, timeBucket).map((bucketKey) => {
+      const bucketEnd = buildDateKeys(dateWindow.start, dateWindow.end)
+        .filter((date) => getBucketKey(date, timeBucket) === bucketKey)
+        .at(-1) ?? bucketKey
+      const accountTotal = accounts.reduce(
+        (sum, account) => sum + accountBalanceAtDate(account, transactions, bucketEnd),
+        0
+      )
       return {
-        name: acc.account_name,
-        value: balance,
-        accountType: acc.account_type,
+        date: bucketKey,
+        label: formatBucketLabel(bucketKey, timeBucket),
+        value: accountTotal + savingsOffset - debtOffset,
       }
-    }).filter(acc => acc.value !== 0)
-  }, [accounts, filteredTransactions])
+    })
+  }, [accounts, dateWindow, debtOffset, savingsOffset, timeBucket, transactions])
 
-  // Income Expense Chart (Bar chart)
-  const incomeExpenseData = useMemo(() => {
-    const income = filteredTransactions
-      .filter(tx => tx.type === 'income')
-      .reduce((sum, tx) => sum + tx.amount, 0)
-    
-    const expense = filteredTransactions
-      .filter(tx => tx.type === 'expense')
-      .reduce((sum, tx) => sum + tx.amount, 0)
-    
-    return [
-      { name: t('types.income'), value: income, fill: chartColors.income },
-      { name: t('types.expense'), value: expense, fill: chartColors.expense },
-    ]
-  }, [filteredTransactions, t])
+  const incomeOverTimeData = useMemo<SeriesPoint[]>(() => {
+    const incomeByBucket = new Map<string, number>()
+    transactions.forEach((tx) => {
+      const date = dateKeyFromTransaction(tx)
+      if (date < dateWindow.start || date > dateWindow.end) return
+      if (tx.type !== 'income') return
+      const bucketKey = getBucketKey(date, timeBucket)
+      incomeByBucket.set(bucketKey, (incomeByBucket.get(bucketKey) ?? 0) + tx.amount)
+    })
+
+    return buildBucketKeys(dateWindow.start, dateWindow.end, timeBucket).map((bucketKey) => ({
+      date: bucketKey,
+      label: formatBucketLabel(bucketKey, timeBucket),
+      value: incomeByBucket.get(bucketKey) ?? 0,
+    }))
+  }, [dateWindow, timeBucket, transactions])
+
+  const incomeExpenseData = useMemo<SeriesPoint[]>(() => {
+    const byBucket = new Map<string, { income: number; expense: number }>()
+    transactions.forEach((tx) => {
+      const date = dateKeyFromTransaction(tx)
+      if (date < dateWindow.start || date > dateWindow.end) return
+      const bucketKey = getBucketKey(date, timeBucket)
+      const current = byBucket.get(bucketKey) ?? { income: 0, expense: 0 }
+      if (tx.type === 'income') current.income += tx.amount
+      if (tx.type === 'expense') current.expense += tx.amount
+      byBucket.set(bucketKey, current)
+    })
+
+    return buildBucketKeys(dateWindow.start, dateWindow.end, timeBucket).map((bucketKey) => ({
+      date: bucketKey,
+      label: formatBucketLabel(bucketKey, timeBucket),
+      income: byBucket.get(bucketKey)?.income ?? 0,
+      expense: byBucket.get(bucketKey)?.expense ?? 0,
+    }))
+  }, [dateWindow, timeBucket, transactions])
+
+  const expenseAllocationData = useMemo<DistributionPoint[]>(() => {
+    const currentMonth = getCurrentMonth()
+    const byCategory = new Map<string, number>()
+    transactions.forEach((tx) => {
+      if (tx.type !== 'expense') return
+      if (!tx.transaction_date.startsWith(currentMonth)) return
+      const categoryId = normalizeId(tx.category_id)
+      byCategory.set(categoryId, (byCategory.get(categoryId) ?? 0) + tx.amount)
+    })
+
+    return groupDistribution(
+      Array.from(byCategory.entries())
+        .map(([categoryId, value], index) => {
+          const category = categories.find((item) => normalizeId(item.category_id) === categoryId)
+          return {
+            name: category?.category_name || t('categories.fallbackWithId', { id: categoryId }),
+            value,
+            color: categoryColors[index % categoryColors.length],
+          }
+        })
+        .filter((item) => item.value > 0),
+      DISTRIBUTION_VISIBLE_LIMIT,
+      t('dashboard.chartSummary.other')
+    )
+  }, [categories, t, transactions])
+
+  const accountDistributionData = useMemo<DistributionPoint[]>(() => {
+    return groupDistribution(
+      accounts
+        .map((account, index) => ({
+          name: account.account_name,
+          value: currentAccountBalance(account, transactions),
+          color:
+            accountChartColors[account.account_type] ||
+            categoryColors[index % categoryColors.length],
+          detail: account.account_type,
+        }))
+        .filter((item) => item.value !== 0),
+      DISTRIBUTION_VISIBLE_LIMIT,
+      t('dashboard.chartSummary.other')
+    )
+  }, [accounts, t, transactions])
+
+  const savingsData = useMemo<DistributionPoint[]>(() => {
+    return groupDistribution(
+      activeSavings
+        .map((item, index) => ({
+          name: item.name,
+          value: item.current_balance,
+          target: item.target_amount,
+          color: categoryColors[index % categoryColors.length],
+        }))
+        .filter((item) => item.value > 0),
+      DISTRIBUTION_VISIBLE_LIMIT,
+      t('dashboard.chartSummary.other')
+    )
+  }, [activeSavings, t])
+
+  const debtData = useMemo(() => {
+    const myDebts = activeDebts
+      .filter((item) => item.debt_type === 'debt')
+      .map((item, index) => ({
+        name: item.lender || item.name,
+        value: item.outstanding_balance,
+        color: categoryColors[index % categoryColors.length],
+        detail: t('dashboard.chartSummary.debtOwed'),
+      }))
+    const myLoans = activeDebts
+      .filter((item) => item.debt_type === 'loan')
+      .map((item, index) => ({
+        name: item.debtor || item.name,
+        value: item.outstanding_balance,
+        color: categoryColors[(index + myDebts.length) % categoryColors.length],
+        detail: t('dashboard.chartSummary.moneyLent'),
+      }))
+
+    return {
+      myDebts: groupDistribution(myDebts, DISTRIBUTION_VISIBLE_LIMIT, t('dashboard.chartSummary.other')),
+      myLoans: groupDistribution(myLoans, DISTRIBUTION_VISIBLE_LIMIT, t('dashboard.chartSummary.other')),
+    }
+  }, [activeDebts, t])
+
+  const totalFor = (items: DistributionPoint[]) =>
+    items.reduce((sum, item) => sum + item.value, 0)
+
+  const title = t(meta.titleKey)
+  const showRangeControls = meta.kind === 'time-series'
+  const dateRangeLabel = `${formatDate(parseDateKey(dateWindow.start), {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })} - ${formatDate(parseDateKey(dateWindow.end), {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })}`
+
+  const renderTimeRangeControls = () => {
+    if (!showRangeControls) return null
+
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="px-1 text-xs text-muted-foreground">
+            {t('dashboard.chartControls.period')}
+          </span>
+          <div className="flex flex-wrap gap-1 rounded-md border border-border/70 bg-muted/20 p-1">
+            {TIME_BUCKETS.map((bucket) => (
+              <button
+                key={bucket.key}
+                onClick={() => setTimeBucketSelection(bucket.key)}
+                className={`min-h-7 rounded px-2 text-xs font-medium transition-colors ${
+                  timeBucketSelection === bucket.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {t(bucket.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="px-1 text-xs text-muted-foreground">
+            {t('dashboard.chartControls.range')}
+          </span>
+          <div className="flex flex-wrap gap-1 rounded-md border border-border/70 bg-muted/20 p-1">
+            {TIME_RANGES.map((range) => (
+              <button
+                key={range.key}
+                onClick={() => setTimeRange(range.key)}
+                className={`min-h-7 rounded px-2 text-xs font-medium transition-colors ${
+                  timeRange === range.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {t(range.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+        {timeRange === 'custom' && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <label className="flex items-center gap-1 text-muted-foreground">
+              {t('dashboard.chartControls.startDate')}
+              <input
+                type="date"
+                value={customRange.start}
+                max={customRange.end}
+                onChange={(event) => {
+                  if (!event.target.value) return
+                  setCustomRange((current) =>
+                    clampDateRange({ ...current, start: event.target.value })
+                  )
+                }}
+                className="h-8 rounded-md border border-border bg-background px-2 text-foreground"
+              />
+            </label>
+            <label className="flex items-center gap-1 text-muted-foreground">
+              {t('dashboard.chartControls.endDate')}
+              <input
+                type="date"
+                value={customRange.end}
+                min={customRange.start}
+                max={todayKey}
+                onChange={(event) => {
+                  if (!event.target.value) return
+                  setCustomRange((current) =>
+                    clampDateRange({ ...current, end: event.target.value })
+                  )
+                }}
+                className="h-8 rounded-md border border-border bg-background px-2 text-foreground"
+              />
+            </label>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderSeriesTooltip = (
+    active: boolean | undefined,
+    payload: any[] | undefined,
+    label: string | undefined
+  ) => {
+    if (!active || !payload?.length) return null
+    return (
+      <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-xl">
+        <p className="mb-1 font-medium text-foreground">{label}</p>
+        <div className="space-y-0.5">
+          {payload.map((item) => (
+            <p key={item.dataKey} style={{ color: item.color }} className="font-medium">
+              {item.name}: {formatCurrency(Number(item.value ?? 0))}
+            </p>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const renderBrush = (data: SeriesPoint[]) => {
+    if (!meta.brush || data.length < 8) return null
+    return (
+      <Brush
+        dataKey="label"
+        height={18}
+        travellerWidth={8}
+        stroke={palette.primary}
+        fill="rgba(200,107,250,0.08)"
+      />
+    )
+  }
+
+  const renderEmptyState = (message: string) => (
+    <div className="flex h-full min-h-[220px] items-center justify-center rounded-md border border-dashed border-border/70 bg-muted/10 px-4 text-center text-sm text-muted-foreground">
+      {message}
+    </div>
+  )
+
+  const renderLegendList = (items: DistributionPoint[], total: number) => (
+    <div className="flex min-w-0 flex-col gap-2">
+      {items.map((item) => {
+        const percent = total > 0 ? (item.value / total) * 100 : 0
+        return (
+          <div key={item.name} className="grid gap-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span
+                className="size-2.5 shrink-0 rounded-sm"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="min-w-0 flex-1 truncate text-foreground">{item.name}</span>
+              <span className="text-muted-foreground tabular-nums">
+                {percent.toFixed(0)}%
+              </span>
+            </div>
+            <div className="ms-4 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+              <span className="truncate">{item.detail ?? t('dashboard.chartSummary.value')}</span>
+              <span className="shrink-0 tabular-nums">{formatCurrency(item.value)}</span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  const renderDonut = (
+    items: DistributionPoint[],
+    total: number,
+    centerLabel: string,
+    emptyMessage: string
+  ) => {
+    if (items.length === 0 || total <= 0) return renderEmptyState(emptyMessage)
+
+    return (
+      <div className="grid h-full min-h-[260px] grid-cols-1 gap-4 lg:grid-cols-[minmax(220px,1fr)_minmax(180px,260px)]">
+        <div className="relative min-h-[220px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={items}
+                dataKey="value"
+                innerRadius="62%"
+                outerRadius="84%"
+                paddingAngle={2}
+                stroke="rgba(3,7,30,0.72)"
+                strokeWidth={2}
+              >
+                {items.map((item) => (
+                  <Cell key={item.name} fill={item.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null
+                  const item = payload[0].payload as DistributionPoint
+                  const percent = total > 0 ? (item.value / total) * 100 : 0
+                  return (
+                    <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-xl">
+                      <p className="font-medium text-foreground">{item.name}</p>
+                      <p className="text-muted-foreground">
+                        {formatCurrency(item.value)} ({percent.toFixed(1)}%)
+                      </p>
+                      {item.target ? (
+                        <p className="text-muted-foreground">
+                          {t('savingsPage.goal')}: {formatCurrency(item.target)}
+                        </p>
+                      ) : null}
+                    </div>
+                  )
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+            <span className="text-[11px] uppercase text-muted-foreground">{centerLabel}</span>
+            <span className="max-w-40 truncate text-lg font-bold text-foreground">
+              {formatCurrency(total)}
+            </span>
+          </div>
+        </div>
+        {renderLegendList(items, total)}
+      </div>
+    )
+  }
+
+  const renderAssetChart = () => {
+    if (accounts.length === 0) {
+      return renderEmptyState(t('accounts.emptyShort'))
+    }
+
+    if (dailyNetWorthData.length === 0) {
+      return renderEmptyState(t('dashboard.chartSummary.noDataInRange'))
+    }
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={dailyNetWorthData} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+          <defs>
+            <linearGradient id="assetGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={chartColors.income} stopOpacity={0.35} />
+              <stop offset="95%" stopColor={chartColors.income} stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+          <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+          <YAxis
+            tickFormatter={(value) => formatCompactNumber(Number(value))}
+            tick={AXIS_TICK}
+            axisLine={false}
+            tickLine={false}
+            width={44}
+          />
+          <Tooltip
+            content={({ active, payload, label }) =>
+              renderSeriesTooltip(active, payload, label as string)
+            }
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            name={t('dashboard.netWorth')}
+            stroke={chartColors.income}
+            strokeWidth={2.5}
+            fill="url(#assetGradient)"
+            activeDot={{ r: 4 }}
+          />
+          {renderBrush(dailyNetWorthData)}
+        </AreaChart>
+      </ResponsiveContainer>
+    )
+  }
+
+  const renderIncomeChart = () => {
+    const hasIncome = incomeOverTimeData.some((item) => (item.value ?? 0) > 0)
+    if (!hasIncome) return renderEmptyState(t('dashboard.noIncomeInPeriod'))
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={incomeOverTimeData} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+          <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+          <YAxis
+            tickFormatter={(value) => formatCompactNumber(Number(value))}
+            tick={AXIS_TICK}
+            axisLine={false}
+            tickLine={false}
+            width={44}
+          />
+          <Tooltip
+            content={({ active, payload, label }) =>
+              renderSeriesTooltip(active, payload, label as string)
+            }
+          />
+          <Bar dataKey="value" name={t('types.income')} fill={chartColors.income} radius={[4, 4, 0, 0]} />
+          {renderBrush(incomeOverTimeData)}
+        </BarChart>
+      </ResponsiveContainer>
+    )
+  }
+
+  const renderIncomeExpenseChart = () => {
+    const hasData = incomeExpenseData.some(
+      (item) => (item.income ?? 0) > 0 || (item.expense ?? 0) > 0
+    )
+    if (!hasData) return renderEmptyState(t('dashboard.chartSummary.noDataInRange'))
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={incomeExpenseData} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+          <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+          <YAxis
+            tickFormatter={(value) => formatCompactNumber(Number(value))}
+            tick={AXIS_TICK}
+            axisLine={false}
+            tickLine={false}
+            width={44}
+          />
+          <Tooltip
+            content={({ active, payload, label }) =>
+              renderSeriesTooltip(active, payload, label as string)
+            }
+          />
+          <Bar dataKey="income" name={t('types.income')} fill={chartColors.income} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="expense" name={t('types.expense')} fill={chartColors.expense} radius={[4, 4, 0, 0]} />
+          {renderBrush(incomeExpenseData)}
+        </BarChart>
+      </ResponsiveContainer>
+    )
+  }
+
+  const renderDebtChart = () => {
+    const totalDebt = totalFor(debtData.myDebts)
+    const totalLoan = totalFor(debtData.myLoans)
+    if (totalDebt <= 0 && totalLoan <= 0) {
+      return renderEmptyState(t('dashboard.noActiveDebtsLoans'))
+    }
+
+    return (
+      <div className="grid h-full min-h-[260px] grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-md border border-border/60 bg-muted/10 p-3">
+          <p className="mb-1 text-xs text-muted-foreground">{t('debts.myDebts')}</p>
+          {renderDonut(
+            debtData.myDebts,
+            totalDebt,
+            t('dashboard.chartSummary.total'),
+            t('debts.noDebts')
+          )}
+        </div>
+        <div className="rounded-md border border-border/60 bg-muted/10 p-3">
+          <p className="mb-1 text-xs text-muted-foreground">{t('debts.myLoans')}</p>
+          {renderDonut(
+            debtData.myLoans,
+            totalLoan,
+            t('dashboard.chartSummary.total'),
+            t('debts.noLoans')
+          )}
+        </div>
+      </div>
+    )
+  }
 
   const renderChart = () => {
     switch (chartType) {
       case 'asset-fluctuation':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={assetFluctuationData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tickFormatter={(value) => formatCompactNumber(Number(value))}
-                tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={40}
-              />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
-                  const value = payload[0].value as number
-                  return (
-                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
-                      <p className="text-muted-foreground mb-1">{payload[0].payload.name}</p>
-                      <p className="text-primary font-medium">{formatCurrency(value)}</p>
-                    </div>
-                  )
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke={chartColors.income}
-                strokeWidth={2}
-                dot={{ fill: chartColors.income, strokeWidth: 2, r: 3 }}
-                activeDot={{ r: 5 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        )
-
-      case 'expense-allocation':
-        if (expenseAllocationData.length === 0) {
-          return (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              {t('dashboard.noExpenseDataThisMonth')}
-            </div>
-          )
-        }
-        const totalExpense = expenseAllocationData.reduce((sum, item) => sum + item.value, 0)
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={expenseAllocationData}
-                cx="50%" cy="50%"
-                innerRadius={60} outerRadius={100}
-                paddingAngle={2} dataKey="value"
-                label={({ cx, cy, midAngle, innerRadius, outerRadius, value, name }) => {
-                  if (midAngle === undefined) return null
-                  const RADIAN = Math.PI / 180
-                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN)
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN)
-                  const percent = ((value / totalExpense) * 100).toFixed(0)
-                  return (
-                    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight={500}>
-                      {percent}%
-                    </text>
-                  )
-                }}
-                labelLine={false}
-              >
-                {expenseAllocationData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
-                  const percent = ((payload[0].value as number / totalExpense) * 100).toFixed(1)
-                  return (
-                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
-                      <p className="text-foreground font-medium">{payload[0].payload.name}</p>
-                      <p className="text-muted-foreground">{formatCurrency(payload[0].value as number)} ({percent}%)</p>
-                    </div>
-                  )
-                }}
-              />
-              <Legend formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>} />
-            </PieChart>
-          </ResponsiveContainer>
-        )
-
-      case 'account-distribution':
-        if (accountDistributionData.length === 0) {
-          return (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              {t('accounts.emptyShort')}
-            </div>
-          )
-        }
-        const totalBalance = accountDistributionData.reduce((sum, item) => sum + item.value, 0)
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={accountDistributionData}
-                cx="50%" cy="50%"
-                innerRadius={60} outerRadius={100}
-                paddingAngle={2} dataKey="value"
-                label={({ cx, cy, midAngle, innerRadius, outerRadius, value, name }) => {
-                  if (midAngle === undefined) return null
-                  const RADIAN = Math.PI / 180
-                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN)
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN)
-                  const percent = ((value / totalBalance) * 100).toFixed(0)
-                  return (
-                    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight={500}>
-                      {percent}%
-                    </text>
-                  )
-                }}
-                labelLine={false}
-              >
-                {accountDistributionData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={ACCOUNT_COLORS[entry.accountType] || CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
-                  const value = payload[0].value as number
-                  const percent = ((value / totalBalance) * 100).toFixed(1)
-                  return (
-                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
-                      <p className="text-foreground font-medium">{payload[0].payload.name}</p>
-                      <p className="text-muted-foreground">{formatCurrency(value)} ({percent}%)</p>
-                    </div>
-                  )
-                }}
-              />
-              <Legend formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>} />
-            </PieChart>
-          </ResponsiveContainer>
-        )
-
-      case 'savings-breakdown': {
-        const activeSavings = savings.filter(s => s.status !== 'cancelled')
-        if (activeSavings.length === 0) {
-          return (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              {t('savingsPage.emptyShort')}
-            </div>
-          )
-        }
-        const savingsData = activeSavings.map(s => ({ name: s.name, value: s.current_balance, target: s.target_amount }))
-        const totalSaved = savingsData.reduce((sum, s) => sum + s.value, 0)
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={savingsData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="value" labelLine={false}
-                label={({ cx, cy, midAngle = 0, innerRadius, outerRadius, value }) => {
-                  if (!value || !totalSaved) return null
-                  const RADIAN = Math.PI / 180
-                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN)
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN)
-                  return <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={500}>{((value / totalSaved) * 100).toFixed(0)}%</text>
-                }}
-              >
-                {savingsData.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
-              </Pie>
-              <Tooltip content={({ active, payload }) => {
-                if (!active || !payload?.length) return null
-                const item = payload[0].payload
-                const pct = totalSaved > 0 ? ((item.value / totalSaved) * 100).toFixed(1) : '0'
-                const progress = item.target > 0 ? ((item.value / item.target) * 100).toFixed(0) : '0'
-                return (
-                  <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
-                    <p className="text-foreground font-medium">{item.name}</p>
-                    <p className="text-primary">{formatCurrency(item.value)} ({t('dashboard.percentTotal', { percent: pct })})</p>
-                    <p className="text-muted-foreground">{t('savingsPage.goal')}: {formatCurrency(item.target)} ({t('dashboard.percentAchieved', { percent: progress })})</p>
-                  </div>
-                )
-              }} />
-              <Legend formatter={(v) => <span className="text-xs text-muted-foreground">{v}</span>} />
-            </PieChart>
-          </ResponsiveContainer>
-        )
-      }
-
-      case 'debt-breakdown': {
-        const myDebts = debts.filter(d => d.status === 'active' && d.debt_type === 'debt')
-        const myLoans = debts.filter(d => d.status === 'active' && d.debt_type === 'loan')
-        if (myDebts.length === 0 && myLoans.length === 0) {
-          return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">{t('dashboard.noActiveDebtsLoans')}</div>
-        }
-        const myDebtData = myDebts.map(d => ({ name: d.lender || d.name, value: d.outstanding_balance }))
-        const myLoanData = myLoans.map(d => ({ name: d.debtor || d.name, value: d.outstanding_balance }))
-        const totalDebt = myDebtData.reduce((s, d) => s + d.value, 0)
-        const totalLoan = myLoanData.reduce((s, d) => s + d.value, 0)
-
-        const MiniDonut = ({ data, total, title, color }: { data: {name:string;value:number}[]; total:number; title:string; color:string }) => (
-          <div className="flex-1 flex flex-col min-w-0">
-            <p className="text-muted-foreground text-xs text-center mb-0.5">{title}</p>
-            <p className="text-center text-sm font-bold mb-1" style={{ color }}>{formatCurrency(total)}</p>
-            {data.length === 0
-              ? <div className="flex-1 flex items-center justify-center text-muted-foreground/50 text-xs">{t('common.none')}</div>
-              : <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={data} cx="50%" cy="50%" innerRadius={40} outerRadius={75} paddingAngle={2} dataKey="value" labelLine={false}
-                      label={({ cx, cy, midAngle = 0, innerRadius, outerRadius, value }) => {
-                        if (!value || !total) return null
-                        const R = Math.PI / 180
-                        const r = innerRadius + (outerRadius - innerRadius) * 0.5
-                        const x = cx + r * Math.cos(-midAngle * R)
-                        const y = cy + r * Math.sin(-midAngle * R)
-                        return <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={500}>{((value/total)*100).toFixed(0)}%</text>
-                      }}
-                    >
-                      {data.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null
-                      const item = payload[0].payload
-                      return (
-                        <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl space-y-0.5">
-                          <p className="text-foreground font-medium">{item.name}</p>
-                          <p style={{ color }}>{formatCurrency(item.value)} ({total > 0 ? ((item.value/total)*100).toFixed(1) : 0}%)</p>
-                        </div>
-                      )
-                    }} />
-                    <Legend formatter={(v) => <span className="text-[10px] text-muted-foreground">{v}</span>} />
-                  </PieChart>
-                </ResponsiveContainer>
-            }
-          </div>
-        )
-
-        return (
-          <div className="flex gap-3 h-full">
-            <MiniDonut data={myDebtData} total={totalDebt} title={t('debts.myDebts')} color={palette.destructive} />
-            <div className="w-px bg-border self-stretch" />
-            <MiniDonut data={myLoanData} total={totalLoan} title={t('debts.myLoans')} color={palette.primary} />
-          </div>
-        )
-      }
-
-      case 'monthly-income-breakdown': {
-        const monthlyIncome: Record<string, number> = {}
-        transactions.filter(tx => tx.type === 'income' && new Date(tx.transaction_date) >= startDate)
-          .forEach(tx => {
-            const m = tx.transaction_date.slice(0, 7)
-            monthlyIncome[m] = (monthlyIncome[m] ?? 0) + tx.amount
-          })
-        const incomeData = Object.entries(monthlyIncome).sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ name: formatMonth(month), value }))
-        if (incomeData.length === 0) return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">{t('dashboard.noIncomeInPeriod')}</div>
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={incomeData} barSize={24}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(200,107,250,0.10)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={(value) => formatCompactNumber(Number(value))} tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
-              <Tooltip content={({ active, payload }) => {
-                if (!active || !payload?.length) return null
-                return (
-                  <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
-                    <p className="text-muted-foreground mb-0.5">{payload[0].payload.name}</p>
-                    <p className="text-primary font-medium">{formatCurrency(payload[0].value as number)}</p>
-                  </div>
-                )
-              }} />
-              <Bar dataKey="value" fill={chartColors.income} radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )
-      }
-
+        return renderAssetChart()
+      case 'monthly-income-breakdown':
+        return renderIncomeChart()
       case 'income-expense':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={incomeExpenseData} barGap={2} barSize={60}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(200,107,250,0.10)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={(value) => formatCompactNumber(Number(value))} tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null
-                  return (
-                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-xl">
-                      {payload.map((p: any) => (
-                        <p key={p.name} style={{ color: p.fill }} className="font-medium">
-                          {p.name}: {formatCurrency(p.value)}
-                        </p>
-                      ))}
-                    </div>
-                  )
-                }}
-              />
-              <Bar dataKey="value" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        return renderIncomeExpenseChart()
+      case 'expense-allocation':
+        return renderDonut(
+          expenseAllocationData,
+          totalFor(expenseAllocationData),
+          t('dashboard.chartSummary.currentMonth'),
+          t('dashboard.noExpenseDataThisMonth')
         )
-
+      case 'account-distribution':
+        return renderDonut(
+          accountDistributionData,
+          totalFor(accountDistributionData),
+          t('dashboard.chartSummary.current'),
+          t('accounts.emptyShort')
+        )
+      case 'savings-breakdown':
+        return renderDonut(
+          savingsData,
+          totalFor(savingsData),
+          t('dashboard.chartSummary.total'),
+          t('savingsPage.emptyShort')
+        )
+      case 'debt-breakdown':
+        return renderDebtChart()
       default:
         return null
     }
   }
 
-  const getChartTitle = () => {
+  const summaryValue = (() => {
     switch (chartType) {
-      case 'asset-fluctuation': return t('dashboard.charts.assetFluctuation')
-      case 'expense-allocation': return t('dashboard.charts.expenseAllocation')
-      case 'account-distribution': return t('dashboard.charts.accountDistribution')
-      case 'income-expense': return t('dashboard.charts.incomeExpense')
-      case 'savings-breakdown': return t('dashboard.charts.savingsBreakdown')
-      case 'debt-breakdown': return t('dashboard.charts.debtBreakdown')
-      case 'monthly-income-breakdown': return t('dashboard.charts.monthlyIncomeBreakdown')
-      default: return ''
+      case 'asset-fluctuation':
+        return dailyNetWorthData.at(-1)?.value
+      case 'monthly-income-breakdown':
+        return incomeOverTimeData.reduce((sum, item) => sum + (item.value ?? 0), 0)
+      case 'income-expense':
+        return incomeExpenseData.reduce(
+          (sum, item) => sum + (item.income ?? 0) - (item.expense ?? 0),
+          0
+        )
+      case 'expense-allocation':
+        return totalFor(expenseAllocationData)
+      case 'account-distribution':
+        return totalFor(accountDistributionData)
+      case 'savings-breakdown':
+        return totalFor(savingsData)
+      case 'debt-breakdown':
+        return undefined
+      default:
+        return undefined
     }
+  })()
+
+  const renderHeaderDetail = () => {
+    if (chartType === 'asset-fluctuation') {
+      return (
+        <p className="mt-1 max-w-xl text-xs text-muted-foreground">
+          {t('dashboard.chartSummary.assetSnapshotNote')}
+        </p>
+      )
+    }
+
+    if (chartType === 'debt-breakdown') {
+      return (
+        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+          <span className="rounded-md border border-border/70 px-2 py-1 text-muted-foreground">
+            {t('dashboard.chartSummary.debtOwed')}: {' '}
+            <span className="font-semibold text-foreground">
+              {formatCurrency(totalFor(debtData.myDebts))}
+            </span>
+          </span>
+          <span className="rounded-md border border-border/70 px-2 py-1 text-muted-foreground">
+            {t('dashboard.chartSummary.moneyLent')}: {' '}
+            <span className="font-semibold text-foreground">
+              {formatCurrency(totalFor(debtData.myLoans))}
+            </span>
+          </span>
+        </div>
+      )
+    }
+
+    if (showRangeControls) {
+      return <p className="mt-1 text-xs text-muted-foreground">{dateRangeLabel}</p>
+    }
+
+    return null
   }
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4 shrink-0">
-        <h3 className="text-foreground font-semibold text-sm">{getChartTitle()}</h3>
-        <div className="flex gap-1">
-          {TIME_RANGES.map(r => (
-            <button
-              key={r.key}
-              onClick={() => setTimeRange(r.key)}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-                timeRange === r.key
-                  ? 'bg-primary/20 text-primary border border-primary/40'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {t(r.labelKey)}
-            </button>
-          ))}
+    <div className="flex h-full flex-col rounded-[var(--radius)] border border-border bg-card p-4 shadow-sm backdrop-blur-sm">
+      <div className="mb-4 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+            <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] text-muted-foreground">
+              {meta.kind === 'time-series'
+                ? t('dashboard.chartSummary.timeSeries')
+                : t('dashboard.chartSummary.snapshot')}
+            </span>
+          </div>
+          {typeof summaryValue === 'number' ? (
+            <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
+              {formatCurrency(summaryValue)}
+            </p>
+          ) : null}
+          {renderHeaderDetail()}
         </div>
+        {renderTimeRangeControls()}
       </div>
-      <div className="flex-1 min-h-0">
-        {renderChart()}
-      </div>
+      <div className="min-h-0 flex-1">{renderChart()}</div>
     </div>
   )
 }

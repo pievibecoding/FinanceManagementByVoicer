@@ -4,6 +4,10 @@ import { useBudgets } from '@/hooks/useBudgets';
 import { useDebts } from '@/hooks/useDebts';
 import { useSavings } from '@/hooks/useSavings';
 
+function normalizeId(value: string | number | null | undefined) {
+  return value == null ? '' : String(value);
+}
+
 // useDashboardMetrics uses the SAME useTransactions hook as the transactions page.
 // This ensures both share the same TanStack Query cache entry ['transactions'].
 export function useDashboardMetrics() {
@@ -22,8 +26,9 @@ export function useDashboardMetrics() {
   // Compute real current balance per account
   const totalBalance = accounts.reduce((sum, acc) => {
     let balance = acc.initial_balance;
+    const accountId = normalizeId(acc.account_id);
     transactions.forEach(tx => {
-      if (tx.account_id !== acc.account_id) return;
+      if (normalizeId(tx.account_id) !== accountId) return;
       if (tx.type === 'income') balance += tx.amount;
       else balance -= tx.amount; // expense + investment
     });
@@ -71,8 +76,9 @@ export function useDashboardMetrics() {
     let netWorth = 0;
     accounts.forEach(acc => {
       let balance = acc.initial_balance;
+      const accountId = normalizeId(acc.account_id);
       transactions.forEach(tx => {
-        if (tx.account_id !== acc.account_id) return;
+        if (normalizeId(tx.account_id) !== accountId) return;
         if (tx.transaction_date.slice(0, 7) <= month) {
           if (tx.type === 'income') balance += tx.amount;
           else balance -= tx.amount;
