@@ -60,9 +60,9 @@ function DashboardPage() {
     )
   }
 
-  // Map categories to the shape BudgetOverview needs (category_id as number)
+  // Map categories to the shape BudgetOverview needs while preserving API ID shape.
   const budgetCategories = categories.map(c => ({
-    category_id: Number(c.category_id),
+    category_id: c.category_id,
     category_name: c.category_name,
   }))
 

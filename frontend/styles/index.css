@@ -33,6 +33,27 @@
     cursor: pointer;
   }
 
+  select {
+    color-scheme: dark;
+    background-color: var(--input);
+    color: var(--foreground);
+  }
+
+  select option,
+  select optgroup {
+    background-color: color-mix(in srgb, var(--background) 88%, var(--indigo-2));
+    color: var(--foreground);
+  }
+
+  select option:checked {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  select option:disabled {
+    color: var(--muted-foreground);
+  }
+
   /* Prevent focus zoom on mobile devices */
   @media screen and (max-width: 767px) {
     input,

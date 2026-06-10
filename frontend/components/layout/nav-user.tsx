@@ -82,9 +82,11 @@ export function NavUser({ user }: NavUserProps) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <Sparkles />
-                  {t('nav.upgrade')}
+                <DropdownMenuItem asChild>
+                  <Link to='/settings'>
+                    <Sparkles />
+                    {t('nav.upgrade')}
+                  </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />

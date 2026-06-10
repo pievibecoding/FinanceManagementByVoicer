@@ -363,6 +363,172 @@
     "english": "English",
     "vietnamese": "Vietnamese"
   },
+  "settingsCore": {
+    "title": "Settings",
+    "description": "Manage your account view, app preferences, and plan information for this device.",
+    "actions": {
+      "configure": "Configure"
+    },
+    "profile": {
+      "title": "Profile",
+      "description": "Your current authenticated account details.",
+      "fallbackName": "Finance user",
+      "active": "Active",
+      "userId": "User ID",
+      "email": "Email",
+      "plan": "Plan",
+      "readOnlyNotice": "Profile editing is not connected to a server endpoint in this version. These details come from your signed-in account."
+    },
+    "account": {
+      "title": "Preferences",
+      "description": "Device-level controls for the current app session.",
+      "language": "Language",
+      "languageDescription": "Switch between Vietnamese and English.",
+      "theme": "Theme",
+      "themeDescription": "Choose light, dark, or system appearance.",
+      "notifications": "Notifications",
+      "notificationsDescription": "Review local notification preferences."
+    },
+    "billing": {
+      "title": "Billing and plan",
+      "description": "Current plan status for this personal finance workspace.",
+      "free": "No active billing",
+      "notice": "Billing and paid upgrades are not connected in this version. You can continue using the current personal finance features without checkout.",
+      "upgradeTitle": "Pro upgrade",
+      "upgradeDescription": "The upgrade flow is reserved for a future paid plan integration.",
+      "notAvailable": "Not available in v1",
+      "features": {
+        "transactions": "Transactions and accounts",
+        "budgets": "Budgets, debts, and savings",
+        "ai": "AI transaction assistant"
+      }
+    }
+  },
+  "notificationsPage": {
+    "title": "Notifications",
+    "description": "Review finance reminder preferences for this session.",
+    "preferencesTitle": "Notification preferences",
+    "preferencesDescription": "These controls are usable locally and do not create server-side notification delivery.",
+    "deliveryTitle": "Delivery status",
+    "deliveryDescription": "Server notification delivery is outside the v1 scope.",
+    "localOnlyNotice": "Changes on this page are local UI preferences for the current session. They are not saved to your account yet.",
+    "preferences": {
+      "budgetAlerts": {
+        "title": "Budget alerts",
+        "description": "Warn when a category is close to or over budget."
+      },
+      "debtReminders": {
+        "title": "Debt reminders",
+        "description": "Remind you to review upcoming debt payments."
+      },
+      "savingsProgress": {
+        "title": "Savings progress",
+        "description": "Highlight savings goals that are moving or behind schedule."
+      },
+      "monthlySummary": {
+        "title": "Monthly summary",
+        "description": "Show a monthly finance review prompt."
+      },
+      "aiConfirmations": {
+        "title": "AI transaction confirmations",
+        "description": "Keep confirmations visible before AI-created records are saved."
+      }
+    }
+  },
+  "helpCenter": {
+    "title": "Help Center",
+    "description": "Find quick guidance for the finance workflows available in the app.",
+    "searchPlaceholder": "Search help topics...",
+    "noResults": "No matching help topics.",
+    "faqTitle": "Frequently asked questions",
+    "faqDescription": "Short answers for common product behavior.",
+    "supportTitle": "Support",
+    "supportDescription": "Where to go when you need more help.",
+    "supportNotice": "A real support inbox is not connected in this version. For now, keep issue details, screenshots, and reproduction steps with your project notes.",
+    "topics": {
+      "transactions": {
+        "title": "Adding transactions",
+        "description": "Record income, expenses, and investments with account and category context.",
+        "steps": [
+          "Open Transactions and choose Add transaction.",
+          "Select account, type, category, amount, and date.",
+          "Review the details before saving."
+        ]
+      },
+      "budgets": {
+        "title": "Budgets",
+        "description": "Set monthly limits by category and track spending progress.",
+        "steps": [
+          "Open Budgets and select the month.",
+          "Create or edit a category limit.",
+          "Review progress on the dashboard budget section."
+        ]
+      },
+      "debts": {
+        "title": "Debts and loans",
+        "description": "Track money you owe and money others owe you.",
+        "steps": [
+          "Create a debt or loan with the counterparty name.",
+          "Add payments when money moves.",
+          "Use the dashboard overview to compare owed and lent totals."
+        ]
+      },
+      "savings": {
+        "title": "Savings goals",
+        "description": "Create targets and record contributions over time.",
+        "steps": [
+          "Create a goal with a target amount and date.",
+          "Add contributions as you save.",
+          "Check progress and remaining amount."
+        ]
+      },
+      "categories": {
+        "title": "Categories",
+        "description": "Organize transactions into income, expense, and investment groups.",
+        "steps": [
+          "Open Categories to review available groups.",
+          "Use clear names and colors for scanning.",
+          "Assign categories when adding transactions."
+        ]
+      },
+      "charts": {
+        "title": "Dashboard charts",
+        "description": "Use time ranges and periods to inspect trends and distributions.",
+        "steps": [
+          "Select a metric card to change the active chart.",
+          "Use period controls for daily, weekly, monthly, quarterly, or yearly views.",
+          "Use distribution charts for category and account breakdowns."
+        ]
+      },
+      "assistant": {
+        "title": "AI assistant",
+        "description": "Use voice or text to draft finance records faster.",
+        "steps": [
+          "Open the assistant from the dashboard floating action.",
+          "Describe the transaction, debt, savings goal, or contribution.",
+          "Confirm the parsed result before saving."
+        ]
+      }
+    },
+    "faq": {
+      "localOnly": {
+        "question": "Are settings saved to my account?",
+        "answer": "Not yet. This version shows usable frontend controls, but settings persistence is not connected to a backend endpoint."
+      },
+      "missingData": {
+        "question": "Why does a chart or budget look empty?",
+        "answer": "Most views only show data for the selected month, range, or signed-in user. Check the date filter and account data first."
+      },
+      "voiceAssistant": {
+        "question": "Does the AI save records automatically?",
+        "answer": "No. The assistant prepares a draft and asks for confirmation before saving supported records."
+      },
+      "notifications": {
+        "question": "Will I receive push or email notifications?",
+        "answer": "No. Notification delivery is not implemented in v1; the notification page is a frontend preference surface only."
+      }
+    }
+  },
   "pages": {
     "settings": "Settings",
     "settingsComingSoon": "Settings page - Coming Soon",

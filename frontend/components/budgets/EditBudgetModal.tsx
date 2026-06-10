@@ -10,6 +10,10 @@ interface EditBudgetModalProps {
   budget: Budget;
 }
 
+function normalizeId(value: string | number | null | undefined) {
+  return value == null ? '' : String(value);
+}
+
 export function EditBudgetModal({ isOpen, onClose, budget }: EditBudgetModalProps) {
   const { t } = useTranslation();
   const [amountLimit, setAmountLimit] = useState<number>(budget.amount_limit);
@@ -29,7 +33,7 @@ export function EditBudgetModal({ isOpen, onClose, budget }: EditBudgetModalProp
 
   if (!isOpen) return null;
 
-  const category = categories?.find(c => c.category_id === String(budget.category_id));
+  const category = categories?.find(c => normalizeId(c.category_id) === normalizeId(budget.category_id));
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
