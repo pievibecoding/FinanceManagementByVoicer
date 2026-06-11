@@ -268,7 +268,19 @@ function GoalCard({ goal, onEdit, onDelete, onContribute, onHistory }: GoalCardP
   const overdue = isOverdue(goal)
 
   return (
-    <AppCard className="rounded-xl p-4 space-y-3">
+    <AppCard
+      interactive
+      role="button"
+      tabIndex={0}
+      className="rounded-[var(--radius)] p-4 space-y-3"
+      onClick={() => onEdit(goal)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onEdit(goal)
+        }
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-foreground font-medium truncate">{goal.name}</p>
@@ -301,17 +313,17 @@ function GoalCard({ goal, onEdit, onDelete, onContribute, onHistory }: GoalCardP
 
       <div className="flex gap-2 pt-1">
         {goal.status !== 'completed' && goal.status !== 'cancelled' && (
-          <button onClick={() => onContribute(goal)} className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 rounded-lg px-2.5 py-1.5 transition-all">
+          <button onClick={(event) => { event.stopPropagation(); onContribute(goal) }} className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 rounded-lg px-2.5 py-1.5 transition-all">
             <PiggyBank className="w-3.5 h-3.5" /> {t('savingsPage.contribute')}
           </button>
         )}
-        <button onClick={() => onHistory(goal)} className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border hover:bg-muted/30 rounded-lg px-2.5 py-1.5 transition-all">
+        <button onClick={(event) => { event.stopPropagation(); onHistory(goal) }} className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border hover:bg-muted/30 rounded-lg px-2.5 py-1.5 transition-all">
           {t('common.history')}
         </button>
-        <button onClick={() => onEdit(goal)} className="ml-auto text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/30 transition-all">
+        <button onClick={(event) => { event.stopPropagation(); onEdit(goal) }} className="ml-auto text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/30 transition-all">
           <Pencil className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => onDelete(goal)} className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10 transition-all">
+        <button onClick={(event) => { event.stopPropagation(); onDelete(goal) }} className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10 transition-all">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -387,7 +399,7 @@ function SavingsPage() {
       />
 
       {/* Summary */}
-      <AppCard className="rounded-xl p-4 flex items-center gap-4">
+      <AppCard className="rounded-[var(--radius)] p-4 flex items-center gap-4">
         <PiggyBank className="w-8 h-8 text-primary shrink-0" />
         <div>
           <p className="text-muted-foreground text-xs">{t('savingsPage.totalSaved')}</p>

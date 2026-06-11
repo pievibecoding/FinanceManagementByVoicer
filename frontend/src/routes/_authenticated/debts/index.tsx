@@ -320,7 +320,19 @@ function DebtRow({ debt, onEdit, onDelete, onPay, onHistory }: DebtRowProps) {
   }
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+    <AppCard
+      interactive
+      role="button"
+      tabIndex={0}
+      className="rounded-[var(--radius)] p-4 space-y-3"
+      onClick={() => onEdit(debt)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onEdit(debt)
+        }
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-foreground font-medium truncate">{debt.name}</p>
@@ -363,21 +375,21 @@ function DebtRow({ debt, onEdit, onDelete, onPay, onHistory }: DebtRowProps) {
 
       <div className="flex gap-2 pt-1">
         {debt.status !== 'settled' && (
-          <button onClick={() => onPay(debt)} className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 rounded-lg px-2.5 py-1.5 transition-all">
+          <button onClick={(event) => { event.stopPropagation(); onPay(debt) }} className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 rounded-lg px-2.5 py-1.5 transition-all">
             <Banknote className="w-3.5 h-3.5" /> {t('debts.payment')}
           </button>
         )}
-        <button onClick={() => onHistory(debt)} className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border hover:bg-muted/30 rounded-lg px-2.5 py-1.5 transition-all">
+        <button onClick={(event) => { event.stopPropagation(); onHistory(debt) }} className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border hover:bg-muted/30 rounded-lg px-2.5 py-1.5 transition-all">
           {t('common.history')}
         </button>
-        <button onClick={() => onEdit(debt)} className="ml-auto text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/30 transition-all">
+        <button onClick={(event) => { event.stopPropagation(); onEdit(debt) }} className="ml-auto text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/30 transition-all">
           <Pencil className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => onDelete(debt)} className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10 transition-all">
+        <button onClick={(event) => { event.stopPropagation(); onDelete(debt) }} className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10 transition-all">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
-    </div>
+    </AppCard>
   )
 }
 
@@ -450,11 +462,11 @@ function DebtsPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4">
-        <AppCard className="rounded-xl p-4">
+        <AppCard className="rounded-[var(--radius)] p-4">
           <p className="text-muted-foreground text-xs mb-1 flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5" /> {t('debts.iOwe')}</p>
           <p className="text-destructive text-xl font-bold">{formatCurrency(totalDebt)}</p>
         </AppCard>
-        <AppCard className="rounded-xl p-4">
+        <AppCard className="rounded-[var(--radius)] p-4">
           <p className="text-muted-foreground text-xs mb-1 flex items-center gap-1.5"><Banknote className="w-3.5 h-3.5" /> {t('debts.owedToMe')}</p>
           <p className="text-primary text-xl font-bold">{formatCurrency(totalLoan)}</p>
         </AppCard>

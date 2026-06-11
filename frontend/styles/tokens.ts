@@ -48,7 +48,6 @@ export const pastelChartColors = {
 export const transactionColors = {
   income:     pastelChartColors.teaGreen,
   expense:    pastelChartColors.powderBlush,
-  investment: pastelChartColors.babyBlueIce,
 } as const
 
 /** Màu chart (Recharts cần hex, không dùng CSS var được) */
@@ -88,11 +87,9 @@ export const categoryColors = [
 export const accountBorderColors: Record<string, string> = {
   Bank:        pastelChartColors.babyBlueIce,
   'E-Wallet':  pastelChartColors.electricAqua,
-  Investment:  pastelChartColors.periwinkle,
   Cash:        pastelChartColors.apricotCream,
   bank:        pastelChartColors.babyBlueIce,
   wallet:      pastelChartColors.electricAqua,
-  investment:  pastelChartColors.periwinkle,
   cash:        pastelChartColors.apricotCream,
   savings:     pastelChartColors.teaGreen,
   credit_card: pastelChartColors.powderBlush,
@@ -102,11 +99,9 @@ export const accountBorderColors: Record<string, string> = {
 export const accountChartColors: Record<string, string> = {
   Bank:        pastelChartColors.babyBlueIce,
   'E-Wallet':  pastelChartColors.electricAqua,
-  Investment:  pastelChartColors.periwinkle,
   Cash:        pastelChartColors.apricotCream,
   bank:        pastelChartColors.babyBlueIce,
   wallet:      pastelChartColors.electricAqua,
-  investment:  pastelChartColors.periwinkle,
   cash:        pastelChartColors.apricotCream,
   savings:     pastelChartColors.teaGreen,
   credit_card: pastelChartColors.powderBlush,

@@ -26,7 +26,7 @@ function getAuthHeaders() {
 export interface AnalyticsOverview {
   total_income: number;
   total_expense: number;
-  total_investment: number;
+  total_investment?: number;
   net_balance: number;
   transaction_count: number;
 }
@@ -43,7 +43,7 @@ export interface MonthlyTrend {
   month: string;
   income: number;
   expense: number;
-  investment: number;
+  investment?: number;
   net: number;
 }
 
@@ -70,7 +70,7 @@ export const analyticsApi = {
     });
   },
 
-  async getIncomeVsExpense(startDate?: string, endDate?: string): Promise<{ income: number; expense: number; investment: number }> {
+  async getIncomeVsExpense(startDate?: string, endDate?: string): Promise<{ income: number; expense: number; investment?: number }> {
     const params = new URLSearchParams();
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);

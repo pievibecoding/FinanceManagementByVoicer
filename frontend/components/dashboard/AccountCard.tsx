@@ -1,6 +1,7 @@
 import { Account } from '@/api/dashboard';
 import { accountBorderColors } from '@/styles/tokens';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
+import { AppCard } from '@/components/common';
 
 interface AccountCardProps {
   account: Account;
@@ -21,8 +22,9 @@ export function AccountCard({ account, onClick }: AccountCardProps) {
     accountBorderColors[type] ?? '';
 
   return (
-    <div
-      className="bg-card border rounded-[var(--radius)] p-4 backdrop-blur-sm hover:bg-muted/40 transition-all cursor-pointer"
+    <AppCard
+      interactive
+      className="rounded-[var(--radius)] p-4"
       style={{ borderColor: getAccountBorderColor(account.account_type) || undefined }}
       onClick={onClick}
     >
@@ -38,6 +40,6 @@ export function AccountCard({ account, onClick }: AccountCardProps) {
       </p>
 
       <p className="text-muted-foreground text-sm capitalize">{account.account_type}</p>
-    </div>
+    </AppCard>
   );
 }

@@ -94,7 +94,7 @@ async function startServer() {
 
       const systemInstruction = `
 You are an expert Vietnamese personal finance assistant.
-Your job is to read a conversational natural language sentence about an income, expense, investment transaction, debt payment, or savings contribution and parse it into a structured JSON database entry.
+Your job is to read a conversational natural language sentence about an income, expense, debt payment, savings contribution, or investment-related expense and parse it into a structured JSON database entry.
 Ensure you convert any financial slang or abbreviations typical in Vietnamese:
 - "k", "kđ", "ngàn", "nghìn" represent thousands (e.g. 50k = 50000, 45 ngàn = 45000).
 - "loét", "lít" represent 100,000 VND (e.g. 1 loét = 100000).
@@ -102,7 +102,7 @@ Ensure you convert any financial slang or abbreviations typical in Vietnamese:
 - "củ" represents million VND (e.g. 3 củ = 3000000, nửa củ = 500000).
 - "tỏi" represents billion VND (e.g. 1 tỏi = 1000000000).
 - Account names should correspond to source accounts in Vietnamese, specifically match from [${accountNames.map(n => `'${n}'`).join(", ")}]. If the user mentions an account NOT in this list, use the exact name they said (e.g. "Ngân hàng OCB") and set account_is_new to TRUE. If matched, set account_is_new to FALSE.
-- Category names must follow consistent financial categories, specifically match from: ['Ăn uống', 'Tiền lương', 'Đầu tư chứng khoán', 'Di chuyển', 'Mua sắm', 'Giải trí', 'Học tập', 'Sức khỏe', 'Khác'].
+- Category names must follow consistent financial categories, specifically match from: ['Ăn uống', 'Tiền lương', 'Di chuyển', 'Mua sắm', 'Giải trí', 'Học tập', 'Sức khỏe', 'Khác']. For investment-related spending, use category 'Khác' and type 'expense'.
 
 Special operations (set operation_type to one of these when detected):
 - Debt payment: CRITICAL — ANY sentence where money is being paid/returned in context of a debt, regardless of who is doing the paying:
@@ -119,11 +119,11 @@ Debt type logic for new_debt operations:
 - debt_type must be either "debt" (user owes money) or "loan" (user is owed money)
 
 Standard output schema properties:
-- valid: boolean. Set to TRUE only if the input clearly describes a financial transaction or operation (income, expense, investment, debt payment, savings contribution, new debt, new savings goal). Set to FALSE if the input is a question, greeting, unrelated conversation, or anything that is not a financial operation.
+- valid: boolean. Set to TRUE only if the input clearly describes a financial transaction or operation (income, expense, investment-related expense, debt payment, savings contribution, new debt, new savings goal). Set to FALSE if the input is a question, greeting, unrelated conversation, or anything that is not a financial operation.
 - rejection_reason: string. If valid is FALSE, briefly explain in Vietnamese why it was rejected (e.g. "Câu hỏi không liên quan đến tài chính"). If valid is TRUE, leave this as empty string "".
 - operation_type: string, the type of operation. Must be 'transaction' (default), 'debt_payment', 'savings_contribution', 'new_debt', or 'new_savings'.
 - amount: integer, absolute positive value of the transaction or payment (e.g. 45000). Never negative. Use 0 if valid is FALSE.
-- type: string, representing the flow type for transactions. Must be 'income' (thu nhập, nhận lương, thưởng, lãi), 'expense' (chi tiêu, ăn uống, sắm đồ, trả tiền nước, xăng xe, di chuyển, giải trí), or 'investment' (tiết kiệm, đầu tư, nạp tài khoản VPS, mua cổ phiếu, chứng khoán). Leave empty for non-transaction operations.
+- type: string, representing the flow type for transactions. Must be 'income' (thu nhập, nhận lương, thưởng, lãi) or 'expense' (chi tiêu, ăn uống, sắm đồ, trả tiền nước, xăng xe, di chuyển, giải trí, tiết kiệm, đầu tư, nạp tài khoản VPS, mua cổ phiếu, chứng khoán). Leave empty for non-transaction operations. Never return 'investment' as a transaction type; use type 'expense' with an investment-related category instead.
 - category: string, matched category for transactions. Leave empty for non-transaction operations.
 - account: string, matched account.
 - note: string, short brief description in Vietnamese (e.g. "ăn cơm sườn", "mua sách học lập trình", "nhận tiền lương tháng", "đầu tư cổ phiếu FPT", "trả nợ xe máy", "gửi vào quỹ du lịch").
@@ -157,7 +157,7 @@ Return ONLY valid JSON.
               rejection_reason: { type: Type.STRING, description: "Lý do từ chối nếu valid=FALSE, để trống nếu valid=TRUE" },
               operation_type: { type: Type.STRING, description: "Loại thao tác: 'transaction', 'debt_payment', 'savings_contribution', 'new_debt', hoặc 'new_savings'" },
               amount: { type: Type.INTEGER, description: "Số tiền giao dịch dương (VND), 0 nếu không hợp lệ" },
-              type: { type: Type.STRING, description: "Loại giao dịch: 'income', 'expense' hoặc 'investment'. Để trống nếu không phải giao dịch" },
+              type: { type: Type.STRING, description: "Loại giao dịch: chỉ 'income' hoặc 'expense'. Để trống nếu không phải giao dịch. Không bao giờ trả về 'investment'." },
               category: { type: Type.STRING, description: "Danh mục thu chi phù hợp. Để trống nếu không phải giao dịch" },
               account: { type: Type.STRING, description: "Tài khoản giao dịch — dùng tên chính xác từ danh sách hoặc tên người dùng nói nếu chưa có" },
               account_is_new: { type: Type.BOOLEAN, description: "TRUE nếu tài khoản chưa có trong danh sách" },
@@ -179,6 +179,9 @@ Return ONLY valid JSON.
 
       const resultText = response.text?.trim() || "{}";
       const parsedData = JSON.parse(resultText);
+      if (parsedData.type === "investment") {
+        parsedData.type = "expense";
+      }
 
       // If Gemini flagged this as not a financial transaction, return early without saving
       if (parsedData.valid === false) {

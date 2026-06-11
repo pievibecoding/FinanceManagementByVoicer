@@ -30,7 +30,8 @@ Rules:
 - Amounts are positive VND integers.
 - Direction is represented by `type`.
 - `transaction_date` must be `YYYY-MM-DD HH:MM:SS`.
-- Deletes are soft deletes.
+- Optional transaction fields include `payee_id`, `location`, and `splits`.
+- Deletes physically remove split rows first, then soft-delete the parent transaction with `is_deleted=1`.
 
 ### Accounts
 
@@ -39,16 +40,21 @@ Rules:
 
 Rules:
 - Do not add frontend calls for account PUT/DELETE unless backend routes are implemented first.
+- Existing `frontend/api/accounts.ts` and `frontend/hooks/useAccounts.ts` currently expose update/delete helpers, but they call non-existent Flask routes. Treat them as unusable until backend support exists.
 - Current balance is computed client-side from `initial_balance` plus transactions.
 
 ### Categories
 
 - `GET /api/categories`
-- `PUT /api/categories/<id>` updates budget information only.
+- `POST /api/categories`
+- `PUT /api/categories/<id>`
+- `DELETE /api/categories/<id>`
 
 Rules:
 - Categories are seeded at user registration.
-- Do not add category POST/DELETE calls unless backend routes are implemented first.
+- Category create/update supports `category_name`, `category_type`, `icon`, and `color`.
+- Category PUT also accepts `{budget}` for backward-compatible current-month budget updates.
+- Category delete is blocked if the category is still referenced by active transactions or budgets.
 
 ### Budgets
 

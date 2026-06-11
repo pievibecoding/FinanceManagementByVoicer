@@ -46,7 +46,6 @@ export function AddAccountModal({ open, onOpenChange }: AddAccountModalProps) {
               <option value="cash">{t('accounts.cash')}</option>
               <option value="bank">{t('accounts.bank')}</option>
               <option value="credit_card">{t('accounts.creditCard')}</option>
-              <option value="investment">{t('accounts.investment')}</option>
               <option value="savings">{t('accounts.savings')}</option>
               <option value="wallet">{t('accounts.wallet')}</option>
             </select>

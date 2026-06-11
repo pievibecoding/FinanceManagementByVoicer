@@ -90,7 +90,7 @@ Known UI/UX issues:
   - tooltip
   from overlapping each other.
 - Pie/donut tooltips must remain within a safe chart area and avoid covering the legend, sidebar, or neighboring cards.
-- Bar chart hover state must not show the default white rectangular cursor.
+- Bar chart hover state must not show the default white, rectangular cursor.
 - Chart hover state should use the app's glassmorphism concept where appropriate.
 - Chart colors must use `frontend/styles/tokens.ts`.
 

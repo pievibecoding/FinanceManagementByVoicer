@@ -1,6 +1,7 @@
 import type { Transaction } from '@/api/transactions';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
+import { AppCard } from '@/components/common';
 
 interface Category {
   category_id: string;
@@ -18,25 +19,25 @@ interface TransactionTableProps {
 const TYPE_COLOR: Record<string, string> = {
   income: 'text-primary',
   expense: 'text-destructive',
-  investment: 'text-[var(--baby-blue-ice)]',
 }
 
 export function TransactionTable({ transactions, categories, onEdit, onDelete, onViewDetails }: TransactionTableProps) {
   const { t } = useTranslation();
   const { formatDate, formatCurrency } = useLocaleFormat();
   const catMap = Object.fromEntries(categories.map(c => [String(c.category_id), c.category_name]));
-  const typeLabel = (type: string) => t(`types.${type}`, type);
+  const normalizedType = (type: string) => type === 'income' ? 'income' : 'expense';
+  const typeLabel = (type: string) => t(`types.${normalizedType(type)}`);
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-card border border-border rounded-[var(--radius)] p-8 text-center text-muted-foreground">
+      <AppCard className="rounded-[var(--radius)] p-8 text-center text-muted-foreground">
         {t('transactions.empty')}
-      </div>
+      </AppCard>
     );
   }
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius)] overflow-hidden backdrop-blur-sm">
+    <AppCard className="rounded-[var(--radius)] overflow-hidden">
       <table className="w-full">
         <thead>
           <tr className="border-b border-border">
@@ -58,7 +59,7 @@ export function TransactionTable({ transactions, categories, onEdit, onDelete, o
             >
               <td className="p-4 text-foreground/80 text-sm">{formatDate(tx.transaction_date)}</td>
               <td className="p-4">
-                <span className={`text-xs font-medium ${TYPE_COLOR[tx.type] ?? 'text-muted-foreground'}`}>
+                <span className={`text-xs font-medium ${TYPE_COLOR[normalizedType(tx.type)]}`}>
                   {typeLabel(tx.type)}
                 </span>
               </td>
@@ -67,7 +68,7 @@ export function TransactionTable({ transactions, categories, onEdit, onDelete, o
               </td>
               <td className="p-4 text-foreground/70 text-sm max-w-[200px] truncate">{tx.note || '—'}</td>
               <td className="p-4 text-foreground/70 text-sm max-w-[200px] truncate">{tx.location || '—'}</td>
-              <td className={`p-4 text-right font-bold tabular-nums text-sm ${TYPE_COLOR[tx.type] ?? 'text-foreground'}`}>
+              <td className={`p-4 text-right font-bold tabular-nums text-sm ${TYPE_COLOR[normalizedType(tx.type)]}`}>
                 {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
               </td>
               <td className="p-4">
@@ -90,6 +91,6 @@ export function TransactionTable({ transactions, categories, onEdit, onDelete, o
           ))}
         </tbody>
       </table>
-    </div>
+    </AppCard>
   );
 }

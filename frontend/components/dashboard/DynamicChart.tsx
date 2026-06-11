@@ -28,6 +28,7 @@ import {
   palette,
 } from '@/styles/tokens'
 import { ChartCard } from '@/components/common'
+import { getCategoryDisplayMeta } from '@/lib/category-display'
 
 type ChartType =
   | 'asset-fluctuation'
@@ -72,6 +73,9 @@ type DonutTooltipState = {
   total: number
   x: number
   y: number
+  boundsWidth: number
+  boundsHeight: number
+  pieCenterX: number
 }
 
 type TimeBucket = 'day' | 'week' | 'month' | 'quarter' | 'year'
@@ -434,11 +438,16 @@ export function DynamicChart({
     return groupDistribution(
       Array.from(byCategory.entries())
         .map(([categoryId, value], index) => {
-          const category = categories.find((item) => normalizeId(item.category_id) === categoryId)
+          const categoryMeta = getCategoryDisplayMeta(
+            categoryId,
+            categories,
+            index,
+            t('categories.fallbackWithId', { id: categoryId })
+          )
           return {
-            name: category?.category_name || t('categories.fallbackWithId', { id: categoryId }),
+            name: categoryMeta.name,
             value,
-            color: categoryColors[index % categoryColors.length],
+            color: categoryMeta.color,
           }
         })
         .filter((item) => item.value > 0),
@@ -642,24 +651,26 @@ export function DynamicChart({
   )
 
   const renderLegendList = (items: DistributionPoint[], total: number) => (
-    <div className="flex min-w-0 flex-col justify-center gap-2 self-center">
+    <div className="flex min-w-0 flex-col justify-center gap-3 self-center">
       {items.map((item) => {
         const percent = total > 0 ? (item.value / total) * 100 : 0
         return (
           <div key={item.name} className="grid gap-1">
-            <div className="flex items-center gap-2 text-xs">
-              <span
-                className="size-2.5 shrink-0 rounded-sm"
-                style={{ backgroundColor: item.color }}
-              />
-              <span className="min-w-0 flex-1 truncate text-foreground">{item.name}</span>
-              <span className="text-muted-foreground tabular-nums">
+            <div className="grid grid-cols-[minmax(0,1fr)_88px] items-center gap-6 text-xs">
+              <div className="flex min-w-0 items-center gap-2">
+                <span
+                  className="size-2.5 shrink-0 rounded-sm"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="min-w-0 truncate text-foreground">{item.name}</span>
+              </div>
+              <span className="text-right text-muted-foreground tabular-nums">
                 {percent.toFixed(0)}%
               </span>
             </div>
-            <div className="ms-4 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+            <div className="ms-4 grid grid-cols-[minmax(0,1fr)_112px] items-center gap-6 text-[11px] text-muted-foreground">
               <span className="truncate">{item.detail ?? t('dashboard.chartSummary.value')}</span>
-              <span className="shrink-0 tabular-nums">{formatCurrency(item.value)}</span>
+              <span className="text-right tabular-nums">{formatCurrency(item.value)}</span>
             </div>
           </div>
         )
@@ -670,16 +681,21 @@ export function DynamicChart({
   const renderDonutTooltip = () => {
     if (!donutTooltip) return null
 
-    const { item, total, x, y } = donutTooltip
+    const { item, total, x, y, boundsWidth, boundsHeight, pieCenterX } = donutTooltip
     const percent = total > 0 ? (item.value / total) * 100 : 0
-    const placeRight = x < 130
-    const placeBottom = y < 130
+    const tooltipWidth = 208
+    const tooltipHeight = item.target ? 92 : 70
+    const gap = 24
+    const placeRight = x >= pieCenterX
+    const rawLeft = placeRight ? x + gap : x - tooltipWidth - gap
+    const rawTop = y - tooltipHeight / 2
+    const left = Math.min(Math.max(12, rawLeft), Math.max(12, boundsWidth - tooltipWidth - 12))
+    const top = Math.min(Math.max(12, rawTop), Math.max(12, boundsHeight - tooltipHeight - 12))
 
     return (
       <div
-        className={`pointer-events-none absolute z-20 w-52 rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-xl ${
-          placeRight ? 'left-3' : 'right-3'
-        } ${placeBottom ? 'top-3' : 'bottom-3'}`}
+        className="pointer-events-none absolute z-20 w-52 rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-xl"
+        style={{ left, top }}
       >
         <p className="font-medium text-foreground">{item.name}</p>
         <p className="text-muted-foreground">
@@ -703,9 +719,13 @@ export function DynamicChart({
     if (items.length === 0 || total <= 0) return renderEmptyState(emptyMessage)
 
     return (
-      <div className="grid h-full min-h-[260px] grid-cols-1 items-center justify-center gap-y-4 lg:grid-cols-[minmax(200px,300px)_minmax(190px,250px)] lg:gap-x-12 xl:gap-x-20 2xl:gap-x-28">
+      <div
+        data-donut-layout
+        className="relative grid h-full min-h-[280px] grid-cols-1 items-center justify-center gap-y-5 lg:grid-cols-[minmax(220px,330px)_1px_minmax(260px,340px)] lg:gap-x-8 xl:gap-x-12"
+      >
         <div
-          className="relative flex h-[260px] min-h-[240px] items-center justify-center overflow-hidden"
+          data-donut-pie
+          className="relative flex h-[270px] min-h-[250px] items-center justify-center"
           onMouseLeave={() => setDonutTooltip(null)}
         >
           <ResponsiveContainer width="100%" height="100%">
@@ -719,11 +739,25 @@ export function DynamicChart({
                 stroke={chartInteractionColors.pieStroke}
                 strokeWidth={2}
                 onMouseMove={(item: DistributionPoint, _index: number, event: any) => {
+                  const layout = event?.currentTarget?.closest?.('[data-donut-layout]')
+                  const pieWrap = event?.currentTarget?.closest?.('[data-donut-pie]')
+                  const layoutRect = layout?.getBoundingClientRect?.()
+                  const pieRect = pieWrap?.getBoundingClientRect?.()
+                  const boundsWidth = Number(layoutRect?.width ?? 640)
+                  const boundsHeight = Number(layoutRect?.height ?? 280)
+                  const x = Number(event?.clientX ?? 0) - Number(layoutRect?.left ?? 0)
+                  const y = Number(event?.clientY ?? 0) - Number(layoutRect?.top ?? 0)
                   setDonutTooltip({
                     item,
                     total,
-                    x: Number(event?.offsetX ?? 130),
-                    y: Number(event?.offsetY ?? 130),
+                    x,
+                    y,
+                    boundsWidth,
+                    boundsHeight,
+                    pieCenterX:
+                      Number(pieRect?.left ?? 0) -
+                      Number(layoutRect?.left ?? 0) +
+                      Number(pieRect?.width ?? 260) / 2,
                   })
                 }}
                 onMouseLeave={() => setDonutTooltip(null)}
@@ -734,7 +768,6 @@ export function DynamicChart({
               </Pie>
             </PieChart>
           </ResponsiveContainer>
-          {renderDonutTooltip()}
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
             <span className="text-[11px] uppercase text-muted-foreground">{centerLabel}</span>
             <span className="max-w-40 truncate text-lg font-bold text-foreground">
@@ -742,10 +775,11 @@ export function DynamicChart({
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3 self-center">
-          <div className="hidden h-48 w-px bg-border/70 lg:block" />
+        <div className="hidden h-56 w-px self-center bg-border/70 lg:block" />
+        <div className="flex min-h-[270px] items-center self-center">
           {renderLegendList(items, total)}
         </div>
+        {renderDonutTooltip()}
       </div>
     )
   }
@@ -997,7 +1031,7 @@ export function DynamicChart({
                 : t('dashboard.chartSummary.snapshot')}
             </span>
           </div>
-          {typeof summaryValue === 'number' ? (
+          {showRangeControls && typeof summaryValue === 'number' ? (
             <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
               {formatCurrency(summaryValue)}
             </p>

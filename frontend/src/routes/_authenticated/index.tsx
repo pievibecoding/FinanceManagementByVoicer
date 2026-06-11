@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDashboardMetrics } from '@/hooks/useDashboard'
 import { useCategories } from '@/hooks/useCategories'
 import { useDebts } from '@/hooks/useDebts'
@@ -7,6 +7,7 @@ import { MetricCard } from '@/components/dashboard/MetricCard'
 import { DynamicChart } from '@/components/dashboard/DynamicChart'
 import { BudgetOverview } from '@/components/dashboard/BudgetOverview'
 import { AIChatWidget } from '@/components/dashboard/AIChatWidget'
+import { AppCard } from '@/components/common'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
@@ -15,10 +16,19 @@ export const Route = createFileRoute('/_authenticated/')({
   component: DashboardPage,
 })
 
+function getCurrentMonthKey() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
 function DashboardPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { formatCurrency } = useLocaleFormat()
-  const { data, isLoading, isError } = useDashboardMetrics()
+  const [selectedBudgetMonth, setSelectedBudgetMonth] = useState(getCurrentMonthKey)
+  const { data, isLoading, isError, isBudgetLoading, isBudgetError } = useDashboardMetrics(selectedBudgetMonth)
   const { data: categories = [] } = useCategories()
   const { debts = [] } = useDebts()
   const { savings = [] } = useSavings()
@@ -41,7 +51,7 @@ function DashboardPage() {
         <h1 className="text-2xl font-bold mb-4 text-foreground">{t('dashboard.title')}</h1>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-card border border-border rounded-[var(--radius)] p-6 animate-pulse h-28" />
+            <AppCard key={i} className="h-28 rounded-[var(--radius)] p-6 animate-pulse" />
           ))}
         </div>
         <div className="text-muted-foreground text-sm">{t('dashboard.loading')}</div>
@@ -67,6 +77,18 @@ function DashboardPage() {
   }))
 
   const isNegativeSavings = data.netSavings < 0
+  const handleBudgetCardClick = ({ categoryId, month }: { categoryId: string; month: string }) => {
+    const [year, monthNumber] = month.split('-').map(Number)
+    const lastDay = new Date(year, monthNumber, 0).getDate()
+    navigate({
+      to: '/transactions',
+      search: {
+        categories: categoryId,
+        start: `${month}-01`,
+        end: `${month}-${String(lastDay).padStart(2, '0')}`,
+      },
+    })
+  }
 
   return (
     <div className="h-full overflow-y-auto">
@@ -145,6 +167,11 @@ function DashboardPage() {
             budgets={data.budgets}
             categories={budgetCategories}
             transactions={data.transactions}
+            selectedMonth={selectedBudgetMonth}
+            onSelectedMonthChange={setSelectedBudgetMonth}
+            isLoading={isBudgetLoading}
+            isError={isBudgetError}
+            onBudgetCardClick={handleBudgetCardClick}
           />
         </div>
       </div>

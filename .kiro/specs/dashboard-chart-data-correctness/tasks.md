@@ -4,7 +4,7 @@
 
 - [x] 1. Audit current dashboard chart inputs and stale chart paths
   - Files/areas: `frontend/components/dashboard/DynamicChart.tsx`, `frontend/src/routes/_authenticated/index.tsx`
-  - Verification: identify active chart modes, unused props, unused chart types, and current investment balance semantics before editing.
+  - Verification: identify active chart modes, unused props, unused chart types, and current expense balance semantics before editing.
 
 - [x] 2. Add normalized chart data helpers
   - Files/areas: `frontend/components/dashboard/DynamicChart.tsx`

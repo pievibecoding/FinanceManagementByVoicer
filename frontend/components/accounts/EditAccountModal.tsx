@@ -25,7 +25,7 @@ export function EditAccountModal({ open, onOpenChange, account }: EditAccountMod
     if (account) {
       setFormData({
         account_name: account.account_name,
-        account_type: account.account_type,
+        account_type: account.account_type === 'investment' || account.account_type === 'Investment' ? 'savings' : account.account_type,
         initial_balance: account.initial_balance,
         currency: 'VND', description: '',
       });
@@ -59,7 +59,6 @@ export function EditAccountModal({ open, onOpenChange, account }: EditAccountMod
               <option value="cash">{t('accounts.cash')}</option>
               <option value="bank">{t('accounts.bank')}</option>
               <option value="credit_card">{t('accounts.creditCard')}</option>
-              <option value="investment">{t('accounts.investment')}</option>
               <option value="savings">{t('accounts.savings')}</option>
               <option value="wallet">{t('accounts.wallet')}</option>
             </select>

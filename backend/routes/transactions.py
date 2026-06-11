@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 transactions_bp = Blueprint("transactions", __name__)
 
 ALLOWED_UPDATE_FIELDS = {"transaction_date", "account_id", "category_id", "amount", "type", "note", "payee_id", "location"}
+VALID_TRANSACTION_TYPES = {"income", "expense"}
 
 
 @transactions_bp.route("/api/transactions", methods=["GET"])
@@ -70,6 +71,8 @@ def create_transaction():
 
     if not all([transaction_date, account_id, category_id, amount, tx_type]):
         return jsonify({"error": "Missing required fields"}), 400
+    if tx_type not in VALID_TRANSACTION_TYPES:
+        return jsonify({"error": f"type must be one of {VALID_TRANSACTION_TYPES}"}), 400
 
     # Split validation
     if splits:
@@ -116,6 +119,8 @@ def update_transaction(transaction_id: str):
                 return jsonify({"error": "amount must be a positive integer"}), 400
         except (ValueError, TypeError):
             return jsonify({"error": "amount must be a positive integer"}), 400
+    if "type" in updates and updates["type"] not in VALID_TRANSACTION_TYPES:
+        return jsonify({"error": f"type must be one of {VALID_TRANSACTION_TYPES}"}), 400
 
     db = get_db()
     try:

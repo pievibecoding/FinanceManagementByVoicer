@@ -1,4 +1,5 @@
 export { AppCard } from './AppCard'
+export { CategoryAccentCard } from './CategoryAccentCard'
 export { ChartCard } from './ChartCard'
 export { EmptyState } from './EmptyState'
 export { ErrorState } from './ErrorState'

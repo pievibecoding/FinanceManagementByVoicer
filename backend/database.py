@@ -48,6 +48,7 @@ def initialize_db() -> None:
         # Skip split category seeding due to libsql-client HTTP bug
         # _seed_split_category(db)
         _migrate_category_id_to_integer(db)
+        _add_category_display_columns(db)
         _migrate_account_id_to_integer(db)
         _dedup_categories(db)
         logger.info("DB initialized successfully.")
@@ -156,6 +157,24 @@ def _migrate_schema(db) -> None:
         db.execute("CREATE INDEX IF NOT EXISTS idx_transaction_date ON Transaction_Fact(transaction_date)")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
+
+
+def _add_category_display_columns(db) -> None:
+    """Add user-editable display fields for categories. Idempotent."""
+    try:
+        db.execute("ALTER TABLE Category_Dim ADD COLUMN icon TEXT")
+        logger.info("Migrated Category_Dim: added icon")
+    except Exception:
+        pass
+
+    try:
+        db.execute("ALTER TABLE Category_Dim ADD COLUMN color TEXT")
+        logger.info("Migrated Category_Dim: added color")
+    except Exception:
+        pass
+
+    db.execute("UPDATE Category_Dim SET icon = 'other' WHERE icon IS NULL OR icon = ''")
+    db.execute("UPDATE Category_Dim SET color = '#a8f8f8' WHERE color IS NULL OR color = ''")
 
 
 def _create_budgets_table(db) -> None:
@@ -433,7 +452,7 @@ def _create_recurring_table(db) -> None:
             category_id   INTEGER NOT NULL,
             payee_id      INTEGER,
             amount        INTEGER NOT NULL,
-            type          TEXT    NOT NULL CHECK (type IN ('income', 'expense', 'investment')),
+            type          TEXT    NOT NULL CHECK (type IN ('income', 'expense')),
             note          TEXT,
             frequency     TEXT    NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly')),
             next_run_date TEXT    NOT NULL,
@@ -657,7 +676,6 @@ def _seed_accounts(db) -> None:
     accounts = [
         ("momo",  "Ví MoMo",       "E-Wallet",      5_000_000),
         ("vcb",   "Ngân hàng VCB",  "Bank",         45_000_000),
-        ("vps",   "Tài khoản VPS",  "Investment",  200_000_000),
         ("cash",  "Tiền mặt",       "Cash",          2_000_000),
     ]
     for acc in accounts:
@@ -676,7 +694,6 @@ def _seed_categories(db) -> None:
         ("essential",     "Thiết yếu",            "expense",    5_000_000),
         ("food",          "Ăn uống",             "expense",    4_000_000),
         ("salary",        "Tiền lương",           "income",             0),
-        ("investment",    "Đầu tư chứng khoán",  "investment",         0),
         ("transport",     "Di chuyển",            "expense",    1_500_000),
         ("shopping",      "Mua sắm",              "expense",    3_000_000),
         ("entertainment", "Giải trí",             "expense",    2_000_000),
@@ -698,7 +715,6 @@ def seed_categories_for_user(db, user_id: int) -> None:
         ("Thiết yếu",            "expense",    5_000_000),
         ("Ăn uống",             "expense",    4_000_000),
         ("Tiền lương",           "income",             0),
-        ("Đầu tư chứng khoán",  "investment",         0),
         ("Di chuyển",            "expense",    1_500_000),
         ("Mua sắm",              "expense",    3_000_000),
         ("Giải trí",             "expense",    2_000_000),

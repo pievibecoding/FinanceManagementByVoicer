@@ -2,17 +2,58 @@
 const BASE = '';
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
-  console.log('API request:', path, options);
+  const requestBody = parseJsonBody(options.body);
+  console.debug('[categoriesApi] request', {
+    path,
+    method: options.method,
+    body: requestBody,
+  });
+
   const res = await fetch(BASE + path, options);
-  console.log('API response status:', res.status, res.statusText);
+  const responseText = await res.text();
+  const responseBody = parseJsonText(responseText);
+
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    console.error('API error body:', body);
-    throw new Error(body.error ?? `HTTP ${res.status}`);
+    console.error('[categoriesApi] request failed', {
+      path,
+      method: options.method,
+      status: res.status,
+      statusText: res.statusText,
+      requestBody,
+      responseBody,
+      responseText,
+    });
+
+    const message =
+      responseBody && typeof responseBody.error === 'string'
+        ? responseBody.error
+        : responseBody && typeof responseBody.message === 'string'
+          ? responseBody.message
+          : `HTTP ${res.status}`;
+    throw new Error(message);
   }
-  const data = await res.json();
-  console.log('API response data:', data);
-  return data;
+
+  console.debug('[categoriesApi] response', {
+    path,
+    status: res.status,
+    body: responseBody,
+  });
+
+  return responseBody as T;
+}
+
+function parseJsonBody(body: BodyInit | null | undefined) {
+  if (typeof body !== 'string') return undefined;
+  return parseJsonText(body);
+}
+
+function parseJsonText(text: string) {
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
 }
 
 function getAuthHeaders() {

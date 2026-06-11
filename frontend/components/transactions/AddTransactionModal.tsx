@@ -5,6 +5,7 @@ import { useAccounts } from '@/hooks/useAccounts';
 import { useCategories } from '@/hooks/useCategories';
 import { FormDialog } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import { TRANSACTION_TYPE_OPTIONS } from '@/lib/transaction-types';
 
 interface AddTransactionModalProps {
   open: boolean;
@@ -66,9 +67,9 @@ export function AddTransactionModal({ open, onOpenChange }: AddTransactionModalP
             <select value={formData.type}
               onChange={(e) => setFormData({ ...formData, type: e.target.value })}
               className={INPUT_CLS} required>
-              <option value="expense">{t('types.expense')}</option>
-              <option value="income">{t('types.income')}</option>
-              <option value="investment">{t('types.investment')}</option>
+              {TRANSACTION_TYPE_OPTIONS.map((type) => (
+                <option key={type} value={type}>{t(`types.${type}`)}</option>
+              ))}
             </select>
           </div>
           <div>

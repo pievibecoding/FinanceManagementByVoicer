@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 accounts_bp = Blueprint("accounts", __name__)
 
+VALID_ACCOUNT_TYPES = {"cash", "bank", "credit_card", "savings", "wallet", "Cash", "Bank", "E-Wallet"}
+
 
 @accounts_bp.route("/api/accounts", methods=["GET"])
 @require_auth
@@ -43,6 +45,8 @@ def create_account():
 
     if not account_name:
         return jsonify({"error": "account_name is required"}), 400
+    if account_type not in VALID_ACCOUNT_TYPES:
+        return jsonify({"error": "account_type is invalid"}), 400
 
     db = get_db()
     try:
