@@ -6,6 +6,7 @@ import { useCategories } from '@/hooks/useCategories';
 import type { Transaction } from '@/api/transactions';
 import { FormDialog } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import { TRANSACTION_TYPE_OPTIONS, isTransactionTypeOption } from '@/lib/transaction-types';
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -33,7 +34,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
         account_id: transaction.account_id,
         category_id: String(transaction.category_id),
         amount: transaction.amount,
-        type: transaction.type,
+        type: isTransactionTypeOption(transaction.type) ? transaction.type : 'expense',
         note: transaction.note,
         location: transaction.location || '',
       });
@@ -81,9 +82,9 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
             <select value={formData.type}
               onChange={(e) => setFormData({ ...formData, type: e.target.value })}
               className={INPUT_CLS} required>
-              <option value="expense">{t('types.expense')}</option>
-              <option value="income">{t('types.income')}</option>
-              <option value="investment">{t('types.investment')}</option>
+              {TRANSACTION_TYPE_OPTIONS.map((type) => (
+                <option key={type} value={type}>{t(`types.${type}`)}</option>
+              ))}
             </select>
           </div>
           <div>

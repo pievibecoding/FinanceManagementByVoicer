@@ -1,6 +1,7 @@
 import type { AnalyticsOverview } from '@/api/analytics';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
+import { AppCard } from '@/components/common';
 
 interface AnalyticsOverviewProps {
   data: AnalyticsOverview;
@@ -9,6 +10,7 @@ interface AnalyticsOverviewProps {
 export function AnalyticsOverview({ data }: AnalyticsOverviewProps) {
   const { t } = useTranslation();
   const { formatCurrency } = useLocaleFormat();
+  const totalExpense = data.total_expense + (data.total_investment ?? 0);
 
   const cards = [
     {
@@ -20,17 +22,10 @@ export function AnalyticsOverview({ data }: AnalyticsOverviewProps) {
     },
     {
       label: t('analytics.totalExpense'),
-      value: formatCurrency(data.total_expense),
+      value: formatCurrency(totalExpense),
       color: 'text-destructive',
       bgColor: 'bg-destructive/10',
       borderColor: 'border-destructive/30',
-    },
-    {
-      label: t('analytics.totalInvestment'),
-      value: formatCurrency(data.total_investment),
-      color: 'text-[var(--baby-blue-ice)]',
-      bgColor: 'bg-[var(--baby-blue-ice)]/10',
-      borderColor: 'border-[var(--baby-blue-ice)]/30',
     },
     {
       label: t('analytics.netBalance'),
@@ -42,17 +37,17 @@ export function AnalyticsOverview({ data }: AnalyticsOverviewProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {cards.map((card, index) => (
-        <div key={index} className={`${card.bgColor} ${card.borderColor} border rounded-[var(--radius)] p-4 backdrop-blur-sm`}>
+        <AppCard key={index} className={`${card.bgColor} ${card.borderColor} rounded-[var(--radius)] p-4`}>
           <p className="text-muted-foreground text-sm mb-1">{card.label}</p>
           <p className={`${card.color} text-2xl font-bold`}>{card.value}</p>
-        </div>
+        </AppCard>
       ))}
-      <div className="bg-card border border-border rounded-[var(--radius)] p-4 backdrop-blur-sm md:col-span-2 lg:col-span-4">
+      <AppCard className="rounded-[var(--radius)] p-4 md:col-span-3">
         <p className="text-muted-foreground text-sm mb-1">{t('analytics.totalTransactions')}</p>
         <p className="text-foreground text-2xl font-bold">{data.transaction_count}</p>
-      </div>
+      </AppCard>
     </div>
   );
 }

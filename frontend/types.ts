@@ -24,7 +24,7 @@ export interface Transaction {
   account_id: number;
   category_id: number | 'split';  // 'split' is the sentinel value for multi-category transactions
   amount: number;
-  type: 'income' | 'expense' | 'investment';
+  type: 'income' | 'expense';
   note: string;
   payee_id?: number | null;
   location?: string | null;
@@ -38,7 +38,7 @@ export interface ChatMessage {
   timestamp: number;
   parsedTransaction?: {
     amount: number;
-    type: 'income' | 'expense' | 'investment';
+    type: 'income' | 'expense';
     category: string;
     account: string;
     note: string;
@@ -82,7 +82,7 @@ export interface RecurringTransaction {
   category_id: number;
   payee_id: number | null;
   amount: number;
-  type: 'income' | 'expense' | 'investment';
+  type: 'income' | 'expense';
   note: string;
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
   next_run_date: string;

@@ -5,6 +5,8 @@ import type { Category } from '@/api/categories';
 import { defaultCategoryColor } from '@/styles/tokens';
 import { FormDialog } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import { CategoryIconPicker } from './CategoryIconPicker';
+import { defaultCategoryIcon, normalizeCategoryIcon } from '@/lib/category-icons';
 
 interface EditCategoryModalProps {
   open: boolean;
@@ -24,16 +26,16 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
   const { t } = useTranslation();
   const updateCategory = useUpdateCategory();
   const [formData, setFormData] = useState<CategoryFormData>({
-    category_name: '', category_type: 'expense', icon: '📦', color: defaultCategoryColor,
+    category_name: '', category_type: 'expense', icon: defaultCategoryIcon, color: defaultCategoryColor,
   });
 
   useEffect(() => {
     if (category) {
       setFormData({
         category_name: category.category_name,
-        category_type: category.category_type,
-        icon: category.icon,
-        color: category.color,
+        category_type: category.category_type === 'investment' ? 'expense' : category.category_type,
+        icon: normalizeCategoryIcon(category.icon),
+        color: category.color || defaultCategoryColor,
       });
     }
   }, [category]);
@@ -43,6 +45,13 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
     if (!category) return;
     updateCategory.mutate({ categoryId: category.category_id, category: formData }, {
       onSuccess: () => { onOpenChange(false); },
+      onError: (error) => {
+        console.error('[categories] edit failed', {
+          categoryId: category.category_id,
+          payload: formData,
+          error,
+        });
+      },
     });
   };
 
@@ -64,14 +73,14 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
               className={INPUT_CLS} required>
               <option value="income">{t('types.income')}</option>
               <option value="expense">{t('types.expense')}</option>
-              <option value="investment">{t('types.investment')}</option>
             </select>
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('categories.icon')}</label>
-            <input type="text" value={formData.icon}
-              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-              className={INPUT_CLS} required maxLength={2} />
+            <CategoryIconPicker
+              value={formData.icon}
+              onChange={(icon) => setFormData({ ...formData, icon })}
+            />
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('categories.color')}</label>

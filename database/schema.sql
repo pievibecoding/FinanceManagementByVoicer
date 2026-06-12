@@ -6,9 +6,12 @@ CREATE TABLE IF NOT EXISTS Account_Dim (
 );
 
 CREATE TABLE IF NOT EXISTS Category_Dim (
-    category_id TEXT PRIMARY KEY,
+    category_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL DEFAULT 1,
     category_name TEXT NOT NULL,
     category_type TEXT NOT NULL,
+    icon TEXT,
+    color TEXT,
     budget INTEGER NOT NULL DEFAULT 0
 );
 

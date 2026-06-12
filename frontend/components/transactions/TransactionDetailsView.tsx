@@ -38,6 +38,7 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
   if (!transaction) return null;
 
   const isIncome = transaction.type === 'income';
+  const normalizedType = isIncome ? 'income' : 'expense';
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -69,7 +70,7 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
             </div>
             <div className="p-3 bg-card border border-border rounded-lg">
               <p className="text-muted-foreground text-sm mb-1">{t('transactions.type')}</p>
-              <p className="text-foreground capitalize">{t(`types.${transaction.type}`, transaction.type)}</p>
+              <p className="text-foreground capitalize">{t(`types.${normalizedType}`)}</p>
             </div>
           </div>
 

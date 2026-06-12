@@ -4,6 +4,8 @@ import { useAddCategory } from '@/hooks/useCategories';
 import { defaultCategoryColor } from '@/styles/tokens';
 import { FormDialog } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import { CategoryIconPicker } from './CategoryIconPicker';
+import { defaultCategoryIcon } from '@/lib/category-icons';
 
 interface AddCategoryModalProps {
   open: boolean;
@@ -21,13 +23,19 @@ type CategoryFormData = {
 export function AddCategoryModal({ open, onOpenChange }: AddCategoryModalProps) {
   const { t } = useTranslation();
   const addCategory = useAddCategory();
-  const EMPTY: CategoryFormData = { category_name: '', category_type: 'expense', icon: '📦', color: defaultCategoryColor };
+  const EMPTY: CategoryFormData = { category_name: '', category_type: 'expense', icon: defaultCategoryIcon, color: defaultCategoryColor };
   const [formData, setFormData] = useState(EMPTY);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     addCategory.mutate(formData, {
       onSuccess: () => { onOpenChange(false); setFormData(EMPTY); },
+      onError: (error) => {
+        console.error('[categories] add failed', {
+          payload: formData,
+          error,
+        });
+      },
     });
   };
 
@@ -47,14 +55,14 @@ export function AddCategoryModal({ open, onOpenChange }: AddCategoryModalProps) 
               className={INPUT_CLS} required>
               <option value="income">{t('types.income')}</option>
               <option value="expense">{t('types.expense')}</option>
-              <option value="investment">{t('types.investment')}</option>
             </select>
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('categories.icon')}</label>
-            <input type="text" value={formData.icon}
-              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-              className={INPUT_CLS} required maxLength={2} />
+            <CategoryIconPicker
+              value={formData.icon}
+              onChange={(icon) => setFormData({ ...formData, icon })}
+            />
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('categories.color')}</label>

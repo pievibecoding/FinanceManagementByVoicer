@@ -66,7 +66,7 @@ Historical account balance:
 - Apply transactions from oldest to newest.
 - Income increases the account balance.
 - Expense decreases the account balance.
-- Investment follows the same balance direction currently used by the app's dashboard/account calculations. If the existing app treats investment as money leaving cash accounts, the chart should do the same and document it in code or design comments.
+- Expense follows the same balance direction currently used by the app's dashboard/account calculations.
 
 Total asset trend v1:
 

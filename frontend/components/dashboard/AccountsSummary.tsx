@@ -2,6 +2,7 @@ import type { Account, Transaction } from '@/api/dashboard'
 import { accountBorderColors } from '@/styles/tokens'
 import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
+import { AppCard } from '@/components/common'
 
 interface AccountsSummaryProps {
   accounts: Account[]
@@ -37,7 +38,7 @@ export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps
   const { formatCurrency } = useLocaleFormat()
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm h-full">
+    <AppCard className="h-full rounded-[var(--radius)] p-5">
       <h3 className="text-foreground font-semibold text-sm mb-4">{t('accounts.title')}</h3>
 
       {accounts.length === 0 ? (
@@ -68,6 +69,6 @@ export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps
           })}
         </div>
       )}
-    </div>
+    </AppCard>
   )
 }

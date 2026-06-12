@@ -6,6 +6,7 @@ import { SpendingByCategory } from '@/components/analytics/SpendingByCategory'
 import { IncomeVsExpense } from '@/components/analytics/IncomeVsExpense'
 import { MonthlyTrends } from '@/components/analytics/MonthlyTrends'
 import { useTranslation } from 'react-i18next'
+import { useCategories } from '@/hooks/useCategories'
 
 export const Route = createFileRoute('/_authenticated/analytics/')({
   component: () => {
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/_authenticated/analytics/')({
     const { data: spendingByCategory, isLoading: spendingLoading, isError: spendingError } = useSpendingByCategory(startDate, endDate)
     const { data: incomeVsExpense, isLoading: incomeLoading, isError: incomeError } = useIncomeVsExpense(startDate, endDate)
     const { data: monthlyTrends, isLoading: trendsLoading, isError: trendsError } = useMonthlyTrends(12)
+    const { data: categories = [] } = useCategories()
 
     const isLoading = overviewLoading || spendingLoading || incomeLoading || trendsLoading
     const isError = overviewError || spendingError || incomeError || trendsError
@@ -47,7 +49,7 @@ export const Route = createFileRoute('/_authenticated/analytics/')({
           {overview && <AnalyticsOverview data={overview} />}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {spendingByCategory && <SpendingByCategory data={spendingByCategory} />}
+            {spendingByCategory && <SpendingByCategory data={spendingByCategory} categories={categories} />}
             {incomeVsExpense && <IncomeVsExpense data={incomeVsExpense} />}
           </div>
 

@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
+import { AppCard } from '@/components/common';
 
 interface IncomeVsExpenseProps {
   data: {
     income: number;
     expense: number;
-    investment: number;
+    investment?: number;
   };
 }
 
@@ -13,19 +14,18 @@ export function IncomeVsExpense({ data }: IncomeVsExpenseProps) {
   const { t } = useTranslation();
   const { formatCurrency } = useLocaleFormat();
 
-  const total = data.income + data.expense + data.investment;
+  const expense = data.expense + (data.investment ?? 0);
+  const total = data.income + expense;
   const incomePercentage = total > 0 ? (data.income / total) * 100 : 0;
-  const expensePercentage = total > 0 ? (data.expense / total) * 100 : 0;
-  const investmentPercentage = total > 0 ? (data.investment / total) * 100 : 0;
+  const expensePercentage = total > 0 ? (expense / total) * 100 : 0;
 
   const items = [
     { label: t('types.income'),     value: data.income,     barClass: 'bg-primary',     textClass: 'text-primary',     percentage: incomePercentage },
-    { label: t('types.expense'),    value: data.expense,    barClass: 'bg-destructive',  textClass: 'text-destructive',  percentage: expensePercentage },
-    { label: t('types.investment'), value: data.investment, barClass: 'bg-[var(--baby-blue-ice)]', textClass: 'text-[var(--baby-blue-ice)]', percentage: investmentPercentage },
+    { label: t('types.expense'),    value: expense,          barClass: 'bg-destructive',  textClass: 'text-destructive',  percentage: expensePercentage },
   ];
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius)] p-6">
+    <AppCard className="rounded-[var(--radius)] p-6">
       <h3 className="text-lg font-bold text-foreground mb-4">{t('analytics.incomeVsExpense')}</h3>
       <div className="space-y-4">
         {items.map((item) => (
@@ -52,6 +52,6 @@ export function IncomeVsExpense({ data }: IncomeVsExpenseProps) {
           <span className="text-foreground font-bold">{formatCurrency(total)}</span>
         </div>
       </div>
-    </div>
+    </AppCard>
   );
 }

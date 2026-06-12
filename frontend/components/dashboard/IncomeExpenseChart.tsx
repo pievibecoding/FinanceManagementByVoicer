@@ -12,6 +12,7 @@ import type { Transaction } from '@/api/dashboard'
 import { chartColors, chartInteractionColors } from '@/styles/tokens'
 import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
+import { ChartCard } from '@/components/common'
 
 interface IncomeExpenseChartProps {
   transactions: Transaction[]
@@ -122,7 +123,7 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
   )
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm h-full">
+    <ChartCard className="p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-foreground font-semibold text-sm">{t('dashboard.charts.incomeExpense')}</h3>
@@ -179,6 +180,6 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
           <Bar dataKey="expense" fill={EXPENSE_COLOR} radius={[4, 4, 0, 0]} name="expense" />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </ChartCard>
   )
 }

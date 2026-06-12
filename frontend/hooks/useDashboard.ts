@@ -10,15 +10,15 @@ function normalizeId(value: string | number | null | undefined) {
 
 // useDashboardMetrics uses the SAME useTransactions hook as the transactions page.
 // This ensures both share the same TanStack Query cache entry ['transactions'].
-export function useDashboardMetrics() {
+export function useDashboardMetrics(budgetMonth?: string) {
   const accountsQuery = useAccounts();
   const transactionsQuery = useTransactions();
-  const budgetsQuery = useBudgets();
+  const budgetsQuery = useBudgets(budgetMonth);
   const { totalDebt } = useDebts();
   const { totalSaved } = useSavings();
 
-  const isLoading = accountsQuery.isLoading || transactionsQuery.isLoading || budgetsQuery.isLoading;
-  const isError = accountsQuery.isError || transactionsQuery.isError || budgetsQuery.isError;
+  const isLoading = accountsQuery.isLoading || transactionsQuery.isLoading;
+  const isError = accountsQuery.isError || transactionsQuery.isError;
 
   const accounts = accountsQuery.data ?? [];
   const transactions = transactionsQuery.data ?? [];
@@ -30,7 +30,7 @@ export function useDashboardMetrics() {
     transactions.forEach(tx => {
       if (normalizeId(tx.account_id) !== accountId) return;
       if (tx.type === 'income') balance += tx.amount;
-      else balance -= tx.amount; // expense + investment
+      else balance -= tx.amount;
     });
     return sum + balance;
   }, 0);
@@ -106,5 +106,7 @@ export function useDashboardMetrics() {
     },
     isLoading,
     isError,
+    isBudgetLoading: budgetsQuery.isLoading,
+    isBudgetError: budgetsQuery.isError,
   };
 }

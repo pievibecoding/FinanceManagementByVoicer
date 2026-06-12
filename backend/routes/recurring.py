@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 recurring_bp = Blueprint("recurring", __name__)
 
 VALID_FREQUENCIES = {"daily", "weekly", "monthly", "yearly"}
-VALID_TYPES = {"income", "expense", "investment"}
+VALID_TYPES = {"income", "expense"}
 
 
 # ── Date advancement helper ───────────────────────────────────────────────────

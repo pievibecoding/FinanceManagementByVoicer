@@ -111,13 +111,15 @@ const SUGGESTION_KEYS = [
 const TYPE_LABEL: Record<string, string> = {
   income: 'types.income',
   expense: 'types.expense',
-  investment: 'types.investment',
 }
 
 const TYPE_COLOR: Record<string, string> = {
   income: 'text-primary',
   expense: 'text-destructive',
-  investment: 'text-[var(--baby-blue-ice)]',
+}
+
+function normalizeTransactionType(type: string | undefined) {
+  return type === 'income' ? 'income' : 'expense'
 }
 
 // Popup to manually pick which savings goal to contribute to
@@ -484,8 +486,8 @@ export function AIChatWidget() {
       return (
         <div className="text-muted-foreground space-y-0.5 text-xs">
           <div className="flex items-center justify-between">
-            <span className={`font-bold text-base tabular-nums ${TYPE_COLOR[p.type ?? '']}`}>{formatCurrency(p.amount)}</span>
-            <span className={`text-[10px] font-medium ${TYPE_COLOR[p.type ?? '']}`}>{p.type ? t(TYPE_LABEL[p.type] ?? p.type) : ''}</span>
+            <span className={`font-bold text-base tabular-nums ${TYPE_COLOR[normalizeTransactionType(p.type)]}`}>{formatCurrency(p.amount)}</span>
+            <span className={`text-[10px] font-medium ${TYPE_COLOR[normalizeTransactionType(p.type)]}`}>{p.type ? t(TYPE_LABEL[normalizeTransactionType(p.type)]) : ''}</span>
           </div>
           <p>🏷 {p.category} &nbsp;·&nbsp; 💳 {p.account}</p>
           {p.note && <p>📝 {p.note}</p>}

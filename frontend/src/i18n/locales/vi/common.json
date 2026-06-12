@@ -41,8 +41,11 @@
     "nearestGoal": "Mục tiêu gần nhất",
     "viewAllTransactions": "Xem tất cả giao dịch",
     "viewAnalytics": "Xem phân tích",
+    "budgetTitle": "Ngân sách",
     "currentMonthBudget": "Ngân sách tháng này",
     "noBudgetSetup": "Chưa có ngân sách nào được thiết lập.",
+    "noBudgetForMonth": "Không có ngân sách nào cho {{month}}.",
+    "budgetLoadError": "Không thể tải dữ liệu ngân sách cho tháng đã chọn.",
     "noExpenseDataThisMonth": "Chưa có dữ liệu chi tiêu tháng này",
     "noActiveDebtsLoans": "Không có khoản nợ/vay đang hoạt động",
     "noIncomeInPeriod": "Chưa có thu nhập trong kỳ này",
@@ -122,7 +125,6 @@
   "types": {
     "income": "Thu nhập",
     "expense": "Chi tiêu",
-    "investment": "Đầu tư",
     "debt": "Nợ",
     "loan": "Cho vay"
   },
@@ -136,6 +138,7 @@
     "startDate": "Ngày bắt đầu",
     "endDate": "Ngày kết thúc",
     "type": "Loại",
+    "filters": "Bộ lọc",
     "allTypes": "Tất cả loại",
     "clearFilters": "Xóa bộ lọc",
     "date": "Ngày",
@@ -143,6 +146,8 @@
     "note": "Ghi chú",
     "location": "Địa điểm",
     "amount": "Số tiền",
+    "amountRange": "Khoảng tiền",
+    "resetAmount": "Đặt lại khoảng tiền",
     "actions": "Thao tác",
     "details": "Chi tiết giao dịch",
     "fallbackName": "Giao dịch",
@@ -194,7 +199,6 @@
     "cash": "Tiền mặt",
     "bank": "Ngân hàng",
     "creditCard": "Thẻ tín dụng",
-    "investment": "Đầu tư",
     "savings": "Tiết kiệm",
     "wallet": "Ví điện tử",
     "deleteTitle": "Xóa tài khoản",
@@ -213,6 +217,24 @@
     "deleteTitle": "Xóa danh mục",
     "deleteDescription": "Bạn có chắc muốn xóa danh mục này? Hành động này không thể hoàn tác.",
     "fallbackWithId": "Danh mục {{id}}"
+  },
+  "categoryIcons": {
+    "essential": "Thiết yếu",
+    "food": "Ăn uống",
+    "coffee": "Cà phê",
+    "shopping": "Mua sắm",
+    "home": "Nhà cửa",
+    "transport": "Di chuyển",
+    "utilities": "Tiện ích",
+    "entertainment": "Giải trí",
+    "health": "Sức khỏe",
+    "education": "Học tập",
+    "work": "Công việc",
+    "salary": "Lương",
+    "investment": "Đầu tư",
+    "gift": "Quà tặng",
+    "travel": "Du lịch",
+    "other": "Khác"
   },
   "budgets": {
     "title": "Ngân sách",
@@ -236,15 +258,13 @@
     "error": "Lỗi tải dữ liệu phân tích",
     "totalIncome": "Tổng thu nhập",
     "totalExpense": "Tổng chi tiêu",
-    "totalInvestment": "Tổng đầu tư",
     "netBalance": "Số dư ròng",
     "totalTransactions": "Tổng giao dịch",
-    "incomeVsExpense": "Thu nhập vs chi tiêu vs đầu tư",
+    "incomeVsExpense": "Thu nhập vs chi tiêu",
     "total": "Tổng",
     "monthlyTrends": "Xu hướng theo tháng",
     "spendingByCategory": "Chi tiêu theo danh mục",
     "noData": "Chưa có dữ liệu",
-    "investShort": "Đầu tư",
     "net": "Ròng",
     "transactionCount_one": "{{count}} giao dịch",
     "transactionCount_other": "{{count}} giao dịch"
@@ -449,7 +469,7 @@
     "topics": {
       "transactions": {
         "title": "Thêm giao dịch",
-        "description": "Ghi nhận thu nhập, chi tiêu và đầu tư cùng tài khoản và danh mục.",
+        "description": "Ghi nhận thu nhập và chi tiêu cùng tài khoản và danh mục.",
         "steps": [
           "Mở Giao dịch và chọn Thêm giao dịch.",
           "Chọn tài khoản, loại, danh mục, số tiền và ngày.",
@@ -485,7 +505,7 @@
       },
       "categories": {
         "title": "Danh mục",
-        "description": "Tổ chức giao dịch theo nhóm thu nhập, chi tiêu và đầu tư.",
+        "description": "Tổ chức giao dịch theo nhóm thu nhập và chi tiêu.",
         "steps": [
           "Mở Danh mục để xem các nhóm hiện có.",
           "Dùng tên và màu rõ ràng để dễ quét.",

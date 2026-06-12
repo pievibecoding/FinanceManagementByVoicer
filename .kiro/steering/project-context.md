@@ -52,7 +52,7 @@ frontend/index.html → /src/main.tsx
   /analytics      → src/routes/_authenticated/analytics/index.tsx  ⚠️ broken (calls non-existent endpoints)
   /debts          → src/routes/_authenticated/debts/index.tsx
   /savings        → src/routes/_authenticated/savings/index.tsx
-  /settings       → src/routes/_authenticated/settings/index.tsx (stub)
+  /settings       → src/routes/_authenticated/settings/index.tsx (core profile/account/billing UI)
 ```
 
 ### Auth flow
@@ -103,7 +103,7 @@ frontend/
 │           ├── budgets/index.tsx
 │           ├── analytics/index.tsx     ← ⚠️ calls /api/analytics/* that don't exist in Flask
 │           └── settings/
-│               ├── index.tsx     ← stub
+│               ├── index.tsx     ← profile summary, language/theme controls, billing placeholder
 │               └── notifications.tsx
 │
 ├── api/                          ← fetch wrappers, all use relative paths (through Express proxy)
@@ -111,17 +111,17 @@ frontend/
 │   ├── dashboard.ts              ← Account/Budget types + getAccounts, getBudgets
 │   │                               NOTE: getTransactions was REMOVED — use transactionsApi instead
 │   ├── transactions.ts           ← getTransactions, addTransaction, updateTransaction, deleteTransaction
-│   ├── accounts.ts               ← getAccounts, addAccount, updateAccount, deleteAccount
-│   ├── categories.ts             ← getCategories (PUT budget via budgets endpoint)
+│   ├── accounts.ts               ← getAccounts, addAccount; update/delete wrappers exist but Flask routes do NOT
+│   ├── categories.ts             ← getCategories, addCategory, updateCategory, deleteCategory
 │   ├── budgets.ts                ← getBudgets, upsertBudget, deleteBudget
 │   └── analytics.ts             ← ⚠️ calls /api/analytics/* (non-existent endpoints)
 │
 ├── hooks/                        ← TanStack Query hooks
-│   ├── useDashboard.ts           ← useDashboardMetrics (uses useAccounts + useTransactions + useBudgets)
+│   ├── useDashboard.ts           ← useDashboardMetrics (uses useAccounts + useTransactions + useBudgets + useDebts + useSavings)
 │   ├── useTransactions.ts        ← useTransactions (key: ['transactions']), useAddTransaction,
 │   │                               useUpdateTransaction, useDeleteTransaction
 │   │                               All mutations use refetchType: 'all' for immediate UI update
-│   ├── useAccounts.ts            ← useAccounts, useAddAccount, useUpdateAccount, useDeleteAccount
+│   ├── useAccounts.ts            ← useAccounts, useAddAccount; update/delete hooks call non-existent Flask routes
 │   ├── useCategories.ts          ← useCategories, useAddCategory, useUpdateCategory, useDeleteCategory
 │   ├── useBudgets.ts             ← useBudgets, useUpsertBudget, useDeleteBudget
 │   ├── useDebts.ts               ← useDebts, useCreateDebt, useUpdateDebt, useDeleteDebt,
@@ -146,7 +146,10 @@ frontend/
 │   ├── dashboard/
 │   │   ├── MetricCard.tsx
 │   │   ├── IncomeExpenseChart.tsx  ← bar chart, 6 time range options (7d/30d/3m/6m/12m/ytd)
-│   │   ├── DynamicChart.tsx        ← multi-mode chart (asset fluctuation, pie, bar) driven by MetricCard selection
+│   │   ├── DynamicChart.tsx        ← MetricCard-driven chart surface:
+│   │   │                              net worth area, income bar, income/expense bar,
+│   │   │                              expense/account/savings donuts, split debt/loan donuts;
+│   │   │                              time-series charts support range, bucket, custom dates, Brush
 │   │   ├── AccountsSummary.tsx     ← shows real current_balance computed from transactions
 │   │   ├── BudgetOverview.tsx      ← grid progress bars, current month only
 │   │   └── AIChatWidget.tsx        ← floating button, continuous mic, confirm/reject parsed tx
@@ -191,11 +194,13 @@ frontend/
 6. **Transaction filtering is client-side** — `useTransactions()` always fetches all transactions. Page components filter with `useMemo`.
 7. **`transaction_date` format** — Flask requires `'YYYY-MM-DD HH:MM:SS'`. HTML `<input type="date">` returns `YYYY-MM-DD` — always append time before sending to Flask.
 8. **Edit modal state** — `TransactionDetailsView` and `EditTransactionModal` must NOT be open simultaneously. Close details first (`setDetailsOpen(false)`), then open edit.
-9. **Soft delete** — DELETE sets `is_deleted=1`, never physically removes rows. All GETs filter `WHERE is_deleted = 0`.
+9. **Transaction soft delete** — transaction DELETE sets parent `Transaction_Fact.is_deleted=1` and all transaction GETs filter `WHERE is_deleted = 0`. Split rows for that transaction are physically deleted before the parent is soft-deleted.
 10. **Express 5 wildcard** — use `/api/*path` (named wildcard), not `/api/*`.
 11. **DELETE proxy** — no `Content-Type` header and no body sent for DELETE requests.
-12. **Analytics page** — currently calls `/api/analytics/overview` etc. which **do not exist** in Flask. The only analytics endpoint is `POST /api/sql-query`.
-13. **Color system** — two layers:
+12. **Unbacked frontend CRUD wrappers** — `api/accounts.ts` exposes account PUT/DELETE but Flask only has GET/POST. Confirm backend support before wiring account edit/delete into UI.
+13. **Analytics page** — currently calls `/api/analytics/overview` etc. which **do not exist** in Flask. The only analytics endpoint is `POST /api/sql-query`.
+14. **Dashboard chart behavior** — `DynamicChart.tsx` owns chart aggregation and interaction state. Pass raw transactions/accounts/categories/savings/debts unless the component contract changes; keep chart labels/i18n keys in both locale files.
+15. **Color system** — two layers:
     - CSS tokens in `styles/theme.css` (`:root {}`) — used via Tailwind utilities (`text-primary`, `bg-destructive`, `border-border`, etc.)
     - JS tokens in `styles/tokens.ts` — hex values used directly in Recharts (`fill`, `stroke`, `dot`) and inline styles. **When changing the color scheme, update BOTH files.**
     - Tailwind arbitrary dynamic values like `` `border-[${hex}]` `` do NOT work at runtime — use `style={{ borderColor: hex }}` instead.
@@ -219,9 +224,9 @@ All endpoints under `/api/`. JSON in, JSON out. All routes **except `/api/auth/*
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/transactions` | user-scoped, `is_deleted=0`, sorted DESC |
-| POST | `/api/transactions` | `{transaction_date, account_id, category_id, amount, type, note?, payee_id?, splits?[]}` |
-| PUT | `/api/transactions/<id>` | partial update, allowed fields: `transaction_date, account_id, category_id, amount, type, note, payee_id` |
-| DELETE | `/api/transactions/<id>` | soft delete (`is_deleted=1`) |
+| POST | `/api/transactions` | `{transaction_date, account_id, category_id, amount, type, note?, payee_id?, location?, splits?[]}` |
+| PUT | `/api/transactions/<id>` | partial update, allowed fields: `transaction_date, account_id, category_id, amount, type, note, payee_id, location` |
+| DELETE | `/api/transactions/<id>` | physically deletes split rows, then soft deletes parent (`is_deleted=1`) |
 
 ### Accounts
 | Method | Path | Notes |
@@ -235,9 +240,11 @@ All endpoints under `/api/`. JSON in, JSON out. All routes **except `/api/auth/*
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/categories` | with budget merged from current month |
-| PUT | `/api/categories/<id>` | budget update only |
+| POST | `/api/categories` | `{category_name, category_type, icon, color}` |
+| PUT | `/api/categories/<id>` | metadata update and/or `{budget}` compatibility update |
+| DELETE | `/api/categories/<id>` | deletes only when not referenced by active transactions or budgets |
 
-**⚠️ No POST/DELETE for categories** — seeded per user at registration.
+Categories are seeded per user at registration, but users can add/edit/delete unused categories.
 
 ### Budgets
 | Method | Path | Notes |
@@ -271,13 +278,13 @@ All endpoints under `/api/`. JSON in, JSON out. All routes **except `/api/auth/*
 
 ## 6. Database Schema (key facts)
 
-- All amounts: **positive integers in VND**. Direction encoded in `type` ('income'|'expense'|'investment').
+- All amounts: **positive integers in VND**. Direction encoded in `type` ('income'|'expense'). Investment-related entries are treated as expenses.
 - `transaction_date` format: `'YYYY-MM-DD HH:MM:SS'`
 - `transaction_id` format: `'tx-{timestamp_ms}'`
 - `category_id = 'split'` is sentinel for multi-category transactions
 - `is_deleted=1` = soft deleted, never returned by GET
 - `Account_Dim.initial_balance` only — `current_balance` computed client-side in `AccountsSummary.tsx`
-- Per-user default categories seeded at registration: Ăn uống, Tiền lương, Đầu tư chứng khoán, Di chuyển, Mua sắm, Giải trí, Học tập, Sức khỏe, Khác
+- Per-user default categories seeded at registration: Thiết yếu, Ăn uống, Tiền lương, Di chuyển, Mua sắm, Giải trí, Học tập, Sức khỏe, Khác
 - System user `user_id=1` owns old seed data — new users cannot see it
 
 ---
@@ -310,9 +317,9 @@ FLASK_BACKEND_URL=http://localhost:5000   (server-side only, used by server.ts)
 | Voice/AI chat integration | ✅ `AIChatWidget.tsx` on dashboard (floating button) |
 | Debts management | ✅ `/debts` route — full CRUD + payment history |
 | Savings goals | ✅ `/savings` route — full CRUD + contribution history |
-| Payees management | ❌ No route, no hook, no dedicated page |
-| Recurring transactions | ❌ No route, no hook, no dedicated page |
-| Settings page | ❌ Stub only |
+| Payees management | ⚠️ Backend route exists; no frontend hook or dedicated page |
+| Recurring transactions | ⚠️ Backend route exists; no frontend hook or dedicated page |
+| Settings page | ✅ Core profile/account/billing UI exists |
 | SQL analytics console | ❌ Not in new app |
 
 ---

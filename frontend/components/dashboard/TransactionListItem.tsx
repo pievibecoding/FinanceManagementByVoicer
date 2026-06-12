@@ -1,6 +1,7 @@
 import { Transaction } from '@/api/dashboard';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
+import { AppCard } from '@/components/common';
 
 interface TransactionListItemProps {
   transaction: Transaction;
@@ -22,8 +23,9 @@ export function TransactionListItem({ transaction, onClick }: TransactionListIte
   const isIncome = transaction.type === 'income';
 
   return (
-    <div
-      className="flex items-center justify-between p-4 bg-card border border-border rounded-[var(--radius)] backdrop-blur-sm hover:bg-muted/40 transition-all cursor-pointer"
+    <AppCard
+      interactive
+      className="flex items-center justify-between rounded-[var(--radius)] p-4"
       onClick={onClick}
     >
       <div className="flex items-center gap-3">
@@ -36,6 +38,6 @@ export function TransactionListItem({ transaction, onClick }: TransactionListIte
       <span className={`font-bold tabular-nums ${isIncome ? 'text-primary' : 'text-destructive'}`}>
         {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
       </span>
-    </div>
+    </AppCard>
   );
 }
