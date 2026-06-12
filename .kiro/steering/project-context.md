@@ -204,6 +204,7 @@ frontend/
     - CSS tokens in `styles/theme.css` (`:root {}`) — used via Tailwind utilities (`text-primary`, `bg-destructive`, `border-border`, etc.)
     - JS tokens in `styles/tokens.ts` — hex values used directly in Recharts (`fill`, `stroke`, `dot`) and inline styles. **When changing the color scheme, update BOTH files.**
     - Tailwind arbitrary dynamic values like `` `border-[${hex}]` `` do NOT work at runtime — use `style={{ borderColor: hex }}` instead.
+16. **Render health checks** — `/ping`, `/api/ping`, `/health`, and `/api/health` are public and intentionally avoid auth/DB access so Render/UptimeRobot can wake the free service without waiting for Turso or migrations.
 
 ---
 
