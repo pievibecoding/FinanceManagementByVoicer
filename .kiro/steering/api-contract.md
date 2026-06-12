@@ -13,6 +13,8 @@ Read this before changing frontend API wrappers, hooks, Flask routes, or Express
 
 ### Auth
 
+- `GET|HEAD /ping` and `/api/ping` are public lightweight health checks. They must not touch Turso or require auth.
+- `GET|HEAD /health` and `/api/health` are public lightweight health checks returning JSON status. They must not touch Turso or require auth.
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/google`
