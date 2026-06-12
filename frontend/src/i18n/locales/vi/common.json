@@ -97,6 +97,7 @@
       "snapshot": "Hiện trạng",
       "timeSeries": "Theo thời gian",
       "total": "Tổng",
+      "items": "Số mục",
       "value": "Giá trị",
       "assetSnapshotNote": "Số dư tài khoản được tính theo lịch sử; tiết kiệm và nợ là phần điều chỉnh theo hiện trạng hiện tại.",
       "debtOwed": "Nợ phải trả",

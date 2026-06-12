@@ -40,16 +40,16 @@ function SettingsPage() {
         />
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <AppCard>
-            <CardHeader>
+          <AppCard className="py-2">
+            <CardHeader className="px-6 pb-4 pt-6">
               <CardTitle className="flex items-center gap-2">
                 <User className="size-4 text-primary" />
                 {t('settingsCore.profile.title')}
               </CardTitle>
               <CardDescription>{t('settingsCore.profile.description')}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="flex flex-col gap-4 rounded-lg border border-border bg-muted/20 p-4 sm:flex-row sm:items-center">
+            <CardContent className="space-y-5 px-6 pb-6">
+              <div className="flex flex-col gap-4 rounded-lg border border-border bg-muted/20 px-5 py-5 sm:flex-row sm:items-center">
                 <Avatar className="size-16 rounded-xl">
                   <AvatarFallback className="rounded-xl bg-primary text-lg font-bold text-primary-foreground">
                     {initials}
@@ -70,21 +70,21 @@ function SettingsPage() {
                 <InfoTile label={t('settingsCore.profile.plan')} value={t('app.plan')} />
               </div>
 
-              <div className="rounded-lg border border-border bg-muted/10 p-4 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-border bg-muted/10 px-5 py-4 text-sm text-muted-foreground">
                 {t('settingsCore.profile.readOnlyNotice')}
               </div>
             </CardContent>
           </AppCard>
 
-          <AppCard>
-            <CardHeader>
+          <AppCard className="py-2">
+            <CardHeader className="px-6 pb-4 pt-6">
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheck className="size-4 text-primary" />
                 {t('settingsCore.account.title')}
               </CardTitle>
               <CardDescription>{t('settingsCore.account.description')}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 px-6 pb-6">
               <SettingAction
                 icon={<Languages className="size-4" />}
                 title={t('settingsCore.account.language')}
@@ -111,15 +111,15 @@ function SettingsPage() {
           </AppCard>
         </div>
 
-        <AppCard id="billing">
-          <CardHeader>
+        <AppCard id="billing" className="py-2">
+          <CardHeader className="px-6 pb-4 pt-6">
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="size-4 text-primary" />
               {t('settingsCore.billing.title')}
             </CardTitle>
             <CardDescription>{t('settingsCore.billing.description')}</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <CardContent className="grid gap-5 px-6 pb-6 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge>{t('app.plan')}</Badge>
@@ -132,7 +132,7 @@ function SettingsPage() {
                 <span>{t('settingsCore.billing.features.ai')}</span>
               </div>
             </div>
-            <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <div className="rounded-lg border border-border bg-muted/20 px-5 py-5">
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Sparkles className="size-4 text-primary" />
                 {t('settingsCore.billing.upgradeTitle')}
@@ -151,7 +151,7 @@ function SettingsPage() {
 
 function InfoTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-3">
+    <div className="rounded-lg border border-border bg-muted/20 px-4 py-4">
       <p className="mb-1 text-xs text-muted-foreground">{label}</p>
       <p className="truncate text-sm font-medium text-foreground">{value}</p>
     </div>
@@ -170,7 +170,7 @@ function SettingAction({
   action: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/10 p-3">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/10 px-4 py-4">
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
           {icon}

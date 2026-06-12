@@ -50,6 +50,7 @@ def initialize_db() -> None:
         _migrate_category_id_to_integer(db)
         _add_category_display_columns(db)
         _migrate_account_id_to_integer(db)
+        _add_account_display_columns(db)
         _dedup_categories(db)
         logger.info("DB initialized successfully.")
     except Exception as e:
@@ -175,6 +176,17 @@ def _add_category_display_columns(db) -> None:
 
     db.execute("UPDATE Category_Dim SET icon = 'other' WHERE icon IS NULL OR icon = ''")
     db.execute("UPDATE Category_Dim SET color = '#a8f8f8' WHERE color IS NULL OR color = ''")
+
+
+def _add_account_display_columns(db) -> None:
+    """Add user-editable display fields for accounts. Idempotent."""
+    try:
+        db.execute("ALTER TABLE Account_Dim ADD COLUMN color TEXT")
+        logger.info("Migrated Account_Dim: added color")
+    except Exception:
+        pass
+
+    db.execute("UPDATE Account_Dim SET color = '#a0c4ff' WHERE color IS NULL OR color = ''")
 
 
 def _create_budgets_table(db) -> None:

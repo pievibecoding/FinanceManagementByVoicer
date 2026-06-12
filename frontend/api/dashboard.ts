@@ -29,6 +29,7 @@ export interface Account {
   account_name: string;
   account_type: string;
   initial_balance: number;
+  color?: string | null;
 }
 
 export interface Transaction {

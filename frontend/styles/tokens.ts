@@ -14,33 +14,33 @@
 
 // ── Brand palette ──────────────────────────────────────────────────────────────
 export const palette = {
-  royalViolet:    '#7400b8',
-  purpleX11:      '#934add',
-  softPeriwinkle: '#9876e4',
-  wisteriaBlue:   '#9ea1eb',
-  icyBlue:        '#a3cdf1',
-  frostedBlue:    '#a6eaf6',
-  icyAqua:        '#a8f8f8',
-  icyAqua2:       '#c7ffff',
-  inkBlack:       '#050012',
-  primary:        '#a8f8f8',
-  accent:         '#934add',
-  destructive:    '#ff0a12',
-  success:        '#22d33d',
-  warning:        '#fcf300',
-  indigo:         '#7400b8',
-  indigoDark:     '#934add',
+  royalViolet:    '#40916c',
+  purpleX11:      '#2ec4b6',
+  softPeriwinkle: '#d6d6e6',
+  wisteriaBlue:   '#ffc4d4',
+  icyBlue:        '#e9ecef',
+  frostedBlue:    '#faf9f6',
+  icyAqua:        '#2ec4b6',
+  icyAqua2:       '#d8f3dc',
+  inkBlack:       '#12131a',
+  primary:        '#40916c',
+  accent:         '#2ec4b6',
+  destructive:    '#d65f5f',
+  success:        '#40916c',
+  warning:        '#d99a42',
+  indigo:         '#40916c',
+  indigoDark:     '#52b788',
 } as const
 
 export const pastelChartColors = {
-  powderBlush:    '#ffadad',
-  apricotCream:   '#ffd6a5',
-  cream:          '#fdffb6',
-  teaGreen:       '#caffbf',
-  electricAqua:   '#9bf6ff',
-  babyBlueIce:    '#a0c4ff',
-  periwinkle:     '#bdb2ff',
-  mauve:          '#ffc6ff',
+  powderBlush:    '#ffafcc',
+  apricotCream:   '#ffc4d4',
+  cream:          '#ffd166',
+  teaGreen:       '#95d5b2',
+  electricAqua:   '#40916c',
+  babyBlueIce:    '#8ecae6',
+  periwinkle:     '#b8b8dc',
+  mauve:          '#cdb4db',
 } as const
 
 // ── Semantic aliases ───────────────────────────────────────────────────────────
@@ -57,9 +57,9 @@ export const chartColors = {
 } as const
 
 export const chartInteractionColors = {
-  cursor: 'rgba(147, 74, 221, 0.22)',
-  brushFill: 'rgba(147, 74, 221, 0.12)',
-  pieStroke: 'rgba(3, 7, 30, 0.72)',
+  cursor: 'rgba(64, 145, 108, 0.16)',
+  brushFill: 'rgba(46, 196, 182, 0.12)',
+  pieStroke: 'rgba(18, 19, 26, 0.72)',
 } as const
 
 export const budgetMeterColors = {
@@ -109,3 +109,6 @@ export const accountChartColors: Record<string, string> = {
 
 /** Default color cho form tạo category mới */
 export const defaultCategoryColor = palette.primary
+
+/** Default color cho form tạo account mới */
+export const defaultAccountColor = pastelChartColors.teaGreen

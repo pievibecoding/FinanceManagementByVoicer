@@ -111,7 +111,7 @@ frontend/
 │   ├── dashboard.ts              ← Account/Budget types + getAccounts, getBudgets
 │   │                               NOTE: getTransactions was REMOVED — use transactionsApi instead
 │   ├── transactions.ts           ← getTransactions, addTransaction, updateTransaction, deleteTransaction
-│   ├── accounts.ts               ← getAccounts, addAccount; update/delete wrappers exist but Flask routes do NOT
+│   ├── accounts.ts               ← getAccounts, addAccount, updateAccount; delete wrapper is not backed
 │   ├── categories.ts             ← getCategories, addCategory, updateCategory, deleteCategory
 │   ├── budgets.ts                ← getBudgets, upsertBudget, deleteBudget
 │   └── analytics.ts             ← ⚠️ calls /api/analytics/* (non-existent endpoints)
@@ -197,7 +197,7 @@ frontend/
 9. **Transaction soft delete** — transaction DELETE sets parent `Transaction_Fact.is_deleted=1` and all transaction GETs filter `WHERE is_deleted = 0`. Split rows for that transaction are physically deleted before the parent is soft-deleted.
 10. **Express 5 wildcard** — use `/api/*path` (named wildcard), not `/api/*`.
 11. **DELETE proxy** — no `Content-Type` header and no body sent for DELETE requests.
-12. **Unbacked frontend CRUD wrappers** — `api/accounts.ts` exposes account PUT/DELETE but Flask only has GET/POST. Confirm backend support before wiring account edit/delete into UI.
+12. **Unbacked account delete wrapper** — `api/accounts.ts` exposes account DELETE but Flask does not support it. Do not wire account delete deeper until backend support exists.
 13. **Analytics page** — currently calls `/api/analytics/overview` etc. which **do not exist** in Flask. The only analytics endpoint is `POST /api/sql-query`.
 14. **Dashboard chart behavior** — `DynamicChart.tsx` owns chart aggregation and interaction state. Pass raw transactions/accounts/categories/savings/debts unless the component contract changes; keep chart labels/i18n keys in both locale files.
 15. **Color system** — two layers:
@@ -232,9 +232,10 @@ All endpoints under `/api/`. JSON in, JSON out. All routes **except `/api/auth/*
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/accounts` | user-scoped |
-| POST | `/api/accounts` | `{account_name, account_type, initial_balance}` |
+| POST | `/api/accounts` | `{account_name, account_type, initial_balance, color?}` |
+| PUT | `/api/accounts/<id>` | partial metadata update: `account_name, account_type, initial_balance, color` |
 
-**⚠️ No PUT/DELETE for accounts.**
+**⚠️ No DELETE for accounts.**
 
 ### Categories
 | Method | Path | Notes |

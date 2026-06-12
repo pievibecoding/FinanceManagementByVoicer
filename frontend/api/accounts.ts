@@ -41,6 +41,7 @@ export const accountsApi = {
     initial_balance: number;
     currency: string;
     description?: string;
+    color?: string;
   }): Promise<{ message: string; account_id: number }> {
     return request('/api/accounts', {
       method: 'POST',
@@ -55,6 +56,7 @@ export const accountsApi = {
     initial_balance?: number;
     currency?: string;
     description?: string;
+    color?: string;
   }): Promise<{ message: string }> {
     return request(`/api/accounts/${accountId}`, {
       method: 'PUT',

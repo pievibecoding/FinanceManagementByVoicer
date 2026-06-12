@@ -37,10 +37,12 @@ Rules:
 
 - `GET /api/accounts`
 - `POST /api/accounts`
+- `PUT /api/accounts/<id>`
 
 Rules:
-- Do not add frontend calls for account PUT/DELETE unless backend routes are implemented first.
-- Existing `frontend/api/accounts.ts` and `frontend/hooks/useAccounts.ts` currently expose update/delete helpers, but they call non-existent Flask routes. Treat them as unusable until backend support exists.
+- Account create/update supports `account_name`, `account_type`, `initial_balance`, and `color`.
+- Do not add frontend calls for account DELETE unless a backend route is implemented first.
+- Existing `frontend/api/accounts.ts` and `frontend/hooks/useAccounts.ts` currently expose delete helpers, but they call a non-existent Flask route. Treat account delete as unusable until backend support exists.
 - Current balance is computed client-side from `initial_balance` plus transactions.
 
 ### Categories

@@ -2,6 +2,7 @@ import type { Account } from '@/api/accounts';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 import { AppCard } from '@/components/common';
+import { getAccountDisplayColor } from '@/lib/account-display';
 
 interface AccountCardProps {
   account: Account;
@@ -12,14 +13,18 @@ interface AccountCardProps {
 export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
   const { t } = useTranslation();
   const { formatCurrency } = useLocaleFormat();
+  const accountColor = getAccountDisplayColor(account);
 
   const getAccountIcon = (type: string) => {
     const icons: Record<string, string> = {
       cash: '💵',
+      Cash: '💵',
       bank: '🏦',
+      Bank: '🏦',
       credit_card: '💳',
       savings: '🏦',
       wallet: '👛',
+      'E-Wallet': '👛',
     };
     return icons[type] || '💰';
   };
@@ -27,10 +32,13 @@ export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
   const accountTypeLabel = (type: string) => {
     const keyMap: Record<string, string> = {
       cash: 'accounts.cash',
+      Cash: 'accounts.cash',
       bank: 'accounts.bank',
+      Bank: 'accounts.bank',
       credit_card: 'accounts.creditCard',
       savings: 'accounts.savings',
       wallet: 'accounts.wallet',
+      'E-Wallet': 'accounts.wallet',
     };
     return t(keyMap[type] ?? type, type);
   };
@@ -41,6 +49,7 @@ export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
       role="button"
       tabIndex={0}
       className="rounded-[var(--radius)] p-4"
+      style={{ borderColor: `${accountColor}99` }}
       onClick={() => onEdit(account)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -51,7 +60,12 @@ export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{getAccountIcon(account.account_type)}</span>
+          <span
+            className="grid size-10 place-items-center rounded-full text-2xl"
+            style={{ backgroundColor: `${accountColor}22`, color: accountColor }}
+          >
+            {getAccountIcon(account.account_type)}
+          </span>
           <div>
             <h3 className="text-foreground font-medium">{account.account_name}</h3>
             <p className="text-muted-foreground text-sm capitalize">{accountTypeLabel(account.account_type)}</p>
