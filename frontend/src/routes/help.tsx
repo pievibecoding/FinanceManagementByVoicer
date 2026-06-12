@@ -75,15 +75,15 @@ function HelpCenterPage() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visibleTopics.map(({ key, icon: Icon }) => (
-            <AppCard key={key}>
-              <CardHeader>
+            <AppCard key={key} className="py-2">
+              <CardHeader className="px-6 pb-4 pt-6">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Icon className="size-4 text-primary" />
                   {t(`helpCenter.topics.${key}.title`)}
                 </CardTitle>
                 <CardDescription>{t(`helpCenter.topics.${key}.description`)}</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-6 pb-6">
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li>{t(`helpCenter.topics.${key}.steps.0`)}</li>
                   <li>{t(`helpCenter.topics.${key}.steps.1`)}</li>
@@ -102,14 +102,14 @@ function HelpCenterPage() {
         ) : null}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <AppCard>
-            <CardHeader>
+          <AppCard className="py-2">
+            <CardHeader className="px-6 pb-4 pt-6">
               <CardTitle>{t('helpCenter.faqTitle')}</CardTitle>
               <CardDescription>{t('helpCenter.faqDescription')}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-6 pb-6">
               {FAQ_ITEMS.map((key) => (
-                <div key={key} className="rounded-lg border border-border bg-muted/10 p-4">
+                <div key={key} className="rounded-lg border border-border bg-muted/10 px-5 py-4">
                   <p className="mb-1 text-sm font-medium text-foreground">
                     {t(`helpCenter.faq.${key}.question`)}
                   </p>
@@ -121,13 +121,13 @@ function HelpCenterPage() {
             </CardContent>
           </AppCard>
 
-          <AppCard>
-            <CardHeader>
+          <AppCard className="py-2">
+            <CardHeader className="px-6 pb-4 pt-6">
               <CardTitle>{t('helpCenter.supportTitle')}</CardTitle>
               <CardDescription>{t('helpCenter.supportDescription')}</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="rounded-lg border border-border bg-muted/10 p-4 text-sm text-muted-foreground">
+            <CardContent className="px-6 pb-6">
+              <div className="rounded-lg border border-border bg-muted/10 px-5 py-4 text-sm text-muted-foreground">
                 {t('helpCenter.supportNotice')}
               </div>
             </CardContent>

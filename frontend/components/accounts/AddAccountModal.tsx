@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAddAccount } from '@/hooks/useAccounts';
+import { defaultAccountColor } from '@/styles/tokens';
 import { FormDialog } from '@/components/common';
 import { Button } from '@/components/ui/button';
 
@@ -16,7 +17,7 @@ export function AddAccountModal({ open, onOpenChange }: AddAccountModalProps) {
   const addAccount = useAddAccount();
   const [formData, setFormData] = useState({
     account_name: '', account_type: 'cash',
-    initial_balance: 0, currency: 'VND', description: '',
+    initial_balance: 0, currency: 'VND', description: '', color: defaultAccountColor,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -24,7 +25,7 @@ export function AddAccountModal({ open, onOpenChange }: AddAccountModalProps) {
     addAccount.mutate(formData, {
       onSuccess: () => {
         onOpenChange(false);
-        setFormData({ account_name: '', account_type: 'cash', initial_balance: 0, currency: 'VND', description: '' });
+        setFormData({ account_name: '', account_type: 'cash', initial_balance: 0, currency: 'VND', description: '', color: defaultAccountColor });
       },
     });
   };
@@ -65,6 +66,17 @@ export function AddAccountModal({ open, onOpenChange }: AddAccountModalProps) {
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-muted-foreground text-sm mb-1">{t('categories.color')}</label>
+            <div className="flex gap-2">
+              <input type="color" value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                className="w-12 h-10 bg-input border border-border rounded-lg cursor-pointer" />
+              <input type="text" value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                className={`flex-1 ${INPUT_CLS}`} required />
+            </div>
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('accounts.description')}</label>

@@ -18,6 +18,7 @@ export function useAddAccount() {
       initial_balance: number;
       currency: string;
       description?: string;
+      color?: string;
     }) => accountsApi.addAccount(account),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
@@ -38,6 +39,7 @@ export function useUpdateAccount() {
         initial_balance?: number;
         currency?: string;
         description?: string;
+        color?: string;
       };
     }) => accountsApi.updateAccount(accountId, account),
     onSuccess: () => {

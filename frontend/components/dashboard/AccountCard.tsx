@@ -1,7 +1,7 @@
 import { Account } from '@/api/dashboard';
-import { accountBorderColors } from '@/styles/tokens';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 import { AppCard } from '@/components/common';
+import { getAccountDisplayColor } from '@/lib/account-display';
 
 interface AccountCardProps {
   account: Account;
@@ -18,19 +18,23 @@ export function AccountCard({ account, onClick }: AccountCardProps) {
     return icons[type] || '📁';
   };
 
-  const getAccountBorderColor = (type: string): string =>
-    accountBorderColors[type] ?? '';
+  const accountColor = getAccountDisplayColor(account);
 
   return (
     <AppCard
       interactive
       className="rounded-[var(--radius)] p-4"
-      style={{ borderColor: getAccountBorderColor(account.account_type) || undefined }}
+      style={{ borderColor: `${accountColor}99` }}
       onClick={onClick}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">{getAccountIcon(account.account_type)}</span>
+          <span
+            className="grid size-10 place-items-center rounded-full text-2xl"
+            style={{ backgroundColor: `${accountColor}22`, color: accountColor }}
+          >
+            {getAccountIcon(account.account_type)}
+          </span>
           <span className="text-foreground font-medium">{account.account_name}</span>
         </div>
       </div>

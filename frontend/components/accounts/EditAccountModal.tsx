@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUpdateAccount } from '@/hooks/useAccounts';
 import type { Account } from '@/api/accounts';
+import { defaultAccountColor } from '@/styles/tokens';
 import { FormDialog } from '@/components/common';
 import { Button } from '@/components/ui/button';
 
@@ -13,21 +14,32 @@ interface EditAccountModalProps {
 
 const INPUT_CLS = 'w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary';
 
+function normalizeAccountType(type: string) {
+  const typeMap: Record<string, string> = {
+    Bank: 'bank',
+    Cash: 'cash',
+    'E-Wallet': 'wallet',
+    Investment: 'savings',
+    investment: 'savings',
+  };
+  return typeMap[type] ?? type;
+}
+
 export function EditAccountModal({ open, onOpenChange, account }: EditAccountModalProps) {
   const { t } = useTranslation();
   const updateAccount = useUpdateAccount();
   const [formData, setFormData] = useState({
     account_name: '', account_type: 'cash',
-    initial_balance: 0, currency: 'VND', description: '',
+    initial_balance: 0, currency: 'VND', description: '', color: defaultAccountColor,
   });
 
   useEffect(() => {
     if (account) {
       setFormData({
         account_name: account.account_name,
-        account_type: account.account_type === 'investment' || account.account_type === 'Investment' ? 'savings' : account.account_type,
+        account_type: normalizeAccountType(account.account_type),
         initial_balance: account.initial_balance,
-        currency: 'VND', description: '',
+        currency: 'VND', description: '', color: account.color || defaultAccountColor,
       });
     }
   }, [account]);
@@ -78,6 +90,17 @@ export function EditAccountModal({ open, onOpenChange, account }: EditAccountMod
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-muted-foreground text-sm mb-1">{t('categories.color')}</label>
+            <div className="flex gap-2">
+              <input type="color" value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                className="w-12 h-10 bg-input border border-border rounded-lg cursor-pointer" />
+              <input type="text" value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                className={`flex-1 ${INPUT_CLS}`} required />
+            </div>
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('accounts.description')}</label>

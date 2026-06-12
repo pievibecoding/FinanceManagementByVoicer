@@ -21,7 +21,6 @@ import type { SavingsGoal } from '@/api/savings'
 import type { Debt } from '@/api/debts'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 import {
-  accountChartColors,
   categoryColors,
   chartInteractionColors,
   chartColors,
@@ -29,6 +28,7 @@ import {
 } from '@/styles/tokens'
 import { ChartCard } from '@/components/common'
 import { getCategoryDisplayMeta } from '@/lib/category-display'
+import { getAccountDisplayColor } from '@/lib/account-display'
 
 type ChartType =
   | 'asset-fluctuation'
@@ -66,9 +66,11 @@ type DistributionPoint = {
   color: string
   detail?: string
   target?: number
+  chartValue?: number
 }
 
 type DonutTooltipState = {
+  scope: string
   item: DistributionPoint
   total: number
   x: number
@@ -462,9 +464,7 @@ export function DynamicChart({
         .map((account, index) => ({
           name: account.account_name,
           value: currentAccountBalance(account, transactions),
-          color:
-            accountChartColors[account.account_type] ||
-            categoryColors[index % categoryColors.length],
+          color: getAccountDisplayColor(account, index),
           detail: account.account_type,
         }))
         .filter((item) => item.value !== 0),
@@ -650,22 +650,28 @@ export function DynamicChart({
     </div>
   )
 
-  const renderLegendList = (items: DistributionPoint[], total: number) => (
+  const renderLegendList = (items: DistributionPoint[]) => (
     <div className="flex min-w-0 flex-col justify-center gap-3 self-center">
       {items.map((item) => {
-        const percent = total > 0 ? (item.value / total) * 100 : 0
+        const chartTotal = items.reduce(
+          (sum, current) => sum + Math.abs(current.chartValue ?? current.value),
+          0
+        )
+        const percent = chartTotal > 0
+          ? (Math.abs(item.chartValue ?? item.value) / chartTotal) * 100
+          : 0
         return (
           <div key={item.name} className="grid gap-1">
             <div className="grid grid-cols-[minmax(0,1fr)_88px] items-center gap-6 text-xs">
               <div className="flex min-w-0 items-center gap-2">
                 <span
-                  className="size-2.5 shrink-0 rounded-sm"
+                  className="size-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: item.color }}
                 />
                 <span className="min-w-0 truncate text-foreground">{item.name}</span>
               </div>
               <span className="text-right text-muted-foreground tabular-nums">
-                {percent.toFixed(0)}%
+                {percent.toFixed(2)}%
               </span>
             </div>
             <div className="ms-4 grid grid-cols-[minmax(0,1fr)_112px] items-center gap-6 text-[11px] text-muted-foreground">
@@ -678,11 +684,41 @@ export function DynamicChart({
     </div>
   )
 
-  const renderDonutTooltip = () => {
-    if (!donutTooltip) return null
+  const renderSnapshotStats = (
+    items: DistributionPoint[],
+    total: number,
+    centerLabel: string,
+    layout: 'stack' | 'row' = 'stack'
+  ) => {
+    return (
+      <div className={`grid gap-2 ${layout === 'row' ? 'grid-cols-2' : ''}`}>
+        <div className="rounded-md border border-border/60 bg-muted/10 px-3 py-2.5">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {centerLabel}
+          </p>
+          <p className="mt-1 truncate text-sm font-bold tabular-nums text-foreground">
+            {formatCurrency(total)}
+          </p>
+        </div>
+        <div className="rounded-md border border-border/60 bg-muted/10 px-3 py-2.5">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {t('dashboard.chartSummary.items')}
+          </p>
+          <p className="mt-1 text-sm font-bold tabular-nums text-foreground">
+            {items.length}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const renderDonutTooltip = (scope: string) => {
+    if (!donutTooltip || donutTooltip.scope !== scope) return null
 
     const { item, total, x, y, boundsWidth, boundsHeight, pieCenterX } = donutTooltip
-    const percent = total > 0 ? (item.value / total) * 100 : 0
+    const percent = total > 0
+      ? (Math.abs(item.chartValue ?? item.value) / total) * 100
+      : 0
     const tooltipWidth = 208
     const tooltipHeight = item.target ? 92 : 70
     const gap = 24
@@ -699,7 +735,7 @@ export function DynamicChart({
       >
         <p className="font-medium text-foreground">{item.name}</p>
         <p className="text-muted-foreground">
-          {formatCurrency(item.value)} ({percent.toFixed(1)}%)
+          {formatCurrency(item.value)} ({percent.toFixed(2)}%)
         </p>
         {item.target ? (
           <p className="text-muted-foreground">
@@ -714,72 +750,173 @@ export function DynamicChart({
     items: DistributionPoint[],
     total: number,
     centerLabel: string,
-    emptyMessage: string
+    emptyMessage: string,
+    options: {
+      showStatPanels?: boolean
+      panelLayout?: 'wide' | 'stacked'
+      variant?: 'full' | 'chart' | 'details'
+      compactChart?: boolean
+      compactDetails?: boolean
+      detailsLayout?: 'columns' | 'rows'
+      tooltipScope?: string
+    } = {}
   ) => {
-    if (items.length === 0 || total <= 0) return renderEmptyState(emptyMessage)
+    const showStatPanels = options.showStatPanels ?? true
+    const panelLayout = options.panelLayout ?? 'wide'
+    const variant = options.variant ?? 'full'
+    const compactChart = options.compactChart ?? false
+    const compactDetails = options.compactDetails ?? false
+    const detailsLayout = options.detailsLayout ?? 'columns'
+    const tooltipScope = options.tooltipScope ?? `${chartType}-${centerLabel}`
+    const chartItems = items
+      .map((item) => ({
+        ...item,
+        chartValue: Math.abs(item.chartValue ?? item.value),
+      }))
+      .filter((item) => item.chartValue > 0)
+    const chartTotal = chartItems.reduce((sum, item) => sum + item.chartValue, 0)
+
+    if (chartItems.length === 0) return renderEmptyState(emptyMessage)
+
+    const pie = (
+      <div
+        data-donut-pie
+        className={`relative flex h-full items-center justify-center ${
+          compactChart ? 'min-h-0' : 'min-h-[250px]'
+        }`}
+        onMouseLeave={() =>
+          setDonutTooltip((current) =>
+            current?.scope === tooltipScope ? null : current
+          )
+        }
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart margin={{ top: 10, right: 16, bottom: 10, left: 16 }}>
+            <Pie
+              data={chartItems}
+              dataKey="chartValue"
+              innerRadius="62%"
+              outerRadius="84%"
+              paddingAngle={5}
+              cornerRadius={12}
+              stroke={chartInteractionColors.pieStroke}
+              strokeWidth={3}
+              onMouseMove={(item: DistributionPoint, _index: number, event: any) => {
+                const layout = event?.currentTarget?.closest?.('[data-donut-layout]')
+                const pieWrap = event?.currentTarget?.closest?.('[data-donut-pie]')
+                const layoutRect = layout?.getBoundingClientRect?.()
+                const pieRect = pieWrap?.getBoundingClientRect?.()
+                const boundsWidth = Number(layoutRect?.width ?? 640)
+                const boundsHeight = Number(layoutRect?.height ?? 280)
+                const x = Number(event?.clientX ?? 0) - Number(layoutRect?.left ?? 0)
+                const y = Number(event?.clientY ?? 0) - Number(layoutRect?.top ?? 0)
+                setDonutTooltip({
+                  scope: tooltipScope,
+                  item,
+                  total: chartTotal,
+                  x,
+                  y,
+                  boundsWidth,
+                  boundsHeight,
+                  pieCenterX:
+                    Number(pieRect?.left ?? 0) -
+                    Number(layoutRect?.left ?? 0) +
+                    Number(pieRect?.width ?? 260) / 2,
+                })
+              }}
+              onMouseLeave={() =>
+                setDonutTooltip((current) =>
+                  current?.scope === tooltipScope ? null : current
+                )
+              }
+            >
+              {chartItems.map((item) => (
+                <Cell key={item.name} fill={item.color} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="text-[11px] uppercase text-muted-foreground">{centerLabel}</span>
+          <span className="max-w-40 truncate text-lg font-bold text-foreground">
+            {formatCurrency(total)}
+          </span>
+        </div>
+      </div>
+    )
+
+    const detailsPanel = (
+      <div
+        className={`grid h-full gap-3 ${
+          detailsLayout === 'rows'
+            ? 'grid-rows-[auto_minmax(0,1fr)]'
+            : 'grid-cols-1 sm:grid-cols-[minmax(104px,1fr)_minmax(0,3fr)]'
+        } ${compactDetails ? 'min-h-0' : 'min-h-[270px]'}`}
+      >
+        <div className="min-w-0">
+          {renderSnapshotStats(
+            chartItems,
+            total,
+            centerLabel,
+            detailsLayout === 'rows' ? 'row' : 'stack'
+          )}
+        </div>
+        <div className="min-h-0 min-w-0 overflow-y-auto rounded-md border border-border/60 bg-muted/10 p-3 pr-2">
+          {renderLegendList(chartItems)}
+        </div>
+      </div>
+    )
+
+    if (variant === 'chart') {
+      return (
+      <div
+        data-donut-layout
+        className={`relative h-full ${
+          compactChart ? 'min-h-0' : 'min-h-[270px]'
+        }`}
+      >
+          {pie}
+          {renderDonutTooltip(tooltipScope)}
+        </div>
+      )
+    }
+
+    if (variant === 'details') {
+      return detailsPanel
+    }
+
+    if (!showStatPanels) {
+      return (
+        <div
+        data-donut-layout
+        className="relative grid h-full min-h-[280px] grid-cols-1 items-center justify-center gap-y-5 lg:grid-cols-[minmax(220px,330px)_1px_minmax(260px,340px)] lg:gap-x-8 xl:gap-x-12"
+        >
+          {pie}
+          <div className="hidden h-56 w-px self-center bg-border/70 lg:block" />
+          <div className="flex min-h-[270px] items-center self-center">
+            {renderLegendList(chartItems)}
+          </div>
+          {renderDonutTooltip(tooltipScope)}
+        </div>
+      )
+    }
 
     return (
       <div
         data-donut-layout
-        className="relative grid h-full min-h-[280px] grid-cols-1 items-center justify-center gap-y-5 lg:grid-cols-[minmax(220px,330px)_1px_minmax(260px,340px)] lg:gap-x-8 xl:gap-x-12"
+        className={`relative grid h-full min-h-[280px] grid-cols-1 gap-3 ${
+          panelLayout === 'wide'
+            ? 'lg:grid-cols-2 lg:items-stretch'
+            : ''
+        }`}
       >
-        <div
-          data-donut-pie
-          className="relative flex h-[270px] min-h-[250px] items-center justify-center"
-          onMouseLeave={() => setDonutTooltip(null)}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 10, right: 16, bottom: 10, left: 16 }}>
-              <Pie
-                data={items}
-                dataKey="value"
-                innerRadius="62%"
-                outerRadius="84%"
-                paddingAngle={2}
-                stroke={chartInteractionColors.pieStroke}
-                strokeWidth={2}
-                onMouseMove={(item: DistributionPoint, _index: number, event: any) => {
-                  const layout = event?.currentTarget?.closest?.('[data-donut-layout]')
-                  const pieWrap = event?.currentTarget?.closest?.('[data-donut-pie]')
-                  const layoutRect = layout?.getBoundingClientRect?.()
-                  const pieRect = pieWrap?.getBoundingClientRect?.()
-                  const boundsWidth = Number(layoutRect?.width ?? 640)
-                  const boundsHeight = Number(layoutRect?.height ?? 280)
-                  const x = Number(event?.clientX ?? 0) - Number(layoutRect?.left ?? 0)
-                  const y = Number(event?.clientY ?? 0) - Number(layoutRect?.top ?? 0)
-                  setDonutTooltip({
-                    item,
-                    total,
-                    x,
-                    y,
-                    boundsWidth,
-                    boundsHeight,
-                    pieCenterX:
-                      Number(pieRect?.left ?? 0) -
-                      Number(layoutRect?.left ?? 0) +
-                      Number(pieRect?.width ?? 260) / 2,
-                  })
-                }}
-                onMouseLeave={() => setDonutTooltip(null)}
-              >
-                {items.map((item) => (
-                  <Cell key={item.name} fill={item.color} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className="text-[11px] uppercase text-muted-foreground">{centerLabel}</span>
-            <span className="max-w-40 truncate text-lg font-bold text-foreground">
-              {formatCurrency(total)}
-            </span>
-          </div>
+        <div className="rounded-md border border-border/60 bg-muted/10 px-3 py-2">
+          {pie}
         </div>
-        <div className="hidden h-56 w-px self-center bg-border/70 lg:block" />
-        <div className="flex min-h-[270px] items-center self-center">
-          {renderLegendList(items, total)}
+        <div className="rounded-md border border-border/60 bg-muted/10 p-3">
+          {detailsPanel}
         </div>
-        {renderDonutTooltip()}
+        {renderDonutTooltip(tooltipScope)}
       </div>
     )
   }
@@ -798,7 +935,7 @@ export function DynamicChart({
         <AreaChart data={dailyNetWorthData} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
           <defs>
             <linearGradient id="assetGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={chartColors.income} stopOpacity={0.35} />
+              <stop offset="5%" stopColor={chartColors.income} stopOpacity={0.38} />
               <stop offset="95%" stopColor={chartColors.income} stopOpacity={0.02} />
             </linearGradient>
           </defs>
@@ -822,7 +959,7 @@ export function DynamicChart({
             dataKey="value"
             name={t('dashboard.netWorth')}
             stroke={chartColors.income}
-            strokeWidth={2.5}
+            strokeWidth={3}
             fill="url(#assetGradient)"
             activeDot={{ r: 4 }}
           />
@@ -854,7 +991,7 @@ export function DynamicChart({
               renderSeriesTooltip(active, payload, label as string)
             }
           />
-          <Bar dataKey="value" name={t('types.income')} fill={chartColors.income} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="value" name={t('types.income')} fill={chartColors.income} radius={[8, 8, 0, 0]} />
           {renderBrush(incomeOverTimeData)}
         </BarChart>
       </ResponsiveContainer>
@@ -885,8 +1022,8 @@ export function DynamicChart({
               renderSeriesTooltip(active, payload, label as string)
             }
           />
-          <Bar dataKey="income" name={t('types.income')} fill={chartColors.income} radius={[4, 4, 0, 0]} />
-          <Bar dataKey="expense" name={t('types.expense')} fill={chartColors.expense} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="income" name={t('types.income')} fill={chartColors.income} radius={[8, 8, 0, 0]} />
+          <Bar dataKey="expense" name={t('types.expense')} fill={chartColors.expense} radius={[8, 8, 0, 0]} />
           {renderBrush(incomeExpenseData)}
         </BarChart>
       </ResponsiveContainer>
@@ -901,24 +1038,52 @@ export function DynamicChart({
     }
 
     return (
-      <div className="grid h-full min-h-[260px] grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-md border border-border/60 bg-muted/10 p-3">
-          <p className="mb-1 text-xs text-muted-foreground">{t('debts.myDebts')}</p>
-          {renderDonut(
-            debtData.myDebts,
-            totalDebt,
-            t('dashboard.chartSummary.total'),
-            t('debts.noDebts')
-          )}
+      <div className="relative grid h-full min-h-[280px] grid-cols-1 gap-3 xl:grid-cols-[minmax(230px,1fr)_minmax(330px,1.35fr)_minmax(230px,1fr)_minmax(330px,1.35fr)] xl:items-stretch">
+        <div className="flex min-h-[280px] flex-col rounded-md border border-border/60 bg-muted/10 px-3 py-2">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">{t('debts.myDebts')}</p>
+          <div className="min-h-0 flex-1">
+            {renderDonut(
+              debtData.myDebts,
+              totalDebt,
+              t('dashboard.chartSummary.total'),
+              t('debts.noDebts'),
+              { variant: 'chart', compactChart: true, tooltipScope: 'debt-my-debts' }
+            )}
+          </div>
         </div>
-        <div className="rounded-md border border-border/60 bg-muted/10 p-3">
-          <p className="mb-1 text-xs text-muted-foreground">{t('debts.myLoans')}</p>
-          {renderDonut(
-            debtData.myLoans,
-            totalLoan,
-            t('dashboard.chartSummary.total'),
-            t('debts.noLoans')
-          )}
+        <div className="flex min-h-[280px] flex-col rounded-md border border-border/60 bg-muted/10 p-3">
+          <div className="min-h-0 flex-1">
+            {renderDonut(
+              debtData.myDebts,
+              totalDebt,
+              t('dashboard.chartSummary.total'),
+              t('debts.noDebts'),
+              { variant: 'details', compactDetails: true, detailsLayout: 'rows' }
+            )}
+          </div>
+        </div>
+        <div className="flex min-h-[280px] flex-col rounded-md border border-border/60 bg-muted/10 px-3 py-2">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">{t('debts.myLoans')}</p>
+          <div className="min-h-0 flex-1">
+            {renderDonut(
+              debtData.myLoans,
+              totalLoan,
+              t('dashboard.chartSummary.total'),
+              t('debts.noLoans'),
+              { variant: 'chart', compactChart: true, tooltipScope: 'debt-my-loans' }
+            )}
+          </div>
+        </div>
+        <div className="flex min-h-[280px] flex-col rounded-md border border-border/60 bg-muted/10 p-3">
+          <div className="min-h-0 flex-1">
+            {renderDonut(
+              debtData.myLoans,
+              totalLoan,
+              t('dashboard.chartSummary.total'),
+              t('debts.noLoans'),
+              { variant: 'details', compactDetails: true, detailsLayout: 'rows' }
+            )}
+          </div>
         </div>
       </div>
     )

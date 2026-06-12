@@ -94,6 +94,7 @@
       "snapshot": "Snapshot",
       "timeSeries": "Time series",
       "total": "Total",
+      "items": "Items",
       "value": "Value",
       "assetSnapshotNote": "Account balances are historical; saving and debt values are current snapshot adjustments.",
       "debtOwed": "Debt owed",

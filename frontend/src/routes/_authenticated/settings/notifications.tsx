@@ -49,19 +49,19 @@ function NotificationsPage() {
           description={t('notificationsPage.description')}
         />
 
-        <AppCard>
-          <CardHeader>
+        <AppCard className="py-2">
+          <CardHeader className="px-6 pb-4 pt-6">
             <CardTitle className="flex items-center gap-2">
               <Bell className="size-4 text-primary" />
               {t('notificationsPage.preferencesTitle')}
             </CardTitle>
             <CardDescription>{t('notificationsPage.preferencesDescription')}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 px-6 pb-6">
             {PREFERENCES.map(({ key, icon: Icon }) => (
               <div
                 key={key}
-                className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/10 p-4"
+                className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/10 px-5 py-4"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
@@ -86,13 +86,13 @@ function NotificationsPage() {
           </CardContent>
         </AppCard>
 
-        <AppCard>
-          <CardHeader>
+        <AppCard className="py-2">
+          <CardHeader className="px-6 pb-4 pt-6">
             <CardTitle>{t('notificationsPage.deliveryTitle')}</CardTitle>
             <CardDescription>{t('notificationsPage.deliveryDescription')}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border border-border bg-muted/10 p-4 text-sm text-muted-foreground">
+          <CardContent className="px-6 pb-6">
+            <div className="rounded-lg border border-border bg-muted/10 px-5 py-4 text-sm text-muted-foreground">
               {t('notificationsPage.localOnlyNotice')}
             </div>
           </CardContent>
