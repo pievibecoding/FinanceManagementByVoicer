@@ -59,6 +59,8 @@ export function useCreateContribution() {
     onSuccess: (_res, vars) => {
       qc.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['savings-contributions', vars.savingsId] })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
     },
   })
 }
@@ -71,6 +73,8 @@ export function useDeleteContribution() {
     onSuccess: (_res, vars) => {
       qc.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['savings-contributions', vars.savingsId] })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
     },
   })
 }

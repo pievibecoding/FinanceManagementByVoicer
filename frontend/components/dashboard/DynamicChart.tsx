@@ -29,6 +29,7 @@ import {
 import { ChartCard } from '@/components/common'
 import { getCategoryDisplayMeta } from '@/lib/category-display'
 import { getAccountDisplayColor } from '@/lib/account-display'
+import { isPositiveTransactionType } from '@/lib/transaction-types'
 
 type ChartType =
   | 'asset-fluctuation'
@@ -282,12 +283,8 @@ function accountBalanceAtDate(
   return transactions.reduce((balance, tx) => {
     if (normalizeId(tx.account_id) !== accountId) return balance
     if (dateKeyFromTransaction(tx) > dateKey) return balance
-    return tx.type === 'income' ? balance + tx.amount : balance - tx.amount
+    return isPositiveTransactionType(tx.type) ? balance + tx.amount : balance - tx.amount
   }, account.initial_balance)
-}
-
-function currentAccountBalance(account: Account, transactions: Transaction[]) {
-  return accountBalanceAtDate(account, transactions, '9999-12-31')
 }
 
 function getCurrentMonth() {
@@ -463,7 +460,7 @@ export function DynamicChart({
       accounts
         .map((account, index) => ({
           name: account.account_name,
-          value: currentAccountBalance(account, transactions),
+          value: account.current_balance,
           color: getAccountDisplayColor(account, index),
           detail: account.account_type,
         }))
@@ -471,7 +468,7 @@ export function DynamicChart({
       DISTRIBUTION_VISIBLE_LIMIT,
       t('dashboard.chartSummary.other')
     )
-  }, [accounts, t, transactions])
+  }, [accounts, t])
 
   const savingsData = useMemo<DistributionPoint[]>(() => {
     return groupDistribution(

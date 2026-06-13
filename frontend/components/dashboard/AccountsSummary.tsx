@@ -1,4 +1,4 @@
-import type { Account, Transaction } from '@/api/dashboard'
+import type { Account } from '@/api/dashboard'
 import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 import { AppCard } from '@/components/common'
@@ -6,22 +6,6 @@ import { getAccountDisplayColor } from '@/lib/account-display'
 
 interface AccountsSummaryProps {
   accounts: Account[]
-  transactions: Transaction[]
-}
-
-function normalizeId(value: string | number | null | undefined) {
-  return value == null ? '' : String(value)
-}
-
-function computeBalance(account: Account, transactions: Transaction[]): number {
-  let balance = account.initial_balance
-  const accountId = normalizeId(account.account_id)
-  transactions.forEach(tx => {
-    if (normalizeId(tx.account_id) !== accountId) return
-    if (tx.type === 'income') balance += tx.amount
-    else balance -= tx.amount
-  })
-  return balance
 }
 
 const ACCOUNT_ICONS: Record<string, string> = {
@@ -31,7 +15,7 @@ const ACCOUNT_ICONS: Record<string, string> = {
   'Cash': '💵',
 }
 
-export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps) {
+export function AccountsSummary({ accounts }: AccountsSummaryProps) {
   const { t } = useTranslation()
   const { formatCurrency } = useLocaleFormat()
 
@@ -44,7 +28,7 @@ export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps
       ) : (
         <div className="flex flex-col gap-3">
           {accounts.map((acc, index) => {
-            const balance = computeBalance(acc, transactions)
+            const balance = acc.current_balance
             const isNegative = balance < 0
             const accountColor = getAccountDisplayColor(acc, index)
             return (

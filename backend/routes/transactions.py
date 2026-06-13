@@ -9,6 +9,7 @@ Endpoints:
 """
 import logging
 from datetime import datetime
+import libsql_client
 
 from flask import Blueprint, request, jsonify, g
 
@@ -20,7 +21,28 @@ logger = logging.getLogger(__name__)
 transactions_bp = Blueprint("transactions", __name__)
 
 ALLOWED_UPDATE_FIELDS = {"transaction_date", "account_id", "category_id", "amount", "type", "note", "payee_id", "location"}
-VALID_TRANSACTION_TYPES = {"income", "expense"}
+VALID_TRANSACTION_TYPES = {"income", "expense", "transfer_in", "transfer_out"}
+
+
+def _transaction_delta(tx_type: str, amount: int) -> int:
+    return int(amount) if tx_type in ("income", "transfer_in") else -int(amount)
+
+
+def _delete_single_transaction(db, transaction_id: str, account_id: int, delta: int, user_id: int) -> None:
+    db.batch([
+        libsql_client.Statement(
+            "DELETE FROM split_transactions WHERE transaction_id = ?",
+            [transaction_id],
+        ),
+        libsql_client.Statement(
+            "UPDATE Transaction_Fact SET is_deleted = 1 WHERE transaction_id = ? AND user_id = ?",
+            [transaction_id, user_id],
+        ),
+        libsql_client.Statement(
+            "UPDATE Account_Dim SET current_balance = current_balance - ? WHERE account_id = ? AND user_id = ?",
+            [delta, account_id, user_id],
+        ),
+    ])
 
 
 @transactions_bp.route("/api/transactions", methods=["GET"])
@@ -67,6 +89,7 @@ def create_transaction():
     note             = data.get("note", "")
     payee_id         = data.get("payee_id")  # optional, may be None
     location         = data.get("location")  # optional, may be None
+    transfer_pair_id = data.get("transfer_pair_id")
     splits           = data.get("splits", [])
 
     if not all([transaction_date, account_id, category_id, amount, tx_type]):
@@ -85,10 +108,17 @@ def create_transaction():
 
     db = get_db()
     try:
-        db.execute(
-            "INSERT INTO Transaction_Fact (transaction_id, transaction_date, account_id, category_id, amount, type, note, user_id, payee_id, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [transaction_id, transaction_date, account_id, category_id, int(amount), tx_type, note, g.user_id, payee_id, location],
-        )
+        delta = _transaction_delta(tx_type, int(amount))
+        db.batch([
+            libsql_client.Statement(
+                "INSERT INTO Transaction_Fact (transaction_id, transaction_date, account_id, category_id, amount, type, note, user_id, payee_id, location, transfer_pair_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [transaction_id, transaction_date, account_id, category_id, int(amount), tx_type, note, g.user_id, payee_id, location, transfer_pair_id],
+            ),
+            libsql_client.Statement(
+                "UPDATE Account_Dim SET current_balance = current_balance + ? WHERE account_id = ? AND user_id = ?",
+                [delta, account_id, g.user_id],
+            ),
+        ])
 
         if splits:
             for s in splits:
@@ -124,20 +154,42 @@ def update_transaction(transaction_id: str):
 
     db = get_db()
     try:
-        # Verify ownership
         check = db.execute(
-            "SELECT transaction_id FROM Transaction_Fact WHERE transaction_id = ? AND user_id = ? AND is_deleted = 0",
+            "SELECT transaction_id, type, amount, account_id FROM Transaction_Fact WHERE transaction_id = ? AND user_id = ? AND is_deleted = 0",
             [transaction_id, g.user_id],
         )
         if not check.rows:
             return jsonify({"error": "Transaction not found"}), 404
+        _, old_type, old_amount, old_account_id = check.rows[0]
 
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [transaction_id, g.user_id]
-        db.execute(
-            f"UPDATE Transaction_Fact SET {set_clause} WHERE transaction_id = ? AND user_id = ?",
-            values,
-        )
+        balance_fields = {"amount", "type", "account_id"}
+        if balance_fields.intersection(updates):
+            new_type = updates.get("type", old_type)
+            new_amount = int(updates.get("amount", old_amount))
+            new_account_id = updates.get("account_id", old_account_id)
+            old_delta = _transaction_delta(old_type, int(old_amount))
+            new_delta = _transaction_delta(new_type, new_amount)
+            db.batch([
+                libsql_client.Statement(
+                    f"UPDATE Transaction_Fact SET {set_clause} WHERE transaction_id = ? AND user_id = ?",
+                    values,
+                ),
+                libsql_client.Statement(
+                    "UPDATE Account_Dim SET current_balance = current_balance - ? WHERE account_id = ? AND user_id = ?",
+                    [old_delta, old_account_id, g.user_id],
+                ),
+                libsql_client.Statement(
+                    "UPDATE Account_Dim SET current_balance = current_balance + ? WHERE account_id = ? AND user_id = ?",
+                    [new_delta, new_account_id, g.user_id],
+                ),
+            ])
+        else:
+            db.execute(
+                f"UPDATE Transaction_Fact SET {set_clause} WHERE transaction_id = ? AND user_id = ?",
+                values,
+            )
     finally:
         db.close()
 
@@ -149,23 +201,48 @@ def update_transaction(transaction_id: str):
 def delete_transaction(transaction_id: str):
     db = get_db()
     try:
-        # Verify ownership BEFORE touching any rows
-        check = db.execute(
-            "SELECT transaction_id FROM Transaction_Fact WHERE transaction_id = ? AND user_id = ? AND is_deleted = 0",
+        tx_result = db.execute(
+            "SELECT transaction_id, type, amount, account_id, transfer_pair_id FROM Transaction_Fact WHERE transaction_id = ? AND user_id = ? AND is_deleted = 0",
             [transaction_id, g.user_id],
         )
-        if not check.rows:
+        if not tx_result.rows:
             return jsonify({"error": "Transaction not found"}), 404
 
-        # Remove split rows (physical delete) then soft-delete the parent
-        db.execute(
-            "DELETE FROM split_transactions WHERE transaction_id = ?",
-            [transaction_id],
-        )
-        db.execute(
-            "UPDATE Transaction_Fact SET is_deleted = 1 WHERE transaction_id = ? AND user_id = ?",
-            [transaction_id, g.user_id],
-        )
+        _, tx_type, amount, account_id, transfer_pair_id = tx_result.rows[0]
+        delta = _transaction_delta(tx_type, int(amount))
+
+        if transfer_pair_id:
+            pair_result = db.execute(
+                """
+                SELECT transaction_id, type, amount, account_id
+                FROM Transaction_Fact
+                WHERE transfer_pair_id = ? AND user_id = ? AND is_deleted = 0
+                """,
+                [transfer_pair_id, g.user_id],
+            )
+            if len(pair_result.rows) > 1:
+                statements = []
+                for pair_tx_id, pair_type, pair_amount, pair_account_id in pair_result.rows:
+                    pair_delta = _transaction_delta(pair_type, int(pair_amount))
+                    statements.extend([
+                        libsql_client.Statement(
+                            "DELETE FROM split_transactions WHERE transaction_id = ?",
+                            [pair_tx_id],
+                        ),
+                        libsql_client.Statement(
+                            "UPDATE Transaction_Fact SET is_deleted = 1 WHERE transaction_id = ? AND user_id = ?",
+                            [pair_tx_id, g.user_id],
+                        ),
+                        libsql_client.Statement(
+                            "UPDATE Account_Dim SET current_balance = current_balance - ? WHERE account_id = ? AND user_id = ?",
+                            [pair_delta, pair_account_id, g.user_id],
+                        ),
+                    ])
+                db.batch(statements)
+            else:
+                _delete_single_transaction(db, transaction_id, account_id, delta, g.user_id)
+        else:
+            _delete_single_transaction(db, transaction_id, account_id, delta, g.user_id)
     finally:
         db.close()
     return jsonify({"message": "Transaction deleted successfully!"}), 200

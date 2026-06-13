@@ -11,6 +11,8 @@ Endpoints:
   DELETE /api/savings/<savings_id>/contributions/<contribution_id> — delete contribution, restore balance
 """
 import logging
+import time
+import libsql_client
 
 from flask import Blueprint, jsonify, request, g
 
@@ -22,6 +24,20 @@ logger = logging.getLogger(__name__)
 savings_bp = Blueprint("savings", __name__)
 
 ALLOWED_UPDATE_FIELDS = {"name", "target_amount", "current_balance", "target_date", "linked_account_id", "status", "note"}
+
+
+def _transfer_category_id(db, user_id: int):
+    result = db.execute(
+        "SELECT category_id FROM Category_Dim WHERE user_id = ? AND category_name = 'Khác' LIMIT 1",
+        [user_id],
+    )
+    if result.rows:
+        return result.rows[0][0]
+    fallback = db.execute(
+        "SELECT category_id FROM Category_Dim WHERE user_id = ? ORDER BY category_id LIMIT 1",
+        [user_id],
+    )
+    return fallback.rows[0][0] if fallback.rows else None
 
 
 @savings_bp.route("/api/savings", methods=["GET"])
@@ -166,7 +182,8 @@ def create_savings_contribution(savings_id: int):
     data = request.get_json(silent=True) or {}
 
     contribution_date = data.get("contribution_date")
-    transaction_id = data.get("transaction_id")
+    account_id = data.get("account_id")
+    note = (data.get("note") or "").strip()
 
     if not contribution_date:
         return jsonify({"error": "contribution_date is required"}), 400
@@ -181,37 +198,77 @@ def create_savings_contribution(savings_id: int):
     db = get_db()
     try:
         check = db.execute(
-            "SELECT savings_id, target_amount FROM Savings_Dim WHERE savings_id = ? AND user_id = ?",
+            "SELECT savings_id, name, target_amount FROM Savings_Dim WHERE savings_id = ? AND user_id = ?",
             [savings_id, g.user_id],
         )
         if not check.rows:
             return jsonify({"error": "Savings goal not found"}), 404
 
-        db.execute(
-            """INSERT INTO Savings_Contribution_Fact
-            (savings_id, transaction_id, contribution_date, amount)
-            VALUES (?, ?, ?, ?)""",
-            [savings_id, transaction_id, contribution_date, amount],
-        )
+        _, savings_name, _ = check.rows[0]
+        transaction_id = None
+        statements = []
+
+        if account_id is not None:
+            try:
+                account_id = int(account_id)
+            except (ValueError, TypeError):
+                return jsonify({"error": "account_id must be an integer"}), 400
+
+            account = db.execute(
+                "SELECT account_id FROM Account_Dim WHERE account_id = ? AND user_id = ?",
+                [account_id, g.user_id],
+            )
+            if not account.rows:
+                return jsonify({"error": "Account not found"}), 404
+
+            category_id = _transfer_category_id(db, g.user_id)
+            if not category_id:
+                return jsonify({"error": "No categories found for user"}), 400
+
+            transaction_id = f"tx-{int(time.time() * 1000)}"
+            statements.extend([
+                libsql_client.Statement(
+                    """
+                    INSERT INTO Transaction_Fact
+                    (transaction_id, transaction_date, account_id, category_id, amount, type, note, user_id)
+                    VALUES (?, ?, ?, ?, ?, 'transfer_out', ?, ?)
+                    """,
+                    [transaction_id, contribution_date, account_id, category_id, amount, note or savings_name, g.user_id],
+                ),
+                libsql_client.Statement(
+                    "UPDATE Account_Dim SET current_balance = current_balance - ? WHERE account_id = ? AND user_id = ?",
+                    [amount, account_id, g.user_id],
+                ),
+            ])
+
+        statements.extend([
+            libsql_client.Statement(
+                """INSERT INTO Savings_Contribution_Fact
+                (savings_id, transaction_id, contribution_date, amount)
+                VALUES (?, ?, ?, ?)""",
+                [savings_id, transaction_id, contribution_date, amount],
+            ),
+            libsql_client.Statement(
+                "UPDATE Savings_Dim SET current_balance = current_balance + ? WHERE savings_id = ? AND user_id = ?",
+                [amount, savings_id, g.user_id],
+            ),
+            libsql_client.Statement(
+                "UPDATE Savings_Dim SET status = 'completed' WHERE savings_id = ? AND user_id = ? AND current_balance >= target_amount AND status = 'active'",
+                [savings_id, g.user_id],
+            ),
+        ])
+        db.batch(statements)
+
         row = db.execute(
             "SELECT MAX(contribution_id) FROM Savings_Contribution_Fact WHERE savings_id = ?",
             [savings_id],
         )
         contribution_id = row.rows[0][0]
 
-        # Update current balance
-        db.execute(
-            "UPDATE Savings_Dim SET current_balance = current_balance + ? WHERE savings_id = ?",
-            [amount, savings_id],
-        )
-
-        # Auto-complete if balance >= target
-        db.execute(
-            "UPDATE Savings_Dim SET status = 'completed' WHERE savings_id = ? AND current_balance >= target_amount AND status = 'active'",
-            [savings_id],
-        )
-
         logger.info(f"Recorded contribution {contribution_id} for savings {savings_id}: {amount}")
+    except Exception as e:
+        logger.error(f"Error recording savings contribution: {e}")
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
     finally:
         db.close()
     return jsonify({"message": "Contribution recorded successfully", "contribution_id": contribution_id}), 201
@@ -231,25 +288,47 @@ def delete_savings_contribution(savings_id: int, contribution_id: int):
             return jsonify({"error": "Savings goal not found"}), 404
 
         contrib = db.execute(
-            "SELECT amount FROM Savings_Contribution_Fact WHERE contribution_id = ? AND savings_id = ?",
+            "SELECT amount, transaction_id FROM Savings_Contribution_Fact WHERE contribution_id = ? AND savings_id = ?",
             [contribution_id, savings_id],
         )
         if not contrib.rows:
             return jsonify({"error": "Contribution not found"}), 404
 
-        amount = contrib.rows[0][0]
+        amount, linked_tx_id = contrib.rows[0]
+        statements = [
+            libsql_client.Statement(
+                "DELETE FROM Savings_Contribution_Fact WHERE contribution_id = ? AND savings_id = ?",
+                [contribution_id, savings_id],
+            ),
+            libsql_client.Statement(
+                "UPDATE Savings_Dim SET current_balance = MAX(0, current_balance - ?), status = CASE WHEN status = 'completed' THEN 'active' ELSE status END WHERE savings_id = ? AND user_id = ?",
+                [amount, savings_id, g.user_id],
+            ),
+        ]
 
-        db.execute(
-            "DELETE FROM Savings_Contribution_Fact WHERE contribution_id = ? AND savings_id = ?",
-            [contribution_id, savings_id],
-        )
+        if linked_tx_id:
+            tx = db.execute(
+                "SELECT type, amount, account_id FROM Transaction_Fact WHERE transaction_id = ? AND user_id = ? AND is_deleted = 0",
+                [linked_tx_id, g.user_id],
+            )
+            if tx.rows:
+                _, tx_amount, account_id = tx.rows[0]
+                statements.extend([
+                    libsql_client.Statement(
+                        "UPDATE Transaction_Fact SET is_deleted = 1 WHERE transaction_id = ? AND user_id = ?",
+                        [linked_tx_id, g.user_id],
+                    ),
+                    libsql_client.Statement(
+                        "UPDATE Account_Dim SET current_balance = current_balance + ? WHERE account_id = ? AND user_id = ?",
+                        [tx_amount, account_id, g.user_id],
+                    ),
+                ])
 
-        # Restore balance (don't go below 0)
-        db.execute(
-            "UPDATE Savings_Dim SET current_balance = MAX(0, current_balance - ?) WHERE savings_id = ?",
-            [amount, savings_id],
-        )
+        db.batch(statements)
         logger.info(f"Deleted contribution {contribution_id} from savings {savings_id}, restored {amount}")
+    except Exception as e:
+        logger.error(f"Error deleting savings contribution: {e}")
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
     finally:
         db.close()
     return jsonify({"message": "Contribution deleted successfully"}), 200

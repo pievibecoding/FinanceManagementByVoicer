@@ -30,10 +30,24 @@ Read this before changing frontend API wrappers, hooks, Flask routes, or Express
 
 Rules:
 - Amounts are positive VND integers.
-- Direction is represented by `type`.
+- Direction is represented by `type`: `income`, `expense`, `transfer_in`, or `transfer_out`.
+- `transfer_in` and `transfer_out` are internal cash movements. They affect account balances but must not be counted as income or expense in dashboard/analytics summaries.
 - `transaction_date` must be `YYYY-MM-DD HH:MM:SS`.
 - Optional transaction fields include `payee_id`, `location`, and `splits`.
 - Deletes physically remove split rows first, then soft-delete the parent transaction with `is_deleted=1`.
+
+### AI Parse Drafts
+
+- `POST /api/parse-transaction`
+
+Rules:
+- This Express route calls Gemini and returns a parsed draft.
+- It must not silently persist a standard transaction.
+- It must not auto-create accounts or payees during parsing.
+- Standard transaction drafts are saved later through `POST /api/transactions` after the user confirms or edits and confirms the draft.
+- Debt and savings operation types may use their existing confirm/picker flows, but ambiguous matches must not be saved silently.
+- AI debt/savings cash movements should create a `transfer_in` or `transfer_out` transaction when a cash/bank/wallet account is involved, and reuse existing `transaction_id` links for payments/contributions where available.
+- The Gemini model name is `gemini-3.1-flash-lite` unless the user explicitly approves a model change.
 
 ### Accounts
 

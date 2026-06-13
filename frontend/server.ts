@@ -90,6 +90,22 @@ async function startServer() {
         ? payeeList.map(p => `"${p.payee_name}"`).join(", ")
         : "none";
 
+      // Fetch user's savings goals so savings contributions can point to a real destination fund.
+      let savingsList: Array<{ savings_id: number; name: string; status: string }> = [];
+      try {
+        const savingsRes = await fetch(`${FLASK_URL}/api/savings`, {
+          headers: { "Authorization": authHeader },
+        });
+        savingsList = await savingsRes.json();
+      } catch {
+        savingsList = [];
+      }
+
+      const activeSavingsList = savingsList.filter(s => s.status === "active");
+      const savingsContext = activeSavingsList.length > 0
+        ? activeSavingsList.map(s => `"${s.name}"`).join(", ")
+        : "none";
+
       const accountNames = accountList.map(a => a.account_name);
 
       const systemInstruction = `
@@ -101,7 +117,16 @@ Ensure you convert any financial slang or abbreviations typical in Vietnamese:
 - "xị" represents 100,000 VND (e.g. 2 xị = 200000, 1 xị = 100000).
 - "củ" represents million VND (e.g. 3 củ = 3000000, nửa củ = 500000).
 - "tỏi" represents billion VND (e.g. 1 tỏi = 1000000000).
-- Account names should correspond to source accounts in Vietnamese, specifically match from [${accountNames.map(n => `'${n}'`).join(", ")}]. If the user mentions an account NOT in this list, use the exact name they said (e.g. "Ngân hàng OCB") and set account_is_new to TRUE. If matched, set account_is_new to FALSE.
+- Account names should correspond to cash/bank/wallet accounts in Vietnamese, specifically match from [${accountNames.map(n => `'${n}'`).join(", ")}]. If the user mentions an account NOT in this list, use the exact name they said (e.g. "Ngân hàng OCB") and set account_is_new to TRUE. If matched, set account_is_new to FALSE.
+- Savings goal names should correspond to existing destination funds, specifically match from [${activeSavingsList.map(s => `'${s.name}'`).join(", ")}]. For savings_contribution, savings_name must be the destination fund money goes into, not a generic label like "tiết kiệm" when a more specific fund is mentioned.
+- For any operation that moves money through a cash/bank/wallet account, always fill account with that account:
+  * Expense: account is the source account money leaves from.
+  * Income: account is the destination account money enters.
+  * Savings contribution: account is the source account money leaves from, e.g. "từ OCB sang quỹ mua xe" => account = "OCB".
+  * New debt when the user borrows money: account is the destination account money enters, e.g. "tôi vay Hiền 500k vào tiền mặt" => account = "Tiền mặt".
+  * New loan when the user lends money: account is the source account money leaves from, e.g. "cho Nam mượn 1 củ từ VCB" => account = "VCB".
+  * Debt payment: if the user pays debt, account is the source account; if someone pays the user back, account is the destination account.
+  * If the user does not mention a cash/bank/wallet account for these operations, leave account empty and account_is_new FALSE so the UI can require manual account selection.
 - Category names must follow consistent financial categories, specifically match from: ['Ăn uống', 'Tiền lương', 'Di chuyển', 'Mua sắm', 'Giải trí', 'Học tập', 'Sức khỏe', 'Khác']. For investment-related spending, use category 'Khác' and type 'expense'.
 
 Special operations (set operation_type to one of these when detected):
@@ -137,6 +162,7 @@ Standard output schema properties:
 - target_amount: integer, target amount for new_savings operations. Leave empty for other operations.
 
 Known payees for this user: [${payeeContext}].
+Known active savings goals for this user: [${savingsContext}].
 If the merchant or recipient in the transaction matches one of the known payees exactly or closely, set payee_name to the exact name from the list.
 If no match, set payee_name to empty string "".
 
@@ -211,26 +237,7 @@ Return ONLY valid JSON.
         CATEGORY_NAME_TO_ID[c.category_name] = c.category_id;
       }
 
-      // If Gemini detected a new account, create it in DB first
-      let resolvedAccountId: number | null = ACCOUNT_NAME_TO_ID[parsedData.account] ?? null;
-      if (parsedData.account_is_new && parsedData.account) {
-        const createRes = await fetch(`${FLASK_URL}/api/accounts`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": authHeader },
-          body: JSON.stringify({
-            account_name: parsedData.account,
-            account_type: "Bank",
-            initial_balance: 0,
-          }),
-        });
-        const createData = await createRes.json();
-        resolvedAccountId = createData.account_id ?? resolvedAccountId;
-      }
-
-      // Fall back to first available account if still unresolved
-      if (!resolvedAccountId && accountList.length > 0) {
-        resolvedAccountId = accountList[0].account_id;
-      }
+      const resolvedAccountId: number | null = ACCOUNT_NAME_TO_ID[parsedData.account] ?? null;
 
       // Resolve category name → integer category_id
       const geminiCategory = parsedData.category as string;
@@ -238,7 +245,7 @@ Return ONLY valid JSON.
         CATEGORY_NAME_TO_ID[geminiCategory] ??
         (categoryList.length > 0 ? categoryList[categoryList.length - 1].category_id : null); // last = "Khác"
 
-      // Resolve payee_name → payee_id, auto-create if it's a new named payee
+      // Resolve payee_name → payee_id. Parsing is draft-only, so do not auto-create payees here.
       let resolvedPayeeId: number | null = null;
       const incomingPayeeName = (parsedData.payee_name || "").trim();
       if (incomingPayeeName) {
@@ -247,150 +254,26 @@ Return ONLY valid JSON.
         );
         if (matchedPayee) {
           resolvedPayeeId = matchedPayee.payee_id;
-        } else {
-          // Auto-create the new payee so it appears in future lookups
-          try {
-            const payeeRes = await fetch(`${FLASK_URL}/api/payees`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": authHeader },
-              body: JSON.stringify({ payee_name: incomingPayeeName }),
-            });
-            const payeeData = await payeeRes.json();
-            resolvedPayeeId = payeeData.payee_id ?? null;
-          } catch {
-            // Non-fatal: transaction still saves without payee link
-          }
         }
       }
 
-      // Handle different operation types
-      const operationType = parsedData.operation_type || 'transaction';
-      
-      if (operationType === 'transaction') {
-        // Persist to Turso via Flask backend
-        const txRes = await fetch(`${FLASK_URL}/api/transactions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": authHeader },
-            body: JSON.stringify({
-              transaction_date: parsedData.transaction_date || localTime,
-              account_id: resolvedAccountId,
-              category_id: resolvedCategoryId,
-              amount: parsedData.amount,
-              type: parsedData.type,
-              note: parsedData.note,
-              payee_id: resolvedPayeeId,
-              location: parsedData.location,
-            }),
-          });
+      parsedData.account_id = resolvedAccountId;
+      parsedData.category_id = resolvedCategoryId;
+      parsedData.payee_id = resolvedPayeeId;
+      parsedData.savings_id = null;
 
-        if (!txRes.ok) {
-          const txErr = await txRes.json().catch(() => ({}));
-          throw new Error(txErr.error || `Flask rejected transaction: ${txRes.status}`);
-        }
-      } else if (operationType === 'debt_payment') {
-        // Create transaction first, then link to debt payment
-        const txRes = await fetch(`${FLASK_URL}/api/transactions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": authHeader },
-            body: JSON.stringify({
-              transaction_date: parsedData.transaction_date || localTime,
-              account_id: resolvedAccountId,
-              category_id: resolvedCategoryId,
-              amount: parsedData.amount,
-              type: 'expense',
-              note: parsedData.note,
-              payee_id: resolvedPayeeId,
-              location: parsedData.location,
-            }),
-          });
-
-        if (!txRes.ok) {
-          const txErr = await txRes.json().catch(() => ({}));
-          throw new Error(txErr.error || `Flask rejected transaction: ${txRes.status}`);
-        }
-
-        const txData = await txRes.json();
-        
-        // Find debt by name
-        let debtList: Array<{ debt_id: number; name: string }> = [];
-        try {
-          const debtRes = await fetch(`${FLASK_URL}/api/debts`, {
-            headers: { "Authorization": authHeader },
-          });
-          debtList = await debtRes.json();
-        } catch {
-          debtList = [];
-        }
-
-        const matchedDebt = debtList.find(d => d.name.toLowerCase() === (parsedData.debt_name || "").toLowerCase());
-        if (matchedDebt) {
-          // Create debt payment
-          await fetch(`${FLASK_URL}/api/debts/${matchedDebt.debt_id}/payments`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": authHeader },
-            body: JSON.stringify({
-              payment_date: parsedData.transaction_date || localTime,
-              amount_paid: parsedData.amount,
-              principal_portion: parsedData.amount,
-              interest_portion: 0,
-              transaction_id: txData.transaction_id,
-            }),
-          });
-        }
-      } else if (operationType === 'savings_contribution') {
-        // Create transaction first, then link to savings contribution
-        const txRes = await fetch(`${FLASK_URL}/api/transactions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": authHeader },
-            body: JSON.stringify({
-              transaction_date: parsedData.transaction_date || localTime,
-              account_id: resolvedAccountId,
-              category_id: resolvedCategoryId,
-              amount: parsedData.amount,
-              type: 'expense',
-              note: parsedData.note,
-              payee_id: resolvedPayeeId,
-              location: parsedData.location,
-            }),
-          });
-
-        if (!txRes.ok) {
-          const txErr = await txRes.json().catch(() => ({}));
-          throw new Error(txErr.error || `Flask rejected transaction: ${txRes.status}`);
-        }
-
-        const txData = await txRes.json();
-        
-        // Find savings by name
-        let savingsList: Array<{ savings_id: number; name: string }> = [];
-        try {
-          const savingsRes = await fetch(`${FLASK_URL}/api/savings`, {
-            headers: { "Authorization": authHeader },
-          });
-          savingsList = await savingsRes.json();
-        } catch {
-          savingsList = [];
-        }
-
-        const matchedSavings = savingsList.find(s => s.name.toLowerCase() === (parsedData.savings_name || "").toLowerCase());
+      const incomingSavingsName = (parsedData.savings_name || "").trim().toLowerCase();
+      if (incomingSavingsName && parsedData.operation_type === "savings_contribution") {
+        const matchedSavings = activeSavingsList.find(s => {
+          const name = s.name.toLowerCase();
+          return name === incomingSavingsName ||
+            name.includes(incomingSavingsName) ||
+            incomingSavingsName.includes(name);
+        });
         if (matchedSavings) {
-          // Create savings contribution
-          await fetch(`${FLASK_URL}/api/savings/${matchedSavings.savings_id}/contributions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": authHeader },
-            body: JSON.stringify({
-              contribution_date: parsedData.transaction_date || localTime,
-              amount: parsedData.amount,
-              transaction_id: txData.transaction_id,
-            }),
-          });
+          parsedData.savings_id = matchedSavings.savings_id;
+          parsedData.savings_name = matchedSavings.name;
         }
-      } else if (operationType === 'new_debt') {
-        // Return parsed data to frontend — user must confirm before saving
-        // AIChatWidget.confirmEntry() handles the actual debt creation
-      } else if (operationType === 'new_savings') {
-        // Return parsed data to frontend — user must confirm before saving
-        // AIChatWidget.confirmEntry() handles the actual savings creation
       }
 
       res.json(parsedData);

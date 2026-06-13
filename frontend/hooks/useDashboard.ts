@@ -3,6 +3,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useDebts } from '@/hooks/useDebts';
 import { useSavings } from '@/hooks/useSavings';
+import { isPositiveTransactionType } from '@/lib/transaction-types';
 
 function normalizeId(value: string | number | null | undefined) {
   return value == null ? '' : String(value);
@@ -23,17 +24,7 @@ export function useDashboardMetrics(budgetMonth?: string) {
   const accounts = accountsQuery.data ?? [];
   const transactions = transactionsQuery.data ?? [];
 
-  // Compute real current balance per account
-  const totalBalance = accounts.reduce((sum, acc) => {
-    let balance = acc.initial_balance;
-    const accountId = normalizeId(acc.account_id);
-    transactions.forEach(tx => {
-      if (normalizeId(tx.account_id) !== accountId) return;
-      if (tx.type === 'income') balance += tx.amount;
-      else balance -= tx.amount;
-    });
-    return sum + balance;
-  }, 0);
+  const totalBalance = accounts.reduce((sum, acc) => sum + acc.current_balance, 0);
 
   // Net worth = Total assets (sum of all account balances + savings) - Total debt
   const netWorth = totalBalance + totalSaved - totalDebt;
@@ -80,7 +71,7 @@ export function useDashboardMetrics(budgetMonth?: string) {
       transactions.forEach(tx => {
         if (normalizeId(tx.account_id) !== accountId) return;
         if (tx.transaction_date.slice(0, 7) <= month) {
-          if (tx.type === 'income') balance += tx.amount;
+          if (isPositiveTransactionType(tx.type)) balance += tx.amount;
           else balance -= tx.amount;
         }
       });

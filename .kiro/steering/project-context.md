@@ -280,7 +280,7 @@ Categories are seeded per user at registration, but users can add/edit/delete un
 
 ## 6. Database Schema (key facts)
 
-- All amounts: **positive integers in VND**. Direction encoded in `type` ('income'|'expense'). Investment-related entries are treated as expenses.
+- All amounts: **positive integers in VND**. Direction encoded in `type` (`income`|`expense`|`transfer_in`|`transfer_out`). Transfers affect account balances but are excluded from income/expense summaries. Investment-related entries are treated as expenses.
 - `transaction_date` format: `'YYYY-MM-DD HH:MM:SS'`
 - `transaction_id` format: `'tx-{timestamp_ms}'`
 - `category_id = 'split'` is sentinel for multi-category transactions

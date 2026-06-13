@@ -8,14 +8,15 @@ export function useDebts() {
   })
 
   const debts = query.data ?? []
+  const isOpenDebt = (status: string) => status === 'active' || status === 'overdue'
   const totalDebt = debts
-    .filter(d => d.debt_type === 'debt' && d.status === 'active')
+    .filter(d => d.debt_type === 'debt' && isOpenDebt(d.status))
     .reduce((sum, d) => sum + d.outstanding_balance, 0)
   const totalLoan = debts
-    .filter(d => d.debt_type === 'loan' && d.status === 'active')
+    .filter(d => d.debt_type === 'loan' && isOpenDebt(d.status))
     .reduce((sum, d) => sum + d.outstanding_balance, 0)
   const nextPayment = debts
-    .filter(d => d.debt_type === 'debt' && d.status === 'active' && d.due_date)
+    .filter(d => d.debt_type === 'debt' && isOpenDebt(d.status) && d.due_date)
     .sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)))[0] ?? null
 
   return { ...query, debts, totalDebt, totalLoan, nextPayment }
@@ -62,6 +63,8 @@ export function useCreatePayment() {
     onSuccess: (_res, vars) => {
       qc.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['debt-payments', vars.debtId] })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
     },
   })
 }
@@ -74,6 +77,8 @@ export function useDeletePayment() {
     onSuccess: (_res, vars) => {
       qc.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['debt-payments', vars.debtId] })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
     },
   })
 }

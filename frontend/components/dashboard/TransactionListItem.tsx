@@ -2,6 +2,7 @@ import { Transaction } from '@/api/dashboard';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 import { AppCard } from '@/components/common';
+import { isPositiveTransactionType, isTransferTransactionType } from '@/lib/transaction-types';
 
 interface TransactionListItemProps {
   transaction: Transaction;
@@ -21,6 +22,8 @@ export function TransactionListItem({ transaction, onClick }: TransactionListIte
   };
 
   const isIncome = transaction.type === 'income';
+  const isTransfer = isTransferTransactionType(transaction.type);
+  const isPositive = isPositiveTransactionType(transaction.type);
 
   return (
     <AppCard
@@ -35,8 +38,8 @@ export function TransactionListItem({ transaction, onClick }: TransactionListIte
           <p className="text-muted-foreground text-sm">{formatDate(transaction.transaction_date)}</p>
         </div>
       </div>
-      <span className={`font-bold tabular-nums ${isIncome ? 'text-primary' : 'text-destructive'}`}>
-        {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
+      <span className={`font-bold tabular-nums ${isTransfer ? 'text-muted-foreground' : isIncome ? 'text-primary' : 'text-destructive'}`}>
+        {isPositive ? '+' : '-'}{formatCurrency(transaction.amount)}
       </span>
     </AppCard>
   );

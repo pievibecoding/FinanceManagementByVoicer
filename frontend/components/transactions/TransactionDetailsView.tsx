@@ -2,6 +2,7 @@ import type { Transaction } from '@/api/transactions';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 import { Button } from '@/components/ui/button';
+import { isPositiveTransactionType, isTransferTransactionType } from '@/lib/transaction-types';
 import {
   Dialog,
   DialogContent,
@@ -38,7 +39,9 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
   if (!transaction) return null;
 
   const isIncome = transaction.type === 'income';
-  const normalizedType = isIncome ? 'income' : 'expense';
+  const isTransfer = isTransferTransactionType(transaction.type);
+  const isPositive = isPositiveTransactionType(transaction.type);
+  const normalizedType = isTransfer ? 'transfer' : isIncome ? 'income' : 'expense';
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -56,10 +59,10 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${isIncome ? 'bg-primary/10 border border-primary/30' : 'bg-destructive/10 border border-destructive/30'}`}>
+          <div className={`p-4 rounded-lg ${isTransfer ? 'bg-muted/30 border border-border' : isIncome ? 'bg-primary/10 border border-primary/30' : 'bg-destructive/10 border border-destructive/30'}`}>
             <p className="text-muted-foreground text-sm mb-1">{t('transactions.amount')}</p>
-            <p className={`text-2xl font-bold tabular-nums ${isIncome ? 'text-primary' : 'text-destructive'}`}>
-              {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
+            <p className={`text-2xl font-bold tabular-nums ${isTransfer ? 'text-muted-foreground' : isIncome ? 'text-primary' : 'text-destructive'}`}>
+              {isPositive ? '+' : '-'}{formatCurrency(transaction.amount)}
             </p>
           </div>
 

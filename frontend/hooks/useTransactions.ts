@@ -23,6 +23,7 @@ export function useAddTransaction() {
       type: string;
       note: string;
       payee_id?: number;
+      location?: string;
       splits?: Array<{ category_id: string; amount: number; note: string }>;
     }) => transactionsApi.addTransaction(transaction),
     onSuccess: () => {
@@ -45,6 +46,7 @@ export function useUpdateTransaction() {
         type?: string;
         note?: string;
         payee_id?: number;
+        location?: string;
       };
     }) => transactionsApi.updateTransaction(transactionId, transaction),
     onSuccess: () => {

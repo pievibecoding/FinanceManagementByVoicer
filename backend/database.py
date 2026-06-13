@@ -52,6 +52,8 @@ def initialize_db() -> None:
         _migrate_account_id_to_integer(db)
         _add_account_display_columns(db)
         _dedup_categories(db)
+        _add_transfer_pair_id_column(db)
+        _add_account_current_balance(db)
         logger.info("DB initialized successfully.")
     except Exception as e:
         logger.error(f"DB initialization error: {e}")
@@ -93,7 +95,8 @@ def _create_tables(db) -> None:
             account_id      TEXT PRIMARY KEY,
             account_name    TEXT NOT NULL,
             account_type    TEXT NOT NULL,
-            initial_balance INTEGER NOT NULL DEFAULT 0
+            initial_balance INTEGER NOT NULL DEFAULT 0,
+            current_balance INTEGER NOT NULL DEFAULT 0
         )
     """)
     db.execute("""
@@ -113,6 +116,7 @@ def _create_tables(db) -> None:
             amount           INTEGER NOT NULL,
             type             TEXT NOT NULL,
             note             TEXT,
+            transfer_pair_id TEXT,
             FOREIGN KEY (account_id)  REFERENCES Account_Dim(account_id),
             FOREIGN KEY (category_id) REFERENCES Category_Dim(category_id)
         )
@@ -254,6 +258,51 @@ def _mark_migration_done(db, name: str) -> None:
     )
 
 
+def _add_transfer_pair_id_column(db) -> None:
+    """Add transfer_pair_id to Transaction_Fact for linked transfer rows."""
+    migration_name = "add_transfer_pair_id_column"
+    if _migration_applied(db, migration_name):
+        logger.info("transfer_pair_id migration already applied — skipping.")
+        return
+
+    try:
+        db.execute("ALTER TABLE Transaction_Fact ADD COLUMN transfer_pair_id TEXT")
+        logger.info("Migrated Transaction_Fact: added transfer_pair_id")
+    except Exception:
+        pass
+    _mark_migration_done(db, migration_name)
+
+
+def _add_account_current_balance(db) -> None:
+    """Add and recompute Account_Dim.current_balance from initial balance and live transactions."""
+    migration_name = "add_account_current_balance"
+    if _migration_applied(db, migration_name):
+        logger.info("current_balance migration already applied — skipping.")
+        return
+
+    try:
+        db.execute("ALTER TABLE Account_Dim ADD COLUMN current_balance INTEGER NOT NULL DEFAULT 0")
+        logger.info("Migrated Account_Dim: added current_balance")
+    except Exception:
+        pass
+
+    db.execute("""
+        UPDATE Account_Dim
+        SET current_balance = initial_balance + COALESCE((
+            SELECT SUM(CASE
+                WHEN type IN ('income', 'transfer_in') THEN amount
+                WHEN type IN ('expense', 'transfer_out') THEN -amount
+                ELSE 0
+            END)
+            FROM Transaction_Fact
+            WHERE Transaction_Fact.account_id = Account_Dim.account_id
+              AND Transaction_Fact.user_id = Account_Dim.user_id
+              AND Transaction_Fact.is_deleted = 0
+        ), 0)
+    """)
+    _mark_migration_done(db, migration_name)
+
+
 # ── Payees ────────────────────────────────────────────────────────────────────
 
 def _create_payees_table(db) -> None:
@@ -373,7 +422,8 @@ def _migrate_account_id_to_integer(db) -> None:
             user_id         INTEGER NOT NULL DEFAULT 1,
             account_name    TEXT NOT NULL,
             account_type    TEXT NOT NULL,
-            initial_balance INTEGER NOT NULL DEFAULT 0
+            initial_balance INTEGER NOT NULL DEFAULT 0,
+            current_balance INTEGER NOT NULL DEFAULT 0
         )
     """)
 
@@ -385,8 +435,8 @@ def _migrate_account_id_to_integer(db) -> None:
     id_map: dict[str, int] = {}
     for old_id, user_id, name, acc_type, balance in old_rows:
         db.execute(
-            "INSERT INTO Account_Dim_new (user_id, account_name, account_type, initial_balance) VALUES (?, ?, ?, ?)",
-            [user_id, name, acc_type, balance],
+            "INSERT INTO Account_Dim_new (user_id, account_name, account_type, initial_balance, current_balance) VALUES (?, ?, ?, ?, ?)",
+            [user_id, name, acc_type, balance, balance],
         )
         row = db.execute("SELECT last_insert_rowid() AS id")
         new_id = row.rows[0][0]

@@ -24,7 +24,7 @@ export interface Transaction {
   account_id: number;
   category_id: number | 'split';  // 'split' is the sentinel value for multi-category transactions
   amount: number;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer_in' | 'transfer_out';
   note: string;
   payee_id?: number | null;
   location?: string | null;
@@ -38,7 +38,7 @@ export interface ChatMessage {
   timestamp: number;
   parsedTransaction?: {
     amount: number;
-    type: 'income' | 'expense';
+    type: 'income' | 'expense' | 'transfer_in' | 'transfer_out';
     category: string;
     account: string;
     note: string;

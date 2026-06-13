@@ -66,14 +66,14 @@ export const sidebarData: SidebarData = {
           icon: PieChart,
         },
         {
-          title: 'Analytics',
-          url: '/analytics',
-          icon: BarChart,
-        },
-        {
           title: 'Budgets',
           url: '/budgets',
           icon: TrendingUp,
+        },
+        {
+          title: 'Analytics',
+          url: '/analytics',
+          icon: BarChart,
         },
       ],
     },

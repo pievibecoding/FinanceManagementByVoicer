@@ -9,7 +9,7 @@ export interface Debt {
   outstanding_balance: number
   start_date: string | null
   due_date: string | null
-  status: 'active' | 'settled' | 'overdue'
+  status: 'active' | 'settled' | 'overdue' | 'cancelled'
   note: string | null
   created_at: string
 }
@@ -71,7 +71,13 @@ export const debtsApi = {
   getPayments(debtId: number): Promise<DebtPayment[]> {
     return apiFetch(`/api/debts/${debtId}/payments`, { method: 'GET', headers: getAuthHeaders() })
   },
-  createPayment(debtId: number, data: { amount_paid: number; payment_date: string; transaction_id?: string | null }): Promise<{ message: string; payment_id: number }> {
+  createPayment(debtId: number, data: {
+    amount_paid: number
+    payment_date: string
+    account_id?: number | null
+    note?: string | null
+    transaction_id?: string | null
+  }): Promise<{ message: string; payment_id: number }> {
     return apiFetch(`/api/debts/${debtId}/payments`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) })
   },
   deletePayment(debtId: number, paymentId: number): Promise<{ message: string }> {
