@@ -340,6 +340,49 @@ export function AIChatWidget() {
     }))
   }, [debtsForDrafts])
 
+  // Tự động điền số thứ tự lần thanh toán vào note khi draft debt_payment có debt_id
+  const paymentCountFetchedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    entries.forEach(entry => {
+      if (
+        !entry.draft ||
+        entry.draft.kind !== 'debt_payment' ||
+        !entry.draft.debt_id ||
+        entry.confirmed ||
+        entry.rejected
+      ) return
+
+      // Key: entry.id + debt_id để re-fetch khi user đổi sang debt khác
+      const fetchKey = `${entry.id}:${entry.draft.debt_id}`
+      if (paymentCountFetchedRef.current.has(fetchKey)) return
+
+      const debtId = Number(entry.draft.debt_id)
+      paymentCountFetchedRef.current.add(fetchKey)
+
+      debtsApi.getPayments(debtId)
+        .then(payments => {
+          const nextIndex = payments.length + 1
+          setEntries(prev => prev.map(e => {
+            if (e.id !== entry.id || !e.draft || e.draft.kind !== 'debt_payment') return e
+            // Chỉ prepend nếu note chưa có "Lần N" để tránh ghi đè khi user đã sửa
+            const currentNote = e.draft.note || ''
+            const alreadyHasIndex = /^Lần \d+/i.test(currentNote)
+            if (alreadyHasIndex) return e
+            const baseNote = currentNote || e.draft.debt_name || ''
+            const newNote = baseNote ? `Lần ${nextIndex} - ${baseNote}` : `Lần ${nextIndex}`
+            return {
+              ...e,
+              draft: { ...e.draft, note: newNote },
+            }
+          }))
+        })
+        .catch(() => {
+          paymentCountFetchedRef.current.delete(fetchKey)
+        })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries.map(e => `${e.id}:${e.draft?.kind === 'debt_payment' ? (e.draft as DebtPaymentDraftForm).debt_id : ''}`).join(',')])
+
   const buildDraft = (parsed: ParsedData): AiDraftForm => {
     const opType = parsed.operation_type ?? (parsed.type === 'in' ? 'income' : 'expense')
     if (opType === 'inner_transfer') {
@@ -355,7 +398,7 @@ export function AIChatWidget() {
         note: parsed.note || '',
       }
     }
-    if (opType === 'debt_disbursement' || opType === 'new_debt') {
+    if (opType === 'debt_disbursement') {
       return {
         kind: 'debt_disbursement',
         debt_name: parsed.debt_name || parsed.note || '',
@@ -676,6 +719,7 @@ export function AIChatWidget() {
   // ── Confirm an entry ─────────────────────────────────────────────────────
   const confirmEntry = async (id: string, parsed: ParsedData, draft?: AiDraftForm) => {
     const opType = parsed.operation_type ?? 'transaction'
+    const synced = draft ? syncParsedFromDraft(parsed, draft) : parsed
 
     try {
       if (draft) {
@@ -697,19 +741,19 @@ export function AIChatWidget() {
         })
         queryClient.invalidateQueries({ queryKey: ['transactions'] })
         queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      } else if (opType === 'debt_disbursement' || opType === 'new_debt') {
+      } else if (opType === 'debt_disbursement') {
         const today = new Date()
-        const dateStr = parsed.transaction_date || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} ${currentInputTime()}`
-        const accountId = Number(parsed.account_id)
+        const dateStr = synced.transaction_date || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} ${currentInputTime()}`
+        const accountId = Number(synced.account_id)
         await debtsApi.createDebt({
-          name: parsed.debt_name || parsed.note || t('debts.new'),
-          debt_type: (parsed.debt_type as 'debt' | 'loan') ?? 'debt',
-          lender: parsed.lender || null,
-          debtor: parsed.debtor || null,
-          principal: parsed.amount,
+          name: synced.debt_name || synced.note || t('debts.new'),
+          debt_type: (synced.debt_type as 'debt' | 'loan') ?? 'debt',
+          lender: synced.lender || null,
+          debtor: synced.debtor || null,
+          principal: synced.amount,
           account_id: accountId,
           transaction_date: dateStr,
-          note: parsed.note || null,
+          note: synced.note || null,
         })
         queryClient.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
         queryClient.invalidateQueries({ queryKey: ['transactions'] })
@@ -717,13 +761,13 @@ export function AIChatWidget() {
       } else if (opType === 'debt_payment') {
         const today = new Date()
         const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`
-        const paymentDate = parsed.transaction_date || dateStr
-        const accountId = Number(parsed.account_id)
-        await debtsApi.createPayment(Number(parsed.debt_id), {
-          amount_paid: parsed.amount,
+        const paymentDate = synced.transaction_date || dateStr
+        const accountId = Number(synced.account_id)
+        await debtsApi.createPayment(Number(synced.debt_id), {
+          amount_paid: synced.amount,
           payment_date: paymentDate,
           account_id: accountId,
-          note: parsed.note || parsed.debt_name || t('debts.payment'),
+          note: synced.note || synced.debt_name || t('debts.payment'),
         })
         queryClient.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
         queryClient.invalidateQueries({ queryKey: ['transactions'] })
@@ -998,7 +1042,7 @@ export function AIChatWidget() {
 
     const renderDraftHeader = () => {
       const title = (() => {
-        if (opType === 'debt_disbursement' || opType === 'new_debt') return p.debt_name || p.note || t('transactions.aiDebtBill')
+        if (opType === 'debt_disbursement') return p.debt_name || p.note || t('transactions.aiDebtBill')
         if (opType === 'debt_payment') return p.debt_name || p.lender || p.debtor || t('debts.payment')
         if (opType === 'new_savings') return p.savings_name || p.note || t('transactions.aiSavingsBill')
         if (opType === 'savings_contribution') return p.savings_name || t('savingsPage.contribution')
@@ -1008,7 +1052,7 @@ export function AIChatWidget() {
       })()
 
       const chip = (() => {
-        if (opType === 'debt_disbursement' || opType === 'new_debt') return p.debt_type === 'loan' ? t('debts.owedToMe') : t('debts.iOwe')
+        if (opType === 'debt_disbursement') return p.debt_type === 'loan' ? t('debts.owedToMe') : t('debts.iOwe')
         if (opType === 'debt_payment') return t('debts.payment')
         if (opType === 'new_savings') return t('savingsPage.new')
         if (opType === 'savings_contribution') return t('savingsPage.contribution')
@@ -1022,8 +1066,8 @@ export function AIChatWidget() {
         if (opType === 'expense') return TYPE_COLOR.expense
         if (opType === 'inner_transfer') return TYPE_COLOR.inner_transfer
         if (opType === 'transaction') return TYPE_COLOR[normalizeTransactionType(p.type)]
-        if ((opType === 'debt_disbursement' || opType === 'new_debt') && p.debt_type === 'loan') return TYPE_COLOR.income
-        if (opType === 'debt_disbursement' || opType === 'new_debt' || opType === 'debt_payment') return TYPE_COLOR.expense
+        if ((opType === 'debt_disbursement') && p.debt_type === 'loan') return TYPE_COLOR.income
+        if (opType === 'debt_disbursement' || opType === 'debt_payment') return TYPE_COLOR.expense
         return 'text-primary'
       })()
 
@@ -1043,7 +1087,7 @@ export function AIChatWidget() {
         if (opType === 'savings_withdrawal') {
           return `${p.savings_name || t('transactions.aiSavingsBill')} → ${accountName || t('transactions.selectAccount')}`
         }
-        if (opType === 'debt_disbursement' || opType === 'new_debt') {
+        if (opType === 'debt_disbursement') {
           if (p.debt_type === 'loan') {
             return `${accountName || t('transactions.selectAccount')} → ${p.debtor || p.debt_name || t('debts.debtor')}`
           }
@@ -1315,7 +1359,7 @@ export function AIChatWidget() {
     }
 
     const cardContent = () => {
-      if (opType === 'new_debt') {
+      if (opType === 'debt_disbursement') {
         return (
           <div className="text-muted-foreground space-y-0.5 text-xs">
             <div className="flex items-center gap-2 mb-1">

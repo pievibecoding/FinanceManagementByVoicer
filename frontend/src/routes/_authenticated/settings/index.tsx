@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { BadgeCheck, CreditCard, Languages, Palette, ShieldCheck, Sparkles, User } from 'lucide-react'
+import { BadgeCheck, Languages, Palette, ShieldCheck, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { AppCard, PageHeader } from '@/components/common'
@@ -64,10 +64,9 @@ function SettingsPage() {
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <InfoTile label={t('settingsCore.profile.userId')} value={String(user?.id ?? '-')} />
                 <InfoTile label={t('settingsCore.profile.email')} value={user?.email || '-'} />
-                <InfoTile label={t('settingsCore.profile.plan')} value={t('app.plan')} />
               </div>
 
               <div className="rounded-lg border border-border bg-muted/10 px-5 py-4 text-sm text-muted-foreground">
@@ -110,40 +109,6 @@ function SettingsPage() {
             </CardContent>
           </AppCard>
         </div>
-
-        <AppCard id="billing" className="py-2">
-          <CardHeader className="px-6 pb-4 pt-6">
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="size-4 text-primary" />
-              {t('settingsCore.billing.title')}
-            </CardTitle>
-            <CardDescription>{t('settingsCore.billing.description')}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 px-6 pb-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge>{t('app.plan')}</Badge>
-                <Badge variant="outline">{t('settingsCore.billing.free')}</Badge>
-              </div>
-              <p className="text-sm text-muted-foreground">{t('settingsCore.billing.notice')}</p>
-              <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
-                <span>{t('settingsCore.billing.features.transactions')}</span>
-                <span>{t('settingsCore.billing.features.budgets')}</span>
-                <span>{t('settingsCore.billing.features.ai')}</span>
-              </div>
-            </div>
-            <div className="rounded-lg border border-border bg-muted/20 px-5 py-5">
-              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Sparkles className="size-4 text-primary" />
-                {t('settingsCore.billing.upgradeTitle')}
-              </div>
-              <p className="mb-4 text-sm text-muted-foreground">{t('settingsCore.billing.upgradeDescription')}</p>
-              <Button variant="secondary" disabled className="w-full">
-                {t('settingsCore.billing.notAvailable')}
-              </Button>
-            </div>
-          </CardContent>
-        </AppCard>
       </div>
     </div>
   )

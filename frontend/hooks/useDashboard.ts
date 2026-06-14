@@ -3,7 +3,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useDebts } from '@/hooks/useDebts';
 import { useSavings } from '@/hooks/useSavings';
-import { cashDirectionForTransaction, operationTypeForTransaction } from '@/lib/transaction-types';
+import { operationTypeForTransaction } from '@/lib/transaction-types';
 
 function normalizeId(value: string | number | null | undefined) {
   return value == null ? '' : String(value);
@@ -69,11 +69,15 @@ export function useDashboardMetrics(budgetMonth?: string) {
       let balance = acc.initial_balance;
       const accountId = normalizeId(acc.account_id);
       transactions.forEach(tx => {
-        if (normalizeId(tx.account_id) !== accountId) return;
-        if (tx.transaction_date.slice(0, 7) <= month) {
-          const direction = cashDirectionForTransaction(tx);
-          if (direction === 'in') balance += tx.amount;
-          if (direction === 'out') balance -= tx.amount;
+        if (tx.transaction_date.slice(0, 7) > month) return;
+        const opType = operationTypeForTransaction(tx);
+        if (opType === 'income' && normalizeId(tx.account_id) === accountId) {
+          balance += tx.amount;
+        } else if (opType === 'expense' && normalizeId(tx.account_id) === accountId) {
+          balance -= tx.amount;
+        } else if (opType === 'inner_transfer') {
+          if (normalizeId(tx.source_account_id) === accountId) balance -= tx.amount;
+          if (normalizeId(tx.destination_account_id) === accountId) balance += tx.amount;
         }
       });
       netWorth += balance;
