@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { debtsApi } from '@/api/debts'
 import { savingsApi } from '@/api/savings'
+import { accountsApi } from '@/api/accounts'
 import type { Debt } from '@/api/debts'
 import { palette } from '@/styles/tokens'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
@@ -25,6 +26,10 @@ interface ParsedData {
   category_id?: number | string | null
   account?: string
   account_id?: number | null
+  source_account?: string
+  source_account_id?: number | null
+  destination_account?: string
+  destination_account_id?: number | null
   account_is_new?: boolean
   note?: string
   transaction_date?: string
@@ -47,6 +52,7 @@ interface ChatEntry {
   confirmed?: boolean
   rejected?: boolean
   error?: string
+  guidance?: string
   saveError?: string
 }
 
@@ -56,6 +62,8 @@ type AiDraftForm =
   | DebtPaymentDraftForm
   | NewSavingsDraftForm
   | SavingsContributionDraftForm
+  | AccountTransferDraftForm
+  | SavingsWithdrawalDraftForm
 
 interface TransactionDraftForm {
   kind: 'transaction'
@@ -71,13 +79,23 @@ interface TransactionDraftForm {
 }
 
 interface NewDebtDraftForm {
-  kind: 'new_debt'
+  kind: 'debt_disbursement'
   debt_name: string
   debt_type: 'debt' | 'loan'
   lender: string
   debtor: string
   amount: number | ''
   account_id: number | ''
+  note: string
+}
+
+interface AccountTransferDraftForm {
+  kind: 'inner_transfer'
+  from_account_id: number | ''
+  to_account_id: number | ''
+  amount: number | ''
+  transaction_date: string
+  transaction_time: string
   note: string
 }
 
@@ -112,6 +130,17 @@ interface SavingsContributionDraftForm {
   note: string
 }
 
+interface SavingsWithdrawalDraftForm {
+  kind: 'savings_withdrawal'
+  savings_id: number | ''
+  savings_name: string
+  amount: number | ''
+  account_id: number | ''
+  transaction_date: string
+  transaction_time: string
+  note: string
+}
+
 const SUGGESTION_KEYS = [
   'transactions.aiSuggestionLunch',
   'transactions.aiSuggestionCoffee',
@@ -126,12 +155,21 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 const TYPE_COLOR: Record<string, string> = {
-  income: 'text-primary',
-  expense: 'text-destructive',
+  income:        'text-emerald-400',
+  expense:       'text-destructive',
+  inner_transfer:'text-yellow-400',
+  transfer:      'text-yellow-400',
+}
+
+const TYPE_AMOUNT_COLOR: Record<string, string> = {
+  income:        'text-emerald-400',
+  expense:       'text-destructive',
+  inner_transfer:'text-yellow-400',
+  transfer:      'text-yellow-400',
 }
 
 function normalizeTransactionType(type: string | undefined) {
-  return type === 'income' ? 'income' : 'expense'
+  return type === 'income' || type === 'in' ? 'income' : 'expense'
 }
 
 function todayInputDate() {
@@ -204,6 +242,47 @@ export function AIChatWidget() {
     return matchedAccount?.account_id ?? ''
   }
 
+  const normalizeLookupText = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/đ/g, 'd')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+
+  const cleanAccountMention = (value: string) =>
+    value
+      .replace(/\b\d+(?:[.,]\d+)?\s*(?:k|ngan|ngàn|nghin|nghìn|cu|củ|tr|trieu|triệu|m|loet|loét|lit|lít|xi|xị|toi|tỏi)?\b/gi, ' ')
+      .replace(/\b(vnd|dong|đồng|d|đ)\b/gi, ' ')
+      .trim()
+
+  const resolveAccountMention = (value?: string) => {
+    const normalized = normalizeLookupText(cleanAccountMention(value || ''))
+    if (!normalized) return null
+    return accounts.find(account => {
+      const accountName = normalizeLookupText(account.account_name)
+      const compactName = accountName.replace(/\s+/g, '')
+      const compactMention = normalized.replace(/\s+/g, '')
+      return accountName === normalized ||
+        accountName.includes(normalized) ||
+        normalized.includes(accountName) ||
+        compactName.includes(compactMention) ||
+        compactMention.includes(compactName)
+    }) ?? null
+  }
+
+  const detectInnerTransferFromText = (value: string) => {
+    const normalized = normalizeLookupText(value)
+    if (!/\b(chuyen|ck)\b/.test(normalized)) return null
+    const match = value.match(/(?:từ|tu)\s+(.+?)\s+(?:sang|qua|vào|vao|đến|den|tới|toi)\s+(.+)$/i)
+    if (!match) return null
+    const source = resolveAccountMention(match[1])
+    const destination = resolveAccountMention(match[2])
+    if (!source || !destination || source.account_id === destination.account_id) return null
+    return { source, destination }
+  }
+
   const activeSavingsGoals = savingsGoals.filter(goal => goal.status === 'active')
 
   const findSavingsGoalMatch = (name: string | undefined) => {
@@ -262,10 +341,23 @@ export function AIChatWidget() {
   }, [debtsForDrafts])
 
   const buildDraft = (parsed: ParsedData): AiDraftForm => {
-    const opType = parsed.operation_type ?? 'transaction'
-    if (opType === 'new_debt') {
+    const opType = parsed.operation_type ?? (parsed.type === 'in' ? 'income' : 'expense')
+    if (opType === 'inner_transfer') {
+      const sourceAccountId = parsed.source_account_id ?? resolveAccountMention(parsed.source_account)?.account_id ?? ''
+      const destinationAccountId = parsed.destination_account_id ?? resolveAccountMention(parsed.destination_account)?.account_id ?? ''
       return {
-        kind: 'new_debt',
+        kind: 'inner_transfer',
+        from_account_id: sourceAccountId,
+        to_account_id: destinationAccountId,
+        amount: parsed.amount || '',
+        transaction_date: parsedDateToDraftDate(parsed.transaction_date),
+        transaction_time: parsedDateToDraftTime(parsed.transaction_date),
+        note: parsed.note || '',
+      }
+    }
+    if (opType === 'debt_disbursement' || opType === 'new_debt') {
+      return {
+        kind: 'debt_disbursement',
         debt_name: parsed.debt_name || parsed.note || '',
         debt_type: parsed.debt_type === 'loan' ? 'loan' : 'debt',
         lender: parsed.lender || '',
@@ -298,10 +390,10 @@ export function AIChatWidget() {
         note: parsed.note || '',
       }
     }
-    if (opType === 'savings_contribution') {
+    if (opType === 'savings_contribution' || opType === 'savings_withdrawal') {
       const matchedSavings = findSavingsGoalMatch(parsed.savings_name)
       return {
-        kind: 'savings_contribution',
+        kind: opType,
         savings_id: parsed.savings_id ?? matchedSavings?.savings_id ?? '',
         savings_name: matchedSavings?.name ?? parsed.savings_name ?? '',
         amount: parsed.amount || '',
@@ -341,7 +433,13 @@ export function AIChatWidget() {
       return null
     }
     if (!draft.amount || Number(draft.amount) <= 0) return t('transactions.aiValidationAmount')
-    if (draft.kind === 'new_debt') {
+    if (draft.kind === 'inner_transfer') {
+      if (!draft.transaction_date) return t('transactions.aiValidationDate')
+      if (!draft.from_account_id || !draft.to_account_id) return t('transactions.aiValidationAccount')
+      if (draft.from_account_id === draft.to_account_id) return t('transactions.aiValidationType')
+      return null
+    }
+    if (draft.kind === 'debt_disbursement') {
       if (!draft.debt_name.trim()) return t('transactions.aiValidationName')
       if (draft.debt_type !== 'debt' && draft.debt_type !== 'loan') return t('transactions.aiValidationType')
       if (!draft.account_id) return t('transactions.aiValidationAccount')
@@ -354,7 +452,7 @@ export function AIChatWidget() {
       if (!draft.debt_id || !selectedDebt) return t('transactions.aiValidationDebt')
       return null
     }
-    if (draft.kind === 'savings_contribution') {
+    if (draft.kind === 'savings_contribution' || draft.kind === 'savings_withdrawal') {
       if (!draft.transaction_date) return t('transactions.aiValidationDate')
       if (!draft.account_id) return t('transactions.aiValidationAccount')
       const selectedGoal = activeSavingsGoals.find(goal => goal.savings_id === Number(draft.savings_id))
@@ -369,19 +467,78 @@ export function AIChatWidget() {
     return null
   }
 
+  const draftGuidance = (draft: AiDraftForm, parsed: ParsedData) => {
+    if (draft.kind === 'transaction') {
+      if (!draft.account_id) return t('transactions.aiGuidanceMissingAccount')
+      if (!draft.category_id) return t('transactions.aiGuidanceMissingCategory')
+      return ''
+    }
+    if (draft.kind === 'inner_transfer') {
+      if (!draft.from_account_id) return t('transactions.aiGuidanceMissingSourceAccount')
+      if (!draft.to_account_id) return t('transactions.aiGuidanceMissingDestinationAccount')
+      if (draft.from_account_id === draft.to_account_id) return t('transactions.aiGuidanceSameTransferAccount')
+      return ''
+    }
+    if (draft.kind === 'debt_disbursement') {
+      if (!draft.account_id) {
+        return draft.debt_type === 'loan'
+          ? t('transactions.aiGuidanceMissingDebtSource')
+          : t('transactions.aiGuidanceMissingDebtDestination')
+      }
+      return ''
+    }
+    if (draft.kind === 'debt_payment') {
+      if (!draft.debt_id) return t('transactions.aiGuidanceMissingDebt')
+      if (!draft.account_id) {
+        return draft.lender
+          ? t('transactions.aiGuidanceMissingSourceAccount')
+          : t('transactions.aiGuidanceMissingDestinationAccount')
+      }
+      return ''
+    }
+    if (draft.kind === 'savings_contribution' || draft.kind === 'savings_withdrawal') {
+      if (!draft.savings_id && parsed.savings_name) {
+        return t('transactions.aiGuidanceMissingSavingsCreate', { name: parsed.savings_name })
+      }
+      if (!draft.savings_id) return t('transactions.aiGuidanceMissingSavings')
+      if (!draft.account_id) {
+        return draft.kind === 'savings_contribution'
+          ? t('transactions.aiGuidanceMissingSourceAccount')
+          : t('transactions.aiGuidanceMissingDestinationAccount')
+      }
+      return ''
+    }
+    return ''
+  }
+
   const updateEntryDraft = (id: string, patch: Partial<AiDraftForm>) => {
     setEntries(prev => prev.map(entry => {
       if (entry.id !== id || !entry.draft) return entry
       const nextDraft = { ...entry.draft, ...patch }
-      return { ...entry, draft: nextDraft, saveError: undefined }
+      return {
+        ...entry,
+        draft: nextDraft,
+        guidance: entry.parsed ? draftGuidance(nextDraft, entry.parsed) || undefined : undefined,
+        saveError: undefined,
+      }
     }))
   }
 
   const syncParsedFromDraft = (parsed: ParsedData, draft: AiDraftForm): ParsedData => {
-    if (draft.kind === 'new_debt') {
+    if (draft.kind === 'inner_transfer') {
       return {
         ...parsed,
-        operation_type: 'new_debt',
+        operation_type: 'inner_transfer',
+        amount: Number(draft.amount),
+        account_id: draft.from_account_id === '' ? null : Number(draft.from_account_id),
+        note: draft.note,
+        transaction_date: `${draft.transaction_date} ${normalizeDraftTime(draft.transaction_time)}`,
+      }
+    }
+    if (draft.kind === 'debt_disbursement') {
+      return {
+        ...parsed,
+        operation_type: 'debt_disbursement',
         debt_name: draft.debt_name,
         debt_type: draft.debt_type,
         lender: draft.lender,
@@ -416,11 +573,11 @@ export function AIChatWidget() {
         note: draft.note,
       }
     }
-    if (draft.kind === 'savings_contribution') {
+    if (draft.kind === 'savings_contribution' || draft.kind === 'savings_withdrawal') {
       const selectedGoal = activeSavingsGoals.find(goal => goal.savings_id === Number(draft.savings_id))
       return {
         ...parsed,
-        operation_type: 'savings_contribution',
+        operation_type: draft.kind,
         savings_id: draft.savings_id === '' ? null : Number(draft.savings_id),
         savings_name: selectedGoal?.name ?? draft.savings_name,
         amount: Number(draft.amount),
@@ -449,38 +606,9 @@ export function AIChatWidget() {
     }
   }
 
-  const getTransferCategoryId = () => {
-    const otherCategory = categories.find(category => category.category_name.toLowerCase() === 'khác')
-    return otherCategory?.category_id ?? categories[0]?.category_id ?? ''
-  }
-
   const accountNameFor = (accountId: number | '' | null | undefined) => {
     if (!accountId) return ''
     return accounts.find(account => account.account_id === Number(accountId))?.account_name ?? ''
-  }
-
-  const createTransferTransaction = async (data: {
-    accountId: number
-    amount: number
-    type: 'transfer_in' | 'transfer_out'
-    date: string
-    note: string
-    location?: string
-  }) => {
-    const categoryId = getTransferCategoryId()
-    if (!categoryId) throw new Error(t('transactions.aiValidationCategory'))
-
-    const result = await addTransaction.mutateAsync({
-      transaction_date: data.date,
-      account_id: data.accountId,
-      category_id: String(categoryId),
-      amount: data.amount,
-      type: data.type,
-      note: data.note,
-      location: data.location || '',
-    })
-    queryClient.invalidateQueries({ queryKey: ['accounts'] })
-    return result.transaction_id
   }
 
   // ── Submit text ──────────────────────────────────────────────────────────
@@ -515,14 +643,27 @@ export function AIChatWidget() {
       }
 
       const parsed: ParsedData = await res.json()
-      const opType = parsed.operation_type ?? 'transaction'
+      const detectedInnerTransfer = detectInnerTransferFromText(trimmed)
+      if (detectedInnerTransfer) {
+        parsed.operation_type = 'inner_transfer'
+        parsed.type = 'neutral'
+        parsed.category = ''
+        parsed.account = detectedInnerTransfer.source.account_name
+        parsed.account_id = detectedInnerTransfer.source.account_id
+        parsed.source_account = detectedInnerTransfer.source.account_name
+        parsed.source_account_id = detectedInnerTransfer.source.account_id
+        parsed.destination_account = detectedInnerTransfer.destination.account_name
+        parsed.destination_account_id = detectedInnerTransfer.destination.account_id
+      }
+      const draft = buildDraft(parsed)
       setEntries(prev => [
         ...prev,
         {
           id: entryId,
           text: trimmed,
           parsed,
-          draft: buildDraft(parsed),
+          draft,
+          guidance: draftGuidance(draft, parsed) || undefined,
         },
       ])
     } catch (err: any) {
@@ -545,27 +686,34 @@ export function AIChatWidget() {
         }
       }
 
-      if (opType === 'new_debt') {
+      if (opType === 'inner_transfer') {
+        if (!draft || draft.kind !== 'inner_transfer') return
+        await accountsApi.transferBetweenAccounts({
+          from_account_id: Number(draft.from_account_id),
+          to_account_id: Number(draft.to_account_id),
+          amount: Number(draft.amount),
+          date: `${draft.transaction_date} ${normalizeDraftTime(draft.transaction_time)}`,
+          note: draft.note,
+        })
+        queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      } else if (opType === 'debt_disbursement' || opType === 'new_debt') {
         const today = new Date()
         const dateStr = parsed.transaction_date || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} ${currentInputTime()}`
         const accountId = Number(parsed.account_id)
-        const transferType = parsed.debt_type === 'loan' ? 'transfer_out' : 'transfer_in'
-        await createTransferTransaction({
-          accountId,
-          amount: parsed.amount,
-          type: transferType,
-          date: dateStr,
-          note: parsed.note || parsed.debt_name || t('transactions.aiDebtBill'),
-        })
         await debtsApi.createDebt({
           name: parsed.debt_name || parsed.note || t('debts.new'),
           debt_type: (parsed.debt_type as 'debt' | 'loan') ?? 'debt',
           lender: parsed.lender || null,
           debtor: parsed.debtor || null,
           principal: parsed.amount,
+          account_id: accountId,
+          transaction_date: dateStr,
           note: parsed.note || null,
         })
         queryClient.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        queryClient.invalidateQueries({ queryKey: ['accounts'] })
       } else if (opType === 'debt_payment') {
         const today = new Date()
         const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`
@@ -602,6 +750,19 @@ export function AIChatWidget() {
         queryClient.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' })
         queryClient.invalidateQueries({ queryKey: ['transactions'] })
         queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      } else if (opType === 'savings_withdrawal') {
+        const today = new Date()
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`
+        const withdrawalDate = parsed.transaction_date || dateStr
+        await savingsApi.createWithdrawal(Number(parsed.savings_id), {
+          amount: parsed.amount,
+          withdrawal_date: withdrawalDate,
+          account_id: Number(parsed.account_id),
+          note: parsed.note || parsed.savings_name || t('savingsPage.withdraw'),
+        })
+        queryClient.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' })
+        queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        queryClient.invalidateQueries({ queryKey: ['accounts'] })
       } else {
         if (!draft) return
         if (draft.kind !== 'transaction') return
@@ -611,7 +772,10 @@ export function AIChatWidget() {
           account_id: Number(draft.account_id),
           category_id: draft.category_id,
           amount: Number(draft.amount),
-          type: draft.type,
+          type: draft.type === 'income' ? 'in' : 'out',
+          operation_type: draft.type,
+          source_account_id: draft.type === 'expense' ? Number(draft.account_id) : null,
+          destination_account_id: draft.type === 'income' ? Number(draft.account_id) : null,
           note: draft.note,
           payee_id: draft.payee_id ?? undefined,
           location: draft.location,
@@ -834,40 +998,52 @@ export function AIChatWidget() {
 
     const renderDraftHeader = () => {
       const title = (() => {
-        if (opType === 'new_debt') return p.debt_name || p.note || t('transactions.aiDebtBill')
+        if (opType === 'debt_disbursement' || opType === 'new_debt') return p.debt_name || p.note || t('transactions.aiDebtBill')
         if (opType === 'debt_payment') return p.debt_name || p.lender || p.debtor || t('debts.payment')
         if (opType === 'new_savings') return p.savings_name || p.note || t('transactions.aiSavingsBill')
         if (opType === 'savings_contribution') return p.savings_name || t('savingsPage.contribution')
+        if (opType === 'savings_withdrawal') return p.savings_name || t('savingsPage.withdraw')
+        if (opType === 'inner_transfer') return p.note || t('operationTypes.inner_transfer')
         return p.note || p.category || t('transactions.fallbackName')
       })()
 
       const chip = (() => {
-        if (opType === 'new_debt') return p.debt_type === 'loan' ? t('debts.owedToMe') : t('debts.iOwe')
+        if (opType === 'debt_disbursement' || opType === 'new_debt') return p.debt_type === 'loan' ? t('debts.owedToMe') : t('debts.iOwe')
         if (opType === 'debt_payment') return t('debts.payment')
         if (opType === 'new_savings') return t('savingsPage.new')
         if (opType === 'savings_contribution') return t('savingsPage.contribution')
+        if (opType === 'savings_withdrawal') return t('savingsPage.withdraw')
+        if (opType === 'inner_transfer') return t('operationTypes.inner_transfer')
         return t(TYPE_LABEL[normalizeTransactionType(p.type)])
       })()
 
-      const chipColor = opType === 'transaction'
-        ? TYPE_COLOR[normalizeTransactionType(p.type)]
-        : opType === 'new_debt' && p.debt_type === 'loan'
-          ? 'text-primary'
-          : opType === 'new_debt' || opType === 'debt_payment'
-            ? 'text-destructive'
-            : 'text-primary'
+      const chipColor = (() => {
+        if (opType === 'income') return TYPE_COLOR.income
+        if (opType === 'expense') return TYPE_COLOR.expense
+        if (opType === 'inner_transfer') return TYPE_COLOR.inner_transfer
+        if (opType === 'transaction') return TYPE_COLOR[normalizeTransactionType(p.type)]
+        if ((opType === 'debt_disbursement' || opType === 'new_debt') && p.debt_type === 'loan') return TYPE_COLOR.income
+        if (opType === 'debt_disbursement' || opType === 'new_debt' || opType === 'debt_payment') return TYPE_COLOR.expense
+        return 'text-primary'
+      })()
 
       const flow = (() => {
         const accountName = accountNameFor(p.account_id)
-        if (opType === 'transaction') {
+        if (opType === 'expense' || opType === 'income' || opType === 'transaction') {
           return normalizeTransactionType(p.type) === 'income'
             ? `${p.payee_name || p.note || t('transactions.aiExternalSource')} → ${accountName || p.account || t('transactions.selectAccount')}`
             : `${accountName || p.account || t('transactions.selectAccount')} → ${p.payee_name || p.category || t('transactions.category')}`
         }
+        if (opType === 'inner_transfer' && entry.draft?.kind === 'inner_transfer') {
+          return `${accountNameFor(entry.draft.from_account_id) || t('transactions.selectAccount')} → ${accountNameFor(entry.draft.to_account_id) || t('transactions.selectAccount')}`
+        }
         if (opType === 'savings_contribution') {
           return `${accountName || t('transactions.selectAccount')} → ${p.savings_name || t('transactions.aiSavingsBill')}`
         }
-        if (opType === 'new_debt') {
+        if (opType === 'savings_withdrawal') {
+          return `${p.savings_name || t('transactions.aiSavingsBill')} → ${accountName || t('transactions.selectAccount')}`
+        }
+        if (opType === 'debt_disbursement' || opType === 'new_debt') {
           if (p.debt_type === 'loan') {
             return `${accountName || t('transactions.selectAccount')} → ${p.debtor || p.debt_name || t('debts.debtor')}`
           }
@@ -938,7 +1114,36 @@ export function AIChatWidget() {
         </div>
       ) : null
 
-      if (draft.kind === 'new_debt') {
+      if (draft.kind === 'inner_transfer') {
+        return (
+          <div className="space-y-2 text-xs">
+            {renderDraftHeader()}
+            <div className="grid grid-cols-2 gap-2">
+              {renderAccountSelect(
+                draft.from_account_id,
+                from_account_id => updateEntryDraft(entry.id, { from_account_id }),
+                t('transactions.fromAccount')
+              )}
+              {renderAccountSelect(
+                draft.to_account_id,
+                to_account_id => updateEntryDraft(entry.id, { to_account_id }),
+                t('transactions.toAccount')
+              )}
+            </div>
+            <label className="block space-y-1">
+              <span className="text-muted-foreground">{t('transactions.amount')}</span>
+              <input type="number" min="1" value={draft.amount} onChange={event => updateEntryDraft(entry.id, { amount: event.target.value ? Number(event.target.value) : '' })} className={inputCls} />
+            </label>
+            {dateTimeFields}
+            <label className="block space-y-1">
+              <span className="text-muted-foreground">{t('transactions.note')}</span>
+              <input value={draft.note} onChange={event => updateEntryDraft(entry.id, { note: event.target.value })} className={inputCls} />
+            </label>
+          </div>
+        )
+      }
+
+      if (draft.kind === 'debt_disbursement') {
         return (
           <div className="space-y-2 text-xs">
             {renderDraftHeader()}
@@ -1063,14 +1268,16 @@ export function AIChatWidget() {
       return (
         <div className="space-y-2 text-xs">
           {renderDraftHeader()}
-          {renderAccountSelect(
-            draft.account_id,
-            account_id => updateEntryDraft(entry.id, { account_id }),
-            t('transactions.fromAccount')
-          )}
+          {draft.kind === 'savings_contribution'
+            ? renderAccountSelect(
+                draft.account_id,
+                account_id => updateEntryDraft(entry.id, { account_id }),
+                t('transactions.fromAccount')
+              )
+            : null}
           <div className="grid grid-cols-2 gap-2">
             <label className="space-y-1">
-              <span className="text-muted-foreground">{t('transactions.destinationSavings')}</span>
+              <span className="text-muted-foreground">{draft.kind === 'savings_withdrawal' ? t('transactions.source') : t('transactions.destinationSavings')}</span>
               <select
                 value={draft.savings_id}
                 onChange={event => {
@@ -1091,6 +1298,13 @@ export function AIChatWidget() {
               <input type="number" min="1" value={draft.amount} onChange={event => updateEntryDraft(entry.id, { amount: event.target.value ? Number(event.target.value) : '' })} className={inputCls} />
             </label>
           </div>
+          {draft.kind === 'savings_withdrawal'
+            ? renderAccountSelect(
+                draft.account_id,
+                account_id => updateEntryDraft(entry.id, { account_id }),
+                t('transactions.toAccount')
+              )
+            : null}
           {dateTimeFields}
           <label className="block space-y-1">
             <span className="text-muted-foreground">{t('transactions.note')}</span>
@@ -1147,12 +1361,27 @@ export function AIChatWidget() {
           </div>
         )
       }
+      if (opType === 'inner_transfer') {
+        const fromName = accountNameFor(p.account_id) || p.source_account || p.account || '?'
+        const toName = accountNameFor(p.destination_account_id ?? null) || p.destination_account || '?'
+        return (
+          <div className="text-muted-foreground space-y-0.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-base tabular-nums text-yellow-400">{formatCurrency(p.amount)}</span>
+              <span className="text-[10px] font-medium text-yellow-400">{t('operationTypes.inner_transfer')}</span>
+            </div>
+            <p>💳 {fromName} → {toName}</p>
+            {p.note && <p>📝 {p.note}</p>}
+            <p className="text-muted-foreground/50">{p.transaction_date}</p>
+          </div>
+        )
+      }
       // Default: transaction
       return (
         <div className="text-muted-foreground space-y-0.5 text-xs">
           <div className="flex items-center justify-between">
-            <span className={`font-bold text-base tabular-nums ${TYPE_COLOR[normalizeTransactionType(p.type)]}`}>{formatCurrency(p.amount)}</span>
-            <span className={`text-[10px] font-medium ${TYPE_COLOR[normalizeTransactionType(p.type)]}`}>{p.type ? t(TYPE_LABEL[normalizeTransactionType(p.type)]) : ''}</span>
+            <span className={`font-bold text-base tabular-nums ${TYPE_COLOR[opType] ?? TYPE_COLOR[normalizeTransactionType(p.type)]}`}>{formatCurrency(p.amount)}</span>
+            <span className={`text-[10px] font-medium ${TYPE_COLOR[opType] ?? TYPE_COLOR[normalizeTransactionType(p.type)]}`}>{p.type ? t(TYPE_LABEL[normalizeTransactionType(p.type)]) : ''}</span>
           </div>
           <p>🏷 {p.category} &nbsp;·&nbsp; 💳 {p.account}</p>
           {p.note && <p>📝 {p.note}</p>}
@@ -1175,6 +1404,11 @@ export function AIChatWidget() {
         }`}
       >
         {showDraftEditor ? renderSimpleDraftEditor() : cardContent()}
+        {entry.guidance && !entry.confirmed && !entry.rejected && (
+          <p className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-1.5 text-[11px] leading-relaxed text-primary">
+            {entry.guidance}
+          </p>
+        )}
         {entry.saveError && (
           <p className="text-destructive text-[11px]">{entry.saveError}</p>
         )}

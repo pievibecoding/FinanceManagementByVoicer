@@ -11,24 +11,32 @@ export interface Category {
   budget: number; // Hạn mức tháng
 }
 
-export interface SplitItem {
-  split_id?: number;
-  category_id: number;
-  amount: number;
-  note?: string;
-}
+export type CashDirection = 'in' | 'out' | 'neutral';
+export type OperationType =
+  | 'expense'
+  | 'income'
+  | 'inner_transfer'
+  | 'savings_contribution'
+  | 'savings_withdrawal'
+  | 'debt_disbursement'
+  | 'debt_payment';
 
 export interface Transaction {
   transaction_id: string;
   transaction_date: string;
   account_id: number;
-  category_id: number | 'split';  // 'split' is the sentinel value for multi-category transactions
+  category_id: number;
   amount: number;
-  type: 'income' | 'expense' | 'transfer_in' | 'transfer_out';
+  type: CashDirection;
+  transaction_type?: 'income' | 'expense' | 'inner_transfer';
+  operation_type?: OperationType;
+  source_account_id?: number | null;
+  destination_account_id?: number | null;
+  savings_id?: number | null;
+  debt_id?: number | null;
   note: string;
   payee_id?: number | null;
   location?: string | null;
-  splits?: SplitItem[];
 }
 
 export interface ChatMessage {
@@ -38,7 +46,8 @@ export interface ChatMessage {
   timestamp: number;
   parsedTransaction?: {
     amount: number;
-    type: 'income' | 'expense' | 'transfer_in' | 'transfer_out';
+    type: CashDirection;
+    operation_type?: OperationType;
     category: string;
     account: string;
     note: string;
@@ -73,21 +82,6 @@ export interface Budget {
 export interface Payee {
   payee_id: number;
   payee_name: string;
-  default_category_id: number | null;
-}
-
-export interface RecurringTransaction {
-  recurring_id: number;
-  account_id: number;
-  category_id: number;
-  payee_id: number | null;
-  amount: number;
-  type: 'income' | 'expense';
-  note: string;
-  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  next_run_date: string;
-  end_date: string | null;
-  is_active: number;
 }
 
 export interface Artifact {

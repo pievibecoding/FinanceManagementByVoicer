@@ -24,7 +24,6 @@ export function useAddTransaction() {
       note: string;
       payee_id?: number;
       location?: string;
-      splits?: Array<{ category_id: string; amount: number; note: string }>;
     }) => transactionsApi.addTransaction(transaction),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'], refetchType: 'all' });
@@ -51,6 +50,23 @@ export function useUpdateTransaction() {
     }) => transactionsApi.updateTransaction(transactionId, transaction),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'], refetchType: 'all' });
+    },
+  });
+}
+
+export function useUpdateTransferTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ transactionId, transaction }: {
+      transactionId: string;
+      transaction: Parameters<typeof transactionsApi.updateTransferTransaction>[1];
+    }) => transactionsApi.updateTransferTransaction(transactionId, transaction),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['accounts'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' });
     },
   });
 }

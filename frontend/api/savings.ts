@@ -79,4 +79,12 @@ export const savingsApi = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
   },
+  createWithdrawal(savingsId: number, data: {
+    amount: number
+    withdrawal_date: string
+    account_id: number
+    note?: string | null
+  }): Promise<{ message: string; withdrawal_id: number }> {
+    return apiFetch(`/api/savings/${savingsId}/withdrawals`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) })
+  },
 }

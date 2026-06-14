@@ -26,6 +26,124 @@ HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
 DEFAULT_ACCOUNT_COLOR = "#a0c4ff"
 
 
+def _table_columns(db, table_name: str) -> set[str]:
+    try:
+        return {row["name"] for row in rows_to_dicts(db.execute(f"PRAGMA table_info({table_name})"))}
+    except Exception:
+        return set()
+
+
+def _ensure_account_related_schema(db) -> None:
+    account_columns = {
+        "current_balance": "INTEGER NOT NULL DEFAULT 0",
+        "color": "TEXT",
+    }
+    existing_account_columns = _table_columns(db, "Account_Dim")
+    for column_name, column_def in account_columns.items():
+        if column_name in existing_account_columns:
+            continue
+        try:
+            db.execute(f"ALTER TABLE Account_Dim ADD COLUMN {column_name} {column_def}")
+        except Exception:
+            pass
+
+    transaction_columns = {
+        "transaction_type": "TEXT",
+        "source_account_id": "INTEGER",
+        "destination_account_id": "INTEGER",
+        "updated_at": "TEXT",
+        "created_at": "TEXT",
+    }
+    existing_transaction_columns = _table_columns(db, "Transaction_Fact")
+    for column_name, column_def in transaction_columns.items():
+        if column_name in existing_transaction_columns:
+            continue
+        try:
+            db.execute(f"ALTER TABLE Transaction_Fact ADD COLUMN {column_name} {column_def}")
+        except Exception:
+            pass
+
+    # Migration: relax NOT NULL on account_id and category_id so that
+    # inner_transfer rows (which use source/destination_account_id instead)
+    # can be stored without violating the legacy schema constraint.
+    # SQLite cannot DROP NOT NULL via ALTER COLUMN, so we recreate the table.
+    try:
+        col_info = db.execute("PRAGMA table_info(Transaction_Fact)")
+        cols = {row[1]: row[3] for row in col_info.rows}  # name -> notnull
+        needs_migration = cols.get("account_id", 0) == 1 or cols.get("category_id", 0) == 1
+        if needs_migration:
+            db.batch([
+                libsql_client.Statement("""
+                    CREATE TABLE IF NOT EXISTS Transaction_Fact_new (
+                        transaction_id      TEXT PRIMARY KEY,
+                        transaction_date    TEXT NOT NULL,
+                        account_id          TEXT,
+                        category_id         TEXT,
+                        amount              INTEGER NOT NULL,
+                        type                TEXT NOT NULL,
+                        note                TEXT,
+                        transfer_pair_id    TEXT,
+                        user_id             INTEGER NOT NULL DEFAULT 1,
+                        is_deleted          INTEGER NOT NULL DEFAULT 0,
+                        payee_id            INTEGER,
+                        location            TEXT,
+                        operation_type      TEXT,
+                        source_account_id   INTEGER,
+                        destination_account_id INTEGER,
+                        savings_id          INTEGER,
+                        debt_id             INTEGER,
+                        debt_payment_id     INTEGER,
+                        savings_movement_id INTEGER,
+                        transaction_type    TEXT,
+                        created_at          TEXT,
+                        updated_at          TEXT
+                    )
+                """),
+                libsql_client.Statement("""
+                    INSERT INTO Transaction_Fact_new
+                    SELECT * FROM Transaction_Fact
+                """),
+                libsql_client.Statement("DROP TABLE Transaction_Fact"),
+                libsql_client.Statement("ALTER TABLE Transaction_Fact_new RENAME TO Transaction_Fact"),
+            ])
+    except Exception as e:
+        logger.warning(f"Transaction_Fact NOT NULL migration skipped: {e}")
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS Debt_Transaction_Fact (
+            debt_transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            debt_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            account_id INTEGER NOT NULL,
+            payee_id INTEGER,
+            debt_transaction_type TEXT NOT NULL CHECK (debt_transaction_type IN ('disbursement', 'payment')),
+            cash_direction TEXT NOT NULL CHECK (cash_direction IN ('in', 'out')),
+            transaction_date TEXT NOT NULL,
+            amount INTEGER NOT NULL CHECK (amount > 0),
+            note TEXT,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS Savings_Transaction_Fact (
+            savings_transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            savings_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            account_id INTEGER NOT NULL,
+            savings_transaction_type TEXT NOT NULL CHECK (savings_transaction_type IN ('contribution', 'withdrawal')),
+            cash_direction TEXT NOT NULL CHECK (cash_direction IN ('in', 'out')),
+            transaction_date TEXT NOT NULL,
+            amount INTEGER NOT NULL CHECK (amount > 0),
+            note TEXT,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT
+        )
+    """)
+
+
 def _clean_color(value) -> str:
     color = (value or DEFAULT_ACCOUNT_COLOR).strip()
     return color if HEX_COLOR_RE.match(color) else DEFAULT_ACCOUNT_COLOR
@@ -50,6 +168,7 @@ def _transfer_category_id(db, user_id: int):
 def get_accounts():
     db = get_db()
     try:
+        _ensure_account_related_schema(db)
         result   = db.execute(
             "SELECT * FROM Account_Dim WHERE user_id = ? ORDER BY account_id",
             [g.user_id],
@@ -77,6 +196,7 @@ def create_account():
 
     db = get_db()
     try:
+        _ensure_account_related_schema(db)
         # Check for duplicate name for this user
         existing = db.execute(
             "SELECT account_id FROM Account_Dim WHERE user_id = ? AND account_name = ?",
@@ -128,6 +248,7 @@ def update_account(account_id: int):
 
     db = get_db()
     try:
+        _ensure_account_related_schema(db)
         existing = db.execute(
             "SELECT account_id FROM Account_Dim WHERE account_id = ? AND user_id = ?",
             [account_id, g.user_id],
@@ -154,16 +275,36 @@ def update_account(account_id: int):
                 UPDATE Account_Dim
                 SET current_balance = ? + COALESCE((
                     SELECT SUM(CASE
-                        WHEN type IN ('income', 'transfer_in') THEN amount
-                        WHEN type IN ('expense', 'transfer_out') THEN -amount
+                        WHEN transaction_type = 'income' THEN amount
+                        WHEN transaction_type = 'expense' THEN -amount
+                        WHEN transaction_type = 'inner_transfer' AND destination_account_id = Account_Dim.account_id THEN amount
+                        WHEN transaction_type = 'inner_transfer' AND source_account_id = Account_Dim.account_id THEN -amount
                         ELSE 0
                     END)
                     FROM Transaction_Fact
-                    WHERE account_id = ? AND user_id = ? AND is_deleted = 0
+                    WHERE user_id = Account_Dim.user_id
+                      AND is_deleted = 0
+                      AND (
+                        account_id = Account_Dim.account_id
+                        OR source_account_id = Account_Dim.account_id
+                        OR destination_account_id = Account_Dim.account_id
+                      )
+                ), 0) + COALESCE((
+                    SELECT SUM(CASE WHEN cash_direction = 'in' THEN amount ELSE -amount END)
+                    FROM Debt_Transaction_Fact
+                    WHERE user_id = Account_Dim.user_id
+                      AND account_id = Account_Dim.account_id
+                      AND is_deleted = 0
+                ), 0) + COALESCE((
+                    SELECT SUM(CASE WHEN cash_direction = 'in' THEN amount ELSE -amount END)
+                    FROM Savings_Transaction_Fact
+                    WHERE user_id = Account_Dim.user_id
+                      AND account_id = Account_Dim.account_id
+                      AND is_deleted = 0
                 ), 0)
                 WHERE account_id = ? AND user_id = ?
                 """,
-                [updates["initial_balance"], account_id, g.user_id, account_id, g.user_id],
+                [updates["initial_balance"], account_id, g.user_id],
             )
             db.batch([update_stmt, recompute_stmt])
         else:
@@ -203,6 +344,7 @@ def transfer_between_accounts():
 
     db = get_db()
     try:
+        _ensure_account_related_schema(db)
         accounts = db.execute(
             """
             SELECT account_id FROM Account_Dim
@@ -213,31 +355,18 @@ def transfer_between_accounts():
         if len(accounts.rows) != 2:
             return jsonify({"error": "Account not found"}), 404
 
-        category_id = _transfer_category_id(db, g.user_id)
-        if not category_id:
-            return jsonify({"error": "No categories found for user"}), 400
-
         ts = int(time.time() * 1000)
-        transfer_pair_id = f"pair-{ts}"
-        out_transaction_id = f"tx-{ts}"
-        in_transaction_id = f"tx-{ts + 1}"
+        transaction_id = f"tx-{ts}"
 
         db.batch([
             libsql_client.Statement(
                 """
                 INSERT INTO Transaction_Fact
-                (transaction_id, transaction_date, account_id, category_id, amount, type, note, user_id, transfer_pair_id)
-                VALUES (?, ?, ?, ?, ?, 'transfer_out', ?, ?, ?)
+                (transaction_id, transaction_date, transaction_type, amount, type, operation_type,
+                 account_id, source_account_id, destination_account_id, note, user_id, is_deleted)
+                VALUES (?, ?, 'inner_transfer', ?, 'neutral', 'inner_transfer', ?, ?, ?, ?, ?, 0)
                 """,
-                [out_transaction_id, transfer_date, from_account_id, category_id, amount, note, g.user_id, transfer_pair_id],
-            ),
-            libsql_client.Statement(
-                """
-                INSERT INTO Transaction_Fact
-                (transaction_id, transaction_date, account_id, category_id, amount, type, note, user_id, transfer_pair_id)
-                VALUES (?, ?, ?, ?, ?, 'transfer_in', ?, ?, ?)
-                """,
-                [in_transaction_id, transfer_date, to_account_id, category_id, amount, note, g.user_id, transfer_pair_id],
+                [transaction_id, transfer_date, amount, from_account_id, from_account_id, to_account_id, note, g.user_id],
             ),
             libsql_client.Statement(
                 "UPDATE Account_Dim SET current_balance = current_balance - ? WHERE account_id = ? AND user_id = ?",
@@ -256,7 +385,5 @@ def transfer_between_accounts():
 
     return jsonify({
         "message": "Transfer created",
-        "transfer_pair_id": transfer_pair_id,
-        "out_transaction_id": out_transaction_id,
-        "in_transaction_id": in_transaction_id,
+        "transaction_id": transaction_id,
     }), 201

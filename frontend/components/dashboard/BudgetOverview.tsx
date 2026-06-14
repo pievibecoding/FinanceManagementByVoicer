@@ -3,6 +3,7 @@ import type { Budget } from '@/api/budgets'
 import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 import { AppCard } from '@/components/common'
+import { operationTypeForTransaction } from '@/lib/transaction-types'
 import {
   Select,
   SelectContent,
@@ -44,7 +45,7 @@ export function BudgetOverview({
   // Calculate spending per category for the selected month (expense only)
   const spendingMap: Record<number, number> = {}
   transactions.forEach(tx => {
-    if (tx.type !== 'expense') return
+    if (operationTypeForTransaction(tx) !== 'expense') return
     if (!tx.transaction_date.startsWith(selectedMonth)) return
     const catId = Number(tx.category_id)
     spendingMap[catId] = (spendingMap[catId] ?? 0) + tx.amount

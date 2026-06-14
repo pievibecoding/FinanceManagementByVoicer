@@ -3,7 +3,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useDebts } from '@/hooks/useDebts';
 import { useSavings } from '@/hooks/useSavings';
-import { isPositiveTransactionType } from '@/lib/transaction-types';
+import { cashDirectionForTransaction, operationTypeForTransaction } from '@/lib/transaction-types';
 
 function normalizeId(value: string | number | null | undefined) {
   return value == null ? '' : String(value);
@@ -15,7 +15,7 @@ export function useDashboardMetrics(budgetMonth?: string) {
   const accountsQuery = useAccounts();
   const transactionsQuery = useTransactions();
   const budgetsQuery = useBudgets(budgetMonth);
-  const { totalDebt } = useDebts();
+  const { totalDebt, totalLoan } = useDebts();
   const { totalSaved } = useSavings();
 
   const isLoading = accountsQuery.isLoading || transactionsQuery.isLoading;
@@ -26,18 +26,18 @@ export function useDashboardMetrics(budgetMonth?: string) {
 
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.current_balance, 0);
 
-  // Net worth = Total assets (sum of all account balances + savings) - Total debt
-  const netWorth = totalBalance + totalSaved - totalDebt;
+  // Net worth = liquid accounts + savings + receivables - liabilities.
+  const netWorth = totalBalance + totalSaved + totalLoan - totalDebt;
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const thisMonthTx = transactions.filter(tx => tx.transaction_date.startsWith(currentMonth));
 
   const monthlyIncome = thisMonthTx
-    .filter(tx => tx.type === 'income')
+    .filter(tx => operationTypeForTransaction(tx) === 'income')
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   const monthlyExpenses = thisMonthTx
-    .filter(tx => tx.type === 'expense')
+    .filter(tx => operationTypeForTransaction(tx) === 'expense')
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   const netSavings = monthlyIncome - monthlyExpenses;
@@ -45,7 +45,7 @@ export function useDashboardMetrics(budgetMonth?: string) {
   // Compute expense by category for current month (for expense-allocation chart)
   const expenseByCategory: Record<number, number> = {};
   thisMonthTx.forEach(tx => {
-    if (tx.type === 'expense') {
+    if (operationTypeForTransaction(tx) === 'expense') {
       const catId = Number(tx.category_id);
       expenseByCategory[catId] = (expenseByCategory[catId] ?? 0) + tx.amount;
     }
@@ -71,8 +71,9 @@ export function useDashboardMetrics(budgetMonth?: string) {
       transactions.forEach(tx => {
         if (normalizeId(tx.account_id) !== accountId) return;
         if (tx.transaction_date.slice(0, 7) <= month) {
-          if (isPositiveTransactionType(tx.type)) balance += tx.amount;
-          else balance -= tx.amount;
+          const direction = cashDirectionForTransaction(tx);
+          if (direction === 'in') balance += tx.amount;
+          if (direction === 'out') balance -= tx.amount;
         }
       });
       netWorth += balance;

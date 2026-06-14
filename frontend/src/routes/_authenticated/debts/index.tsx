@@ -11,6 +11,7 @@ import {
   useCreatePayment,
   useDeletePayment,
 } from '@/hooks/useDebts'
+import { useAccounts } from '@/hooks/useAccounts'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 import type { Debt, DebtPayment } from '@/api/debts'
 import { AppCard, ErrorState, PageHeader } from '@/components/common'
@@ -47,6 +48,7 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
   const isEdit = !!debt
   const createDebt = useCreateDebt()
   const updateDebt = useUpdateDebt()
+  const { data: accounts = [] } = useAccounts()
 
   const [name, setName] = useState(debt?.name ?? '')
   const [debtType, setDebtType] = useState<'debt' | 'loan'>(debt?.debt_type ?? 'debt')
@@ -57,6 +59,7 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
   const [startDate, setStartDate] = useState(debt?.start_date?.slice(0, 10) ?? todayStr())
   const [dueDate, setDueDate] = useState(debt?.due_date?.slice(0, 10) ?? '')
   const [note, setNote] = useState(debt?.note ?? '')
+  const [accountId, setAccountId] = useState<number | ''>('')
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,6 +68,7 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
     const principalNum = parseInt(principal.replace(/\D/g, ''), 10)
     if (!name.trim()) return setError(t('debts.errors.nameRequired'))
     if (isNaN(principalNum) || principalNum <= 0) return setError(t('debts.errors.principalPositive'))
+    if (!isEdit && !accountId) return setError(t('debts.errors.accountRequired'))
 
     try {
       if (isEdit && debt) {
@@ -88,6 +92,8 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
           lender: lender.trim() || null,
           debtor: debtor.trim() || null,
           principal: principalNum,
+          account_id: Number(accountId),
+          transaction_date: startDate ? `${startDate} 00:00:00` : null,
           start_date: startDate || null,
           due_date: dueDate || null,
           note: note.trim() || null,
@@ -126,6 +132,24 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
             <input value={name} onChange={e => setName(e.target.value)} placeholder={t('debts.namePlaceholder')}
               className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary" />
           </div>
+          {!isEdit && (
+            <div>
+              <label className="text-muted-foreground text-sm block mb-1">
+                {debtType === 'debt' ? t('debts.receivingAccount') : t('debts.sourceAccount')} *
+              </label>
+              <select value={accountId}
+                onChange={e => setAccountId(e.target.value ? Number(e.target.value) : '')}
+                className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary">
+                <option value="">{t('debts.selectAccount')}</option>
+                {accounts.map(account => (
+                  <option key={account.account_id} value={account.account_id}>{account.account_name}</option>
+                ))}
+              </select>
+              <p className="text-muted-foreground/60 text-xs mt-1">
+                {debtType === 'debt' ? t('debts.receivingAccountHint') : t('debts.sourceAccountHint')}
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-muted-foreground text-sm block mb-1">{t('debts.lender')}</label>
@@ -197,8 +221,10 @@ function PaymentModal({ debt, onClose }: PaymentModalProps) {
   const { t } = useTranslation()
   const { formatCurrency } = useLocaleFormat()
   const createPayment = useCreatePayment()
+  const { data: accounts = [] } = useAccounts()
   const [amount, setAmount] = useState('')
   const [paymentDate, setPaymentDate] = useState(todayStr())
+  const [accountId, setAccountId] = useState<number | ''>('')
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -206,10 +232,11 @@ function PaymentModal({ debt, onClose }: PaymentModalProps) {
     setError('')
     const amountNum = parseInt(amount.replace(/\D/g, ''), 10)
     if (isNaN(amountNum) || amountNum <= 0) return setError(t('debts.errors.amountPositive'))
+    if (!accountId) return setError(t('debts.errors.accountRequired'))
     try {
       await createPayment.mutateAsync({
         debtId: debt.debt_id,
-        data: { amount_paid: amountNum, payment_date: `${paymentDate} 00:00:00` },
+        data: { amount_paid: amountNum, payment_date: `${paymentDate} 00:00:00`, account_id: Number(accountId) },
       })
       onClose()
     } catch (err: any) {
@@ -228,6 +255,19 @@ function PaymentModal({ debt, onClose }: PaymentModalProps) {
             <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="1" placeholder={t('transactions.amountPlaceholder')} autoFocus
               className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary" />
             <p className="text-muted-foreground/60 text-xs mt-1">{t('debts.remaining')}: {formatCurrency(debt.outstanding_balance)}</p>
+          </div>
+          <div>
+            <label className="text-muted-foreground text-sm block mb-1">
+              {debt.debt_type === 'debt' ? t('debts.paymentSourceAccount') : t('debts.paymentReceivingAccount')} *
+            </label>
+            <select value={accountId}
+              onChange={e => setAccountId(e.target.value ? Number(e.target.value) : '')}
+              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary">
+              <option value="">{t('debts.selectAccount')}</option>
+              {accounts.map(account => (
+                <option key={account.account_id} value={account.account_id}>{account.account_name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="text-muted-foreground text-sm block mb-1">{t('debts.paymentDate')}</label>

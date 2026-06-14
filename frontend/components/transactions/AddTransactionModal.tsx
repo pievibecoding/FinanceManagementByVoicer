@@ -5,7 +5,7 @@ import { useAccounts } from '@/hooks/useAccounts';
 import { useCategories } from '@/hooks/useCategories';
 import { FormDialog } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { TRANSACTION_TYPE_OPTIONS } from '@/lib/transaction-types';
+import { STANDARD_TRANSACTION_TYPE_OPTIONS } from '@/lib/transaction-types';
 
 interface AddTransactionModalProps {
   open: boolean;
@@ -17,7 +17,7 @@ const EMPTY_FORM = () => ({
   account_id: 0,
   category_id: '',
   amount: 0,
-  type: 'expense',
+    operation_type: 'expense',
   note: '',
   location: '',
 });
@@ -37,7 +37,13 @@ export function AddTransactionModal({ open, onOpenChange }: AddTransactionModalP
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     addTransaction.mutate(
-      { ...formData, transaction_date: `${formData.transaction_date} ${timeStr}` },
+      {
+        ...formData,
+        type: formData.operation_type === 'income' ? 'in' : 'out',
+        source_account_id: formData.operation_type === 'expense' ? formData.account_id : null,
+        destination_account_id: formData.operation_type === 'income' ? formData.account_id : null,
+        transaction_date: `${formData.transaction_date} ${timeStr}`,
+      },
       { onSuccess: () => { onOpenChange(false); setFormData(EMPTY_FORM()); } }
     );
   };
@@ -64,10 +70,10 @@ export function AddTransactionModal({ open, onOpenChange }: AddTransactionModalP
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('transactions.type')}</label>
-            <select value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            <select value={formData.operation_type}
+              onChange={(e) => setFormData({ ...formData, operation_type: e.target.value })}
               className={INPUT_CLS} required>
-              {TRANSACTION_TYPE_OPTIONS.map((type) => (
+              {STANDARD_TRANSACTION_TYPE_OPTIONS.map((type) => (
                 <option key={type} value={type}>{t(`types.${type}`)}</option>
               ))}
             </select>

@@ -59,7 +59,6 @@ Let users review and manually correct AI-generated finance entries before anythi
 - Replacing Gemini or changing the model.
 - Adding voice recognition language switching.
 - Building a full conversational correction loop such as "change that to MoMo" as a separate AI prompt.
-- Supporting split transactions in the first manual edit pass.
 - Redesigning the whole chat widget.
 - Changing the Transactions route add/edit modal UX.
 - Adding direct database writes from Express or the browser.

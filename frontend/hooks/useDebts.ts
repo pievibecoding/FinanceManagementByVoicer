@@ -26,7 +26,11 @@ export function useCreateDebt() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: debtsApi.createDebt,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 

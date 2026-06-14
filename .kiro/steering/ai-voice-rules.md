@@ -25,6 +25,20 @@ Use this before changing `frontend/server.ts`, AI prompts, voice input, or AI tr
 - For AI operations that move money through an account, parse and preserve the cash-flow account so the UI can show source → destination before confirmation.
 - If parser confidence or matching is ambiguous, show a confirmation/picker in UI instead of silently saving the wrong record.
 
+### Inner Transfer — Dual-Layer Override
+
+Inner transfers (chuyển khoản nội bộ) use a two-layer safety net to prevent them from being misclassified as expenses:
+
+**Layer 1 — server-side rule override in `server.ts`:**
+`detectInnerTransfer(prompt)` runs before returning the Gemini result. If the prompt matches `/\b(chuyen|chuyen khoan|chuyen tien|ck)\b/` AND has the pattern `từ X sang/qua/vào/đến Y`, it resolves both accounts by fuzzy name match and forcefully sets `operation_type='inner_transfer'`, `type='neutral'`, `source_account`, `destination_account`, `source_account_id`, `destination_account_id` — overriding whatever Gemini returned.
+
+**Layer 2 — client-side fallback in `AIChatWidget.tsx`:**
+`detectInnerTransferFromText(text)` runs on the parsed response in `handleSubmit`. If the server missed it (e.g., model drift), the client re-applies the same pattern and corrects the parsed data before `buildDraft()` is called.
+
+**Prompt & schema:** Gemini schema now includes `source_account` and `destination_account` fields. The system prompt includes an explicit example: `"chuyển khoản nội bộ từ OCB sang MOMO 4000k" → operation_type="inner_transfer"`.
+
+Do not remove or weaken these overrides without adding equivalent protection.
+
 ## Voice Recognition
 
 - Current microphone recognition is tuned for Vietnamese (`vi-VN`).

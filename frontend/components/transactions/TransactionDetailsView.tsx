@@ -2,7 +2,7 @@ import type { Transaction } from '@/api/transactions';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 import { Button } from '@/components/ui/button';
-import { isPositiveTransactionType, isTransferTransactionType } from '@/lib/transaction-types';
+import { cashDirectionForTransaction, isPositiveTransactionType, operationTypeForTransaction } from '@/lib/transaction-types';
 import {
   Dialog,
   DialogContent,
@@ -38,10 +38,15 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
 
   if (!transaction) return null;
 
-  const isIncome = transaction.type === 'income';
-  const isTransfer = isTransferTransactionType(transaction.type);
-  const isPositive = isPositiveTransactionType(transaction.type);
-  const normalizedType = isTransfer ? 'transfer' : isIncome ? 'income' : 'expense';
+  const operationType = operationTypeForTransaction(transaction);
+  const isIncome = operationType === 'income';
+  const isInternalMovement = !['income', 'expense'].includes(operationType);
+  const isPositive = isPositiveTransactionType(cashDirectionForTransaction(transaction));
+  const transferFlow = transaction.cash_flow
+    ? `${transaction.cash_flow.source_label} → ${transaction.cash_flow.destination_label}`
+    : transaction.transfer_context
+      ? `${transaction.transfer_context.source_label} → ${transaction.transfer_context.destination_label}`
+    : '';
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -54,17 +59,28 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
           <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
             <span className="text-3xl">{getCategoryIcon(transaction.category_id)}</span>
             <div>
-              <p className="text-foreground font-medium">{transaction.note || t('transactions.fallbackName')}</p>
-              <p className="text-muted-foreground text-sm">{t('transactions.categoryId')}: {transaction.category_id}</p>
+              <p className="text-foreground font-medium">
+                {isInternalMovement && transferFlow ? transferFlow : transaction.note || t('transactions.fallbackName')}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {isInternalMovement ? t(`operationTypes.${operationType}`) : `${t('transactions.categoryId')}: ${transaction.category_id}`}
+              </p>
             </div>
           </div>
 
-          <div className={`p-4 rounded-lg ${isTransfer ? 'bg-muted/30 border border-border' : isIncome ? 'bg-primary/10 border border-primary/30' : 'bg-destructive/10 border border-destructive/30'}`}>
+          <div className={`p-4 rounded-lg ${isInternalMovement ? 'bg-muted/30 border border-border' : isIncome ? 'bg-primary/10 border border-primary/30' : 'bg-destructive/10 border border-destructive/30'}`}>
             <p className="text-muted-foreground text-sm mb-1">{t('transactions.amount')}</p>
-            <p className={`text-2xl font-bold tabular-nums ${isTransfer ? 'text-muted-foreground' : isIncome ? 'text-primary' : 'text-destructive'}`}>
-              {isPositive ? '+' : '-'}{formatCurrency(transaction.amount)}
+            <p className={`text-2xl font-bold tabular-nums ${isInternalMovement ? 'text-muted-foreground' : isIncome ? 'text-primary' : 'text-destructive'}`}>
+              {isInternalMovement ? formatCurrency(transaction.amount) : `${isPositive ? '+' : '-'}${formatCurrency(transaction.amount)}`}
             </p>
           </div>
+
+          {isInternalMovement && transferFlow && (
+            <div className="p-3 bg-card border border-border rounded-lg">
+              <p className="text-muted-foreground text-sm mb-1">{t('transactions.cashFlow')}</p>
+              <p className="text-foreground font-medium">{transferFlow}</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="p-3 bg-card border border-border rounded-lg">
@@ -73,7 +89,7 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
             </div>
             <div className="p-3 bg-card border border-border rounded-lg">
               <p className="text-muted-foreground text-sm mb-1">{t('transactions.type')}</p>
-              <p className="text-foreground capitalize">{t(`types.${normalizedType}`)}</p>
+              <p className="text-foreground capitalize">{t(`operationTypes.${operationType}`)}</p>
             </div>
           </div>
 
@@ -91,20 +107,6 @@ export function TransactionDetailsView({ transaction, onClose, onEdit, onDelete 
             <div className="p-3 bg-card border border-border rounded-lg">
               <p className="text-muted-foreground text-sm mb-1">{t('transactions.location')}</p>
               <p className="text-foreground">{transaction.location}</p>
-            </div>
-          )}
-
-          {transaction.splits && transaction.splits.length > 0 && (
-            <div className="p-3 bg-card border border-border rounded-lg">
-              <p className="text-muted-foreground text-sm mb-2">{t('transactions.splits')}</p>
-              <div className="space-y-2">
-                {transaction.splits.map((split, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span className="text-foreground">{split.category_id}</span>
-                    <span className="text-foreground">{formatCurrency(split.amount)}</span>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 

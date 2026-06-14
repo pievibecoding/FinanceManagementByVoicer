@@ -55,6 +55,8 @@ export const debtsApi = {
     start_date?: string | null
     due_date?: string | null
     note?: string | null
+    account_id?: number | null
+    transaction_date?: string | null
   }): Promise<{ message: string; debt_id: number }> {
     return apiFetch('/api/debts', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) })
   },

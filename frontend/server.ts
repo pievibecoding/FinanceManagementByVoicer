@@ -76,7 +76,7 @@ async function startServer() {
       }
 
       // Fetch user's payee list so Gemini can match known merchants
-      let payeeList: Array<{ payee_id: number; payee_name: string; default_category_id: number | null }> = [];
+      let payeeList: Array<{ payee_id: number; payee_name: string }> = [];
       try {
         const payeeRes = await fetch(`${FLASK_URL}/api/payees`, {
           headers: { "Authorization": authHeader },
@@ -107,6 +107,44 @@ async function startServer() {
         : "none";
 
       const accountNames = accountList.map(a => a.account_name);
+      const normalizeLookupText = (value: string) =>
+        value
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/đ/g, "d")
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim();
+      const cleanAccountMention = (value: string) =>
+        value
+          .replace(/\b\d+(?:[.,]\d+)?\s*(?:k|ngan|ngàn|nghin|nghìn|cu|củ|tr|trieu|triệu|m|loet|loét|lit|lít|xi|xị|toi|tỏi)?\b/gi, " ")
+          .replace(/\b(vnd|dong|đồng|d|đ)\b/gi, " ")
+          .trim();
+      const resolveAccountByMention = (value: string) => {
+        const clean = cleanAccountMention(value);
+        const normalized = normalizeLookupText(clean);
+        if (!normalized) return null;
+        return accountList.find(account => {
+          const accountName = normalizeLookupText(account.account_name);
+          const compactName = accountName.replace(/\s+/g, "");
+          const compactMention = normalized.replace(/\s+/g, "");
+          return accountName === normalized ||
+            accountName.includes(normalized) ||
+            normalized.includes(accountName) ||
+            compactName.includes(compactMention) ||
+            compactMention.includes(compactName);
+        }) ?? null;
+      };
+      const detectInnerTransfer = (value: string) => {
+        const normalizedPrompt = normalizeLookupText(value);
+        if (!/\b(chuyen|chuyen khoan|chuyen tien|ck)\b/.test(normalizedPrompt)) return null;
+        const match = value.match(/(?:từ|tu)\s+(.+?)\s+(?:sang|qua|vào|vao|đến|den|tới|toi)\s+(.+)$/i);
+        if (!match) return null;
+        const sourceAccount = resolveAccountByMention(match[1]);
+        const destinationAccount = resolveAccountByMention(match[2]);
+        if (!sourceAccount || !destinationAccount || sourceAccount.account_id === destinationAccount.account_id) return null;
+        return { sourceAccount, destinationAccount };
+      };
 
       const systemInstruction = `
 You are an expert Vietnamese personal finance assistant.
@@ -123,43 +161,49 @@ Ensure you convert any financial slang or abbreviations typical in Vietnamese:
   * Expense: account is the source account money leaves from.
   * Income: account is the destination account money enters.
   * Savings contribution: account is the source account money leaves from, e.g. "từ OCB sang quỹ mua xe" => account = "OCB".
-  * New debt when the user borrows money: account is the destination account money enters, e.g. "tôi vay Hiền 500k vào tiền mặt" => account = "Tiền mặt".
-  * New loan when the user lends money: account is the source account money leaves from, e.g. "cho Nam mượn 1 củ từ VCB" => account = "VCB".
+  * Debt disbursement when the user borrows money: account is the destination account money enters, e.g. "tôi vay Hiền 500k vào tiền mặt" => account = "Tiền mặt".
+  * Debt disbursement when the user lends money: account is the source account money leaves from, e.g. "cho Nam mượn 1 củ từ VCB" => account = "VCB".
   * Debt payment: if the user pays debt, account is the source account; if someone pays the user back, account is the destination account.
   * If the user does not mention a cash/bank/wallet account for these operations, leave account empty and account_is_new FALSE so the UI can require manual account selection.
+- For inner_transfer, always extract both accounts: source_account is the account after "từ", destination_account is the account after "sang/qua/vào/đến". Example "chuyển khoản nội bộ từ OCB sang MOMO 4000k" => operation_type="inner_transfer", type="neutral", source_account="OCB", destination_account="MOMO", category="".
 - Category names must follow consistent financial categories, specifically match from: ['Ăn uống', 'Tiền lương', 'Di chuyển', 'Mua sắm', 'Giải trí', 'Học tập', 'Sức khỏe', 'Khác']. For investment-related spending, use category 'Khác' and type 'expense'.
 
 Special operations (set operation_type to one of these when detected):
+- Expense: normal spending → operation_type = "expense"
+- Income: salary, bonus, received income → operation_type = "income"
+- Inner transfer: moving money between two user accounts, e.g. "chuyển 1tr từ VCB sang MoMo" → operation_type = "inner_transfer"
 - Debt payment: CRITICAL — ANY sentence where money is being paid/returned in context of a debt, regardless of who is doing the paying:
   * "tôi trả nợ [X]", "tôi trả [X]", "trả tiền cho [X]", "thanh toán khoản vay", "góp", "trả góp" → operation_type = "debt_payment", lender = X
   * "[X] trả nợ cho tôi", "[X] trả lại cho tôi", "[X] hoàn tiền", "[X] thanh toán cho tôi" → ALSO operation_type = "debt_payment" (this is someone paying back their debt to the user, NOT income), lender = Tôi, debtor = X
   * Key rule: If the sentence contains "trả nợ", "trả lại", "hoàn trả", "thanh toán nợ" — it is ALWAYS debt_payment, never income or expense.
 - Savings contribution: "gửi tiết kiệm", "đặt quỹ", "nạp vào quỹ", "thêm vào mục tiêu", "gửi vào tài khoản tiết kiệm" → operation_type = "savings_contribution"
-- New debt: "vay", "nợ", "khoản vay mới", "thẻ tín dụng mới", "vay tiền" → operation_type = "new_debt"
-- New savings goal: "mục tiêu tiết kiệm mới", "tạo quỹ mới", "đặt mục tiêu mới" → operation_type = "new_savings"
+- Savings withdrawal: "rút quỹ", "rút tiền tiết kiệm", "rút từ quỹ ... về ..." → operation_type = "savings_withdrawal"
+- Debt disbursement: "vay", "nợ", "khoản vay mới", "thẻ tín dụng mới", "vay tiền", "cho mượn" → operation_type = "debt_disbursement"
 
-Debt type logic for new_debt operations:
+Debt type logic for debt_disbursement operations:
 - If the user borrows money from someone (e.g., "tôi vay Hiền 100k", "mượn Lan 500k"), set debt_type = "debt", debtor = "Tôi" (or the user's name), lender = the person's name
 - If someone borrows money from the user (e.g., "Hiền vay tôi 100k", "cho Lan mượn 500k"), set debt_type = "loan", lender = "Tôi" (or the user's name), debtor = the person's name
 - debt_type must be either "debt" (user owes money) or "loan" (user is owed money)
 
 Standard output schema properties:
-- valid: boolean. Set to TRUE only if the input clearly describes a financial transaction or operation (income, expense, investment-related expense, debt payment, savings contribution, new debt, new savings goal). Set to FALSE if the input is a question, greeting, unrelated conversation, or anything that is not a financial operation.
+- valid: boolean. Set to TRUE only if the input clearly describes a financial transaction or operation (income, expense, transfer, savings contribution/withdrawal, debt disbursement, debt payment). Set to FALSE if the input is a question, greeting, unrelated conversation, or anything that is not a financial operation.
 - rejection_reason: string. If valid is FALSE, briefly explain in Vietnamese why it was rejected (e.g. "Câu hỏi không liên quan đến tài chính"). If valid is TRUE, leave this as empty string "".
-- operation_type: string, the type of operation. Must be 'transaction' (default), 'debt_payment', 'savings_contribution', 'new_debt', or 'new_savings'.
+- operation_type: string. Must be one of 'expense', 'income', 'inner_transfer', 'savings_contribution', 'savings_withdrawal', 'debt_disbursement', or 'debt_payment'.
 - amount: integer, absolute positive value of the transaction or payment (e.g. 45000). Never negative. Use 0 if valid is FALSE.
-- type: string, representing the flow type for transactions. Must be 'income' (thu nhập, nhận lương, thưởng, lãi) or 'expense' (chi tiêu, ăn uống, sắm đồ, trả tiền nước, xăng xe, di chuyển, giải trí, tiết kiệm, đầu tư, nạp tài khoản VPS, mua cổ phiếu, chứng khoán). Leave empty for non-transaction operations. Never return 'investment' as a transaction type; use type 'expense' with an investment-related category instead.
+- type: string, low-level cash direction. Must be 'in', 'out', or 'neutral'. Use 'in' for money entering an account, 'out' for money leaving an account, and 'neutral' for paired account transfer if unsure.
 - category: string, matched category for transactions. Leave empty for non-transaction operations.
 - account: string, matched account.
+- source_account: string, source account for inner_transfer. Empty for other operation types.
+- destination_account: string, destination account for inner_transfer. Empty for other operation types.
 - note: string, short brief description in Vietnamese (e.g. "ăn cơm sườn", "mua sách học lập trình", "nhận tiền lương tháng", "đầu tư cổ phiếu FPT", "trả nợ xe máy", "gửi vào quỹ du lịch").
 - transaction_date: string, representing date/time of the transaction or payment. Use the current local time '${localTime || '2026-06-03 11:15:29'}' as the base referential today, and look for relative descriptors like "hôm qua", "hôm nay", "sáng nay", "chiều qua". Extract exact hour/minute if provided (e.g., "Lúc 13h" => 13:00:00). Format of output MUST be 'YYYY-MM-DD HH:MM:SS'.
 - location: string, extract location/venue if mentioned in the input (e.g. "tại Starbucks", "ở quán cà phê", "tại siêu thị", "ở Circle K"). If no location is mentioned, leave as empty string "".
-- debt_name: string, name of the debt for debt_payment or new_debt operations (e.g. "vay mua xe", "thẻ tín dụng VPBank", "khoản vay mua nhà"). Leave empty for other operations.
-- debt_type: string, type of debt for new_debt operations. Must be "debt" (user owes money) or "loan" (user is owed money). Leave empty for other operations.
-- lender: string, name of the lender for new_debt operations (the person who lent the money). Leave empty for other operations.
-- debtor: string, name of the debtor for new_debt operations (the person who owes the money). Leave empty for other operations.
-- savings_name: string, name of the savings goal for savings_contribution or new_savings operations (e.g. "quỹ du lịch", "mục tiêu mua laptop", "tiết kiệm khẩn cấp"). Leave empty for other operations.
-- target_amount: integer, target amount for new_savings operations. Leave empty for other operations.
+- debt_name: string, name of the debt for debt_payment or debt_disbursement operations.
+- debt_type: string, type of debt for debt_disbursement operations. Must be "debt" (user owes money) or "loan" (user is owed money).
+- lender: string, name of the lender for debt_disbursement operations.
+- debtor: string, name of the debtor for debt_disbursement operations.
+- savings_name: string, name of the savings goal for savings_contribution or savings_withdrawal operations.
+- target_amount: integer. Leave empty unless a future flow needs it.
 
 Known payees for this user: [${payeeContext}].
 Known active savings goals for this user: [${savingsContext}].
@@ -181,24 +225,26 @@ Return ONLY valid JSON.
             properties: {
               valid: { type: Type.BOOLEAN, description: "TRUE nếu là giao dịch tài chính hoặc thao tác tài chính, FALSE nếu không phải" },
               rejection_reason: { type: Type.STRING, description: "Lý do từ chối nếu valid=FALSE, để trống nếu valid=TRUE" },
-              operation_type: { type: Type.STRING, description: "Loại thao tác: 'transaction', 'debt_payment', 'savings_contribution', 'new_debt', hoặc 'new_savings'" },
+              operation_type: { type: Type.STRING, description: "Loại thao tác: 'expense', 'income', 'inner_transfer', 'savings_contribution', 'savings_withdrawal', 'debt_disbursement', hoặc 'debt_payment'" },
               amount: { type: Type.INTEGER, description: "Số tiền giao dịch dương (VND), 0 nếu không hợp lệ" },
-              type: { type: Type.STRING, description: "Loại giao dịch: chỉ 'income' hoặc 'expense'. Để trống nếu không phải giao dịch. Không bao giờ trả về 'investment'." },
+              type: { type: Type.STRING, description: "Hướng tiền thấp-level: 'in', 'out', hoặc 'neutral'." },
               category: { type: Type.STRING, description: "Danh mục thu chi phù hợp. Để trống nếu không phải giao dịch" },
               account: { type: Type.STRING, description: "Tài khoản giao dịch — dùng tên chính xác từ danh sách hoặc tên người dùng nói nếu chưa có" },
+              source_account: { type: Type.STRING, description: "Tài khoản nguồn cho inner_transfer. Để trống cho thao tác khác" },
+              destination_account: { type: Type.STRING, description: "Tài khoản đích cho inner_transfer. Để trống cho thao tác khác" },
               account_is_new: { type: Type.BOOLEAN, description: "TRUE nếu tài khoản chưa có trong danh sách" },
               note: { type: Type.STRING, description: "Ghi chú ngắn ngọn bằng tiếng Việt" },
               transaction_date: { type: Type.STRING, description: "Ngày giờ định dạng YYYY-MM-DD HH:MM:SS" },
               payee_name: { type: Type.STRING, description: "Tên payee từ danh sách known payees, để trống nếu không khớp" },
               location: { type: Type.STRING, description: "Địa điểm giao dịch nếu được nhắc đến, để trống nếu không có" },
-              debt_name: { type: Type.STRING, description: "Tên khoản nợ cho debt_payment hoặc new_debt. Để trống cho các thao tác khác" },
-              debt_type: { type: Type.STRING, description: "Loại nợ cho new_debt: 'debt' (người dùng nợ tiền) hoặc 'loan' (người khác nợ người dùng). Để trống cho các thao tác khác" },
-              lender: { type: Type.STRING, description: "Tên người cho vay cho new_debt (người cho tiền). Để trống cho các thao tác khác" },
-              debtor: { type: Type.STRING, description: "Tên người vay nợ cho new_debt (người nợ tiền). Để trống cho các thao tác khác" },
-              savings_name: { type: Type.STRING, description: "Tên mục tiêu tiết kiệm cho savings_contribution hoặc new_savings. Để trống cho các thao tác khác" },
-              target_amount: { type: Type.INTEGER, description: "Số tiền mục tiêu cho new_savings. Để trống cho các thao tác khác" }
+              debt_name: { type: Type.STRING, description: "Tên khoản nợ cho debt_payment hoặc debt_disbursement. Để trống cho các thao tác khác" },
+              debt_type: { type: Type.STRING, description: "Loại nợ cho debt_disbursement: 'debt' hoặc 'loan'. Để trống cho các thao tác khác" },
+              lender: { type: Type.STRING, description: "Tên người cho vay cho debt_disbursement. Để trống cho các thao tác khác" },
+              debtor: { type: Type.STRING, description: "Tên người vay nợ cho debt_disbursement. Để trống cho các thao tác khác" },
+              savings_name: { type: Type.STRING, description: "Tên mục tiêu tiết kiệm cho savings_contribution hoặc savings_withdrawal. Để trống cho các thao tác khác" },
+              target_amount: { type: Type.INTEGER, description: "Số tiền mục tiêu nếu có. Để trống cho các thao tác khác" }
             },
-            required: ["valid", "rejection_reason", "operation_type", "amount", "type", "category", "account", "account_is_new", "note", "transaction_date", "payee_name", "location", "debt_name", "debt_type", "lender", "debtor", "savings_name", "target_amount"]
+            required: ["valid", "rejection_reason", "operation_type", "amount", "type", "category", "account", "source_account", "destination_account", "account_is_new", "note", "transaction_date", "payee_name", "location", "debt_name", "debt_type", "lender", "debtor", "savings_name", "target_amount"]
           }
         },
       });
@@ -207,6 +253,38 @@ Return ONLY valid JSON.
       const parsedData = JSON.parse(resultText);
       if (parsedData.type === "investment") {
         parsedData.type = "expense";
+      }
+      if (parsedData.type === "transfer_in") parsedData.type = "in";
+      if (parsedData.type === "transfer_out") parsedData.type = "out";
+      if (parsedData.operation_type === "transaction") {
+        parsedData.operation_type = parsedData.type === "income" ? "income" : "expense";
+      }
+      if (parsedData.operation_type === "new_debt") {
+        parsedData.operation_type = "debt_disbursement";
+      }
+      if (parsedData.operation_type === "new_savings") {
+        parsedData.operation_type = "savings_contribution";
+      }
+      if (parsedData.type === "income") parsedData.type = "in";
+      if (parsedData.type === "expense") parsedData.type = "out";
+      if (parsedData.operation_type === "account_transfer") parsedData.operation_type = "inner_transfer";
+      const detectedInnerTransfer = detectInnerTransfer(prompt);
+      if (detectedInnerTransfer) {
+        parsedData.operation_type = "inner_transfer";
+        parsedData.type = "neutral";
+        parsedData.category = "";
+        parsedData.account = detectedInnerTransfer.sourceAccount.account_name;
+        parsedData.source_account = detectedInnerTransfer.sourceAccount.account_name;
+        parsedData.destination_account = detectedInnerTransfer.destinationAccount.account_name;
+        parsedData.source_account_id = detectedInnerTransfer.sourceAccount.account_id;
+        parsedData.destination_account_id = detectedInnerTransfer.destinationAccount.account_id;
+        parsedData.account_is_new = false;
+      }
+      if (parsedData.operation_type === "inner_transfer") parsedData.type = "neutral";
+      if (!["in", "out", "neutral"].includes(parsedData.type)) {
+        parsedData.type = parsedData.operation_type === "income" ? "in"
+          : parsedData.operation_type === "inner_transfer" ? "neutral"
+            : "out";
       }
 
       // If Gemini flagged this as not a financial transaction, return early without saving
@@ -237,7 +315,10 @@ Return ONLY valid JSON.
         CATEGORY_NAME_TO_ID[c.category_name] = c.category_id;
       }
 
-      const resolvedAccountId: number | null = ACCOUNT_NAME_TO_ID[parsedData.account] ?? null;
+      const resolvedAccountId: number | null =
+        ACCOUNT_NAME_TO_ID[parsedData.account] ??
+        resolveAccountByMention(parsedData.account || "")?.account_id ??
+        null;
 
       // Resolve category name → integer category_id
       const geminiCategory = parsedData.category as string;
@@ -258,12 +339,18 @@ Return ONLY valid JSON.
       }
 
       parsedData.account_id = resolvedAccountId;
+      parsedData.source_account_id = parsedData.source_account_id ??
+        resolveAccountByMention(parsedData.source_account || "")?.account_id ??
+        null;
+      parsedData.destination_account_id = parsedData.destination_account_id ??
+        resolveAccountByMention(parsedData.destination_account || "")?.account_id ??
+        null;
       parsedData.category_id = resolvedCategoryId;
       parsedData.payee_id = resolvedPayeeId;
       parsedData.savings_id = null;
 
       const incomingSavingsName = (parsedData.savings_name || "").trim().toLowerCase();
-      if (incomingSavingsName && parsedData.operation_type === "savings_contribution") {
+      if (incomingSavingsName && ["savings_contribution", "savings_withdrawal"].includes(parsedData.operation_type)) {
         const matchedSavings = activeSavingsList.find(s => {
           const name = s.name.toLowerCase();
           return name === incomingSavingsName ||
@@ -285,7 +372,7 @@ Return ONLY valid JSON.
 
   // ── Generic proxy for all other /api/* routes → Flask ─────────────────────
   // Catches: /api/accounts, /api/transactions, /api/categories, /api/budgets,
-  //          /api/payees, /api/recurring, /api/sql-query, etc.
+  //          /api/payees, /api/sql-query, etc.
   // Must be registered AFTER specific handlers (parse-transaction, auth) to avoid catching them.
   // NOTE: Express 5 uses /api/*path (named wildcard) instead of /api/*
   app.all("/api/*path", (req: any, res: any, next: any) => {

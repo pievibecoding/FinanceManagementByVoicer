@@ -82,9 +82,10 @@ export const accountsApi = {
 
   async transferBetweenAccounts(payload: TransferBetweenAccountsPayload): Promise<{
     message: string;
-    transfer_pair_id: string;
-    out_transaction_id: string;
-    in_transaction_id: string;
+    transaction_id?: string;
+    transfer_pair_id?: string;
+    out_transaction_id?: string;
+    in_transaction_id?: string;
   }> {
     return request('/api/accounts/transfer', {
       method: 'POST',

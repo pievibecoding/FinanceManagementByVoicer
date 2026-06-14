@@ -2,7 +2,7 @@ import { Transaction } from '@/api/dashboard';
 import { useTranslation } from 'react-i18next';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
 import { AppCard } from '@/components/common';
-import { isPositiveTransactionType, isTransferTransactionType } from '@/lib/transaction-types';
+import { cashDirectionForTransaction, isPositiveTransactionType, operationTypeForTransaction } from '@/lib/transaction-types';
 
 interface TransactionListItemProps {
   transaction: Transaction;
@@ -21,9 +21,15 @@ export function TransactionListItem({ transaction, onClick }: TransactionListIte
     return icons[categoryId] || '📁';
   };
 
-  const isIncome = transaction.type === 'income';
-  const isTransfer = isTransferTransactionType(transaction.type);
-  const isPositive = isPositiveTransactionType(transaction.type);
+  const operationType = operationTypeForTransaction(transaction);
+  const isIncome = operationType === 'income';
+  const isInternalMovement = !['income', 'expense'].includes(operationType);
+  const isPositive = isPositiveTransactionType(cashDirectionForTransaction(transaction));
+  const transferFlow = transaction.cash_flow
+    ? `${transaction.cash_flow.source_label} → ${transaction.cash_flow.destination_label}`
+    : transaction.transfer_context
+      ? `${transaction.transfer_context.source_label} → ${transaction.transfer_context.destination_label}`
+    : '';
 
   return (
     <AppCard
@@ -34,12 +40,16 @@ export function TransactionListItem({ transaction, onClick }: TransactionListIte
       <div className="flex items-center gap-3">
         <span className="text-2xl">{getCategoryIcon(transaction.category_id)}</span>
         <div>
-          <p className="text-foreground font-medium">{transaction.note || t('transactions.fallbackName')}</p>
-          <p className="text-muted-foreground text-sm">{formatDate(transaction.transaction_date)}</p>
+          <p className="text-foreground font-medium">
+            {isInternalMovement && transferFlow ? transferFlow : transaction.note || t('transactions.fallbackName')}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {isInternalMovement && transaction.note ? transaction.note : formatDate(transaction.transaction_date)}
+          </p>
         </div>
       </div>
-      <span className={`font-bold tabular-nums ${isTransfer ? 'text-muted-foreground' : isIncome ? 'text-primary' : 'text-destructive'}`}>
-        {isPositive ? '+' : '-'}{formatCurrency(transaction.amount)}
+      <span className={`font-bold tabular-nums ${isInternalMovement ? 'text-muted-foreground' : isIncome ? 'text-primary' : 'text-destructive'}`}>
+        {isInternalMovement ? formatCurrency(transaction.amount) : `${isPositive ? '+' : '-'}${formatCurrency(transaction.amount)}`}
       </span>
     </AppCard>
   );

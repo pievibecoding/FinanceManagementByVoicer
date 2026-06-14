@@ -5,46 +5,84 @@ Tài liệu này mô tả toàn bộ logic tính toán tài chính hiện đang 
 
 ---
 
-## 1. Transaction Types
+## 1. Domain Fact Model
 
-Có 4 loại giao dịch (`type` field trong `Transaction_Fact`):
+Finance data is split by domain. Do not put debt or savings cash movement rows in `Transaction_Fact`.
 
-| type | Ý nghĩa | Ảnh hưởng số dư account |
+### `Transaction_Fact`
+
+Only stores:
+
+| transaction_type | Meaning | Account effect |
 |---|---|---|
-| `income` | Thu nhập | **+** amount |
-| `expense` | Chi tiêu | **-** amount |
-| `transfer_in` | Tiền chuyển vào account | **+** amount |
-| `transfer_out` | Tiền chuyển ra khỏi account | **-** amount |
+| `expense` | Spending from one account to an external payee | `account_id -= amount` |
+| `income` | Income from an external payee/source into one account | `account_id += amount` |
+| `inner_transfer` | Internal account-to-account movement | `source_account_id -= amount`, `destination_account_id += amount` |
 
-**Quy tắc quan trọng:**
-- `transfer_in` và `transfer_out` ảnh hưởng số dư account nhưng **KHÔNG được tính vào income/expense** trong bất kỳ summary hay chart nào.
-- Tất cả `amount` là **số nguyên dương (VND)**. Chiều thu/chi encode bằng `type`, không dùng số âm.
-- `transfer_in/out` hiện **không có ràng buộc cặp** — hai giao dịch chuyển khoản là độc lập nhau trong DB.
+Rules:
+- `expense` and `income` require `account_id` and `category_id`; `payee_id` is optional external counterparty.
+- `inner_transfer` requires `source_account_id` and `destination_account_id`; `category_id` and `payee_id` should be null.
+- Route Giao dịch displays only this table.
+- `account_transfer` is legacy naming only; new code must use `inner_transfer`.
+- Legacy `type`, `operation_type`, `transfer_in`, and `transfer_out` can exist only for migration/read compatibility.
+
+### `Debt_Transaction_Fact`
+
+Stores all debt/loan cash movements:
+
+| debt_transaction_type | debt_type | cash_direction | Meaning |
+|---|---|---|---|
+| `disbursement` | `debt` | `in` | lender/payee -> account |
+| `disbursement` | `loan` | `out` | account -> borrower/payee |
+| `payment` | `debt` | `out` | account -> lender/payee |
+| `payment` | `loan` | `in` | borrower/payee -> account |
+
+`payee_id` is the external lender/borrower counterparty. These rows update account balance and `Debt_Dim.outstanding_balance`, but never count as income/expense.
+
+### `Savings_Transaction_Fact`
+
+Stores all savings cash movements:
+
+| savings_transaction_type | cash_direction | Meaning |
+|---|---|---|
+| `contribution` | `out` | account -> savings goal |
+| `withdrawal` | `in` | savings goal -> account |
+
+These rows update account balance and `Savings_Dim.current_balance`, but never count as income/expense.
+
+**Global rules:**
+- All `amount` values are positive VND integers.
+- Payee means external counterparty only, never an account.
+- Old debt/savings movement tables have been removed. Use only `Debt_Transaction_Fact` and `Savings_Transaction_Fact`.
 
 Helper functions tại `frontend/lib/transaction-types.ts`:
 ```ts
-isPositiveTransactionType(type) → type === 'income' || type === 'transfer_in'
-isNegativeTransactionType(type) → type === 'expense' || type === 'transfer_out'
-isTransferTransactionType(type) → type === 'transfer_in' || type === 'transfer_out'
+cashDirectionForTransaction(tx) → 'in' | 'out' | 'neutral'
+operationTypeForTransaction(tx) → one of the 7 operation types
+isPositiveTransactionType(type) → type === 'in' (legacy income/transfer_in also supported)
+isNegativeTransactionType(type) → type === 'out' (legacy expense/transfer_out also supported)
 ```
 
 ---
 
 ## 2. Số dư tài khoản (`current_balance`)
 
-**Tính hoàn toàn client-side** — không lưu trong DB. `Account_Dim` chỉ có `initial_balance`.
+`Account_Dim.current_balance` được lưu trong DB và cập nhật **server-side** bởi Flask khi tạo/sửa/xóa transaction hoặc nghiệp vụ liên quan.
 
 ```
 current_balance(account) =
   initial_balance
-  + Σ amount WHERE account_id = X AND type IN ('income', 'transfer_in')
-  - Σ amount WHERE account_id = X AND type IN ('expense', 'transfer_out')
+  + Transaction_Fact income/inner_transfer deltas
+  + Debt_Transaction_Fact cash_direction deltas
+  + Savings_Transaction_Fact cash_direction deltas
 ```
 
+**Frontend đọc trực tiếp `acc.current_balance` từ `GET /api/accounts` — KHÔNG tự tính lại.**
+
 Áp dụng tại:
-- `frontend/components/dashboard/AccountsSummary.tsx` → hàm `computeBalance()`
-- `frontend/hooks/useDashboard.ts` → trong `totalBalance` reducer
-- `frontend/components/dashboard/DynamicChart.tsx` → hàm `currentAccountBalance()` và `accountBalanceAtDate()`
+- `frontend/components/dashboard/AccountsSummary.tsx` → đọc `acc.current_balance` trực tiếp
+- `frontend/hooks/useDashboard.ts` → `totalBalance = Σ acc.current_balance`
+- `frontend/components/dashboard/DynamicChart.tsx` → `accountBalanceAtDate()` vẫn dùng transaction history để reconstruct balance tại một mốc thời gian cụ thể (cho chart time-series), nhưng snapshot hiện tại lấy từ `current_balance`
 
 ---
 
@@ -61,12 +99,13 @@ Tính tại: `useDashboard.ts`
 ## 4. Tổng tài sản ròng snapshot (`netWorth`)
 
 ```
-netWorth = totalBalance + totalSaved - totalDebt
+netWorth = totalBalance + totalSaved + totalLoan - totalDebt
 ```
 
 Trong đó:
 - `totalSaved` = Σ `current_balance` của savings goals có `status != 'cancelled'`
 - `totalDebt` = Σ `outstanding_balance` của debts có `debt_type = 'debt'` AND `status = 'active'`
+- `totalLoan` = Σ `outstanding_balance` của debts có `debt_type = 'loan'` AND status còn mở; đây là khoản phải thu, bù lại account cash đã giảm khi cho vay.
 
 Tính tại: `useDashboard.ts`
 
@@ -78,12 +117,12 @@ Tính tại: `useDashboard.ts`
 ## 5. Thu nhập / Chi tiêu tháng hiện tại
 
 ```
-monthlyIncome   = Σ amount WHERE type = 'income' AND transaction_date LIKE 'YYYY-MM%'
-monthlyExpenses = Σ amount WHERE type = 'expense' AND transaction_date LIKE 'YYYY-MM%'
+monthlyIncome   = Σ amount WHERE Transaction_Fact.transaction_type = 'income' AND transaction_date LIKE 'YYYY-MM%'
+monthlyExpenses = Σ amount WHERE Transaction_Fact.transaction_type = 'expense' AND transaction_date LIKE 'YYYY-MM%'
 netSavings      = monthlyIncome - monthlyExpenses
 ```
 
-- **transfer_in/out bị loại hoàn toàn** — không tính vào income hay expense.
+- Inner transfers, savings movements, and debt movements are excluded from income/expense.
 - Tính tại: `useDashboard.ts`
 
 ---
@@ -104,12 +143,12 @@ Tính tại: `DynamicChart.tsx` → `dailyNetWorthData`
 ## 7. Savings Goals
 
 ### Storage
-- `Savings_Dim.current_balance` — lưu trong DB, cập nhật khi thêm/xóa contribution.
+- `Savings_Dim.current_balance` — lưu trong DB, cập nhật từ `Savings_Transaction_Fact`.
 
 ### Công thức cập nhật
 ```
-Thêm contribution:  current_balance += amount
-Xóa contribution:   current_balance = MAX(0, current_balance - amount)
+Contribution:  account -= amount; savings += amount
+Withdrawal:    savings -= amount; account += amount
 Auto-complete:      IF current_balance >= target_amount AND status = 'active' → status = 'completed'
 ```
 
@@ -120,21 +159,20 @@ totalSaved = Σ current_balance WHERE status != 'cancelled'
 Tính tại: `useDebts.ts` hook → field `totalSaved` (thực ra là `useSavings.ts`)
 
 ### Liên kết với transaction
-- Contribution có field `transaction_id` (nullable) để liên kết với `Transaction_Fact`.
-- **Không có ràng buộc DB** — app không tự động tạo transaction khi thêm contribution.
-- AI widget có thể tạo cả `transfer_out` transaction lẫn contribution — có nguy cơ double-count nếu không quản lý đúng.
+- Savings movements are not mirrored into `Transaction_Fact`.
+- Backend writes `Savings_Transaction_Fact` and updates account/savings balance in one batch.
 
 ---
 
 ## 8. Debts
 
 ### Storage
-- `Debt_Dim.outstanding_balance` — lưu trong DB, cập nhật khi thêm/xóa payment.
+- `Debt_Dim.outstanding_balance` — lưu trong DB, cập nhật từ `Debt_Transaction_Fact`.
 
 ### Công thức cập nhật
 ```
-Thêm payment:  outstanding_balance -= amount_paid; IF <= 0 → status = 'settled'
-Xóa payment:   outstanding_balance += amount_paid; IF was 'settled' → status = 'active'
+Disbursement: outstanding_balance += amount
+Payment:      outstanding_balance -= amount; IF <= 0 → status = 'settled'
 ```
 
 ### `totalDebt`
@@ -152,16 +190,18 @@ Tính tại: `useDebts.ts`
 Chỉ `debt` (mình nợ) được trừ vào `netWorth`. `loan` (mình cho vay) không tính vào debt offset.
 
 ### Liên kết với transaction
-- Payment có field `transaction_id` (nullable).
-- **Không có ràng buộc DB** — tương tự savings.
-- AI widget có thể tạo cả `expense` transaction lẫn payment — có nguy cơ double-count.
+- Debt movements are not mirrored into `Transaction_Fact`.
+- Backend writes `Debt_Transaction_Fact` and updates account/debt balance in one batch.
+- Tạo debt/loan mới phải có `account_id` để phát sinh dòng tiền rõ ràng:
+  - `debt`: nguồn là người cho vay/payee, đích là account nhận tiền (`cash_direction='in'`).
+  - `loan`: nguồn là account của mình, đích là người vay/payee (`cash_direction='out'`).
 
 ---
 
 ## 9. Expense by Category (tháng hiện tại)
 
 ```
-expenseByCategory[category_id] = Σ amount WHERE type = 'expense' AND month = currentMonth
+expenseByCategory[category_id] = Σ amount WHERE Transaction_Fact.transaction_type = 'expense' AND month = currentMonth
 ```
 
 Dùng cho: donut chart "Phân bổ chi tiêu" trên dashboard.
@@ -183,11 +223,9 @@ Tính tại: `useDashboard.ts` và `DynamicChart.tsx` → `expenseAllocationData
 | # | Vấn đề | Nơi xảy ra | Mức độ |
 |---|---|---|---|
 | 1 | `totalDebt` dùng `status='active'` nhưng chart dùng `'active'\|'overdue'` | `useDebts.ts` vs `DynamicChart.tsx` | Medium |
-| 2 | Net worth chart không cộng savings / trừ debt theo thời gian | `DynamicChart.tsx` | Low (tên chart đã đổi) |
-| 3 | `transfer_in/out` không có ràng buộc cặp trong DB | `Transaction_Fact` | Medium |
-| 4 | Savings contribution và expense transaction có thể double-count khi dùng AI | `AIChatWidget.tsx` | High |
-| 5 | Debt payment và expense transaction có thể double-count khi dùng AI | `AIChatWidget.tsx` | High |
-| 6 | Schema `schema.sql` lỗi thời — thiếu `user_id`, `is_deleted`, `payee_id`, `location`, `Debt_Dim`, `Savings_Dim`, `split_transactions` | `database/schema.sql` | Low (chỉ là doc) |
+| 2 | Net worth chart không cộng savings / trừ debt theo thời gian (chart chỉ track account balance) | `DynamicChart.tsx` | Low (tên chart đã đổi thành asset-fluctuation) |
+| 3 | Schema `schema.sql` lỗi thời — thiếu nhiều migration runtime | `database/schema.sql` | Low (chỉ là doc) |
+| 4 | Analytics page gọi `/api/analytics/*` không tồn tại — Flask chỉ có `POST /api/sql-query` | `analytics/index.tsx`, `api/analytics.ts`, `hooks/useAnalytics.ts` | High (page broken) |
 
 ---
 
@@ -195,9 +233,9 @@ Tính tại: `useDashboard.ts` và `DynamicChart.tsx` → `expenseAllocationData
 
 | Metric | Source |
 |---|---|
-| Số dư từng account | Tính từ `transactions` (client-side) |
-| `totalBalance` | `useDashboard` ← `useAccounts` + `useTransactions` |
-| `netWorth` | `useDashboard` ← trên + `useDebts` + `useSavings` |
+| Số dư từng account | `acc.current_balance` từ `GET /api/accounts` (server-maintained) |
+| `totalBalance` | `useDashboard` → `Σ acc.current_balance` |
+| `netWorth` | `useDashboard` → `totalBalance + totalSaved + totalLoan - totalDebt` |
 | `monthlyIncome/Expenses` | `useDashboard` ← `useTransactions` filter tháng hiện tại |
 | `totalDebt` | `useDebts` ← `GET /api/debts` |
 | `totalSaved` | `useSavings` ← `GET /api/savings` |
