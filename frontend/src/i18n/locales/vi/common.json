@@ -430,13 +430,10 @@
     "notifications": "Thông báo",
     "helpCenter": "Trợ giúp",
     "signOut": "Đăng xuất",
-    "upgrade": "Nâng cấp Pro",
-    "account": "Tài khoản",
-    "billing": "Thanh toán"
+    "account": "Tài khoản"
   },
   "app": {
-    "name": "Quản lý tài chính",
-    "plan": "Tài chính cá nhân"
+    "name": "Quản lý tài chính"
   },
   "language": {
     "label": "Ngôn ngữ",
@@ -445,7 +442,7 @@
   },
   "settingsCore": {
     "title": "Cài đặt",
-    "description": "Quản lý thông tin tài khoản, tùy chọn ứng dụng và trạng thái gói cho thiết bị này.",
+    "description": "Quản lý thông tin tài khoản và tùy chọn ứng dụng cho thiết bị này.",
     "actions": {
       "configure": "Cấu hình"
     },
@@ -456,7 +453,6 @@
       "active": "Đang hoạt động",
       "userId": "ID người dùng",
       "email": "Email",
-      "plan": "Gói",
       "readOnlyNotice": "Phiên bản này chưa kết nối chỉnh sửa hồ sơ với server. Thông tin này được lấy từ tài khoản đang đăng nhập."
     },
     "account": {
@@ -468,20 +464,6 @@
       "themeDescription": "Chọn sáng, tối hoặc theo hệ thống.",
       "notifications": "Thông báo",
       "notificationsDescription": "Xem các tùy chọn thông báo cục bộ."
-    },
-    "billing": {
-      "title": "Thanh toán và gói",
-      "description": "Trạng thái gói hiện tại của không gian tài chính cá nhân.",
-      "free": "Chưa có thanh toán",
-      "notice": "Thanh toán và nâng cấp trả phí chưa được kết nối trong phiên bản này. Bạn vẫn có thể dùng các tính năng tài chính cá nhân hiện tại mà không cần checkout.",
-      "upgradeTitle": "Nâng cấp Pro",
-      "upgradeDescription": "Luồng nâng cấp được dành cho tích hợp gói trả phí trong tương lai.",
-      "notAvailable": "Chưa có trong v1",
-      "features": {
-        "transactions": "Giao dịch và tài khoản",
-        "budgets": "Ngân sách, nợ và tiết kiệm",
-        "ai": "Trợ lý AI nhập giao dịch"
-      }
     }
   },
   "notificationsPage": {

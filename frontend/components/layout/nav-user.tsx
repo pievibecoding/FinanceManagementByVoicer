@@ -3,9 +3,7 @@ import {
   BadgeCheck,
   Bell,
   ChevronsUpDown,
-  CreditCard,
   LogOut,
-  Sparkles,
 } from 'lucide-react'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -83,24 +81,9 @@ export function NavUser({ user }: NavUserProps) {
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link to='/settings' hash='billing'>
-                    <Sparkles />
-                    {t('nav.upgrade')}
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem asChild>
                   <Link to='/settings'>
                     <BadgeCheck />
                     {t('nav.account')}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to='/settings' hash='billing'>
-                    <CreditCard />
-                    {t('nav.billing')}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>

@@ -430,13 +430,10 @@
     "notifications": "Notifications",
     "helpCenter": "Help Center",
     "signOut": "Sign out",
-    "upgrade": "Upgrade to Pro",
-    "account": "Account",
-    "billing": "Billing"
+    "account": "Account"
   },
   "app": {
-    "name": "Finance Management",
-    "plan": "Personal Finance"
+    "name": "Finance Management"
   },
   "language": {
     "label": "Language",
@@ -445,7 +442,7 @@
   },
   "settingsCore": {
     "title": "Settings",
-    "description": "Manage your account view, app preferences, and plan information for this device.",
+    "description": "Manage your account and app preferences for this device.",
     "actions": {
       "configure": "Configure"
     },
@@ -456,7 +453,6 @@
       "active": "Active",
       "userId": "User ID",
       "email": "Email",
-      "plan": "Plan",
       "readOnlyNotice": "Profile editing is not connected to a server endpoint in this version. These details come from your signed-in account."
     },
     "account": {
@@ -468,20 +464,6 @@
       "themeDescription": "Choose light, dark, or system appearance.",
       "notifications": "Notifications",
       "notificationsDescription": "Review local notification preferences."
-    },
-    "billing": {
-      "title": "Billing and plan",
-      "description": "Current plan status for this personal finance workspace.",
-      "free": "No active billing",
-      "notice": "Billing and paid upgrades are not connected in this version. You can continue using the current personal finance features without checkout.",
-      "upgradeTitle": "Pro upgrade",
-      "upgradeDescription": "The upgrade flow is reserved for a future paid plan integration.",
-      "notAvailable": "Not available in v1",
-      "features": {
-        "transactions": "Transactions and accounts",
-        "budgets": "Budgets, debts, and savings",
-        "ai": "AI transaction assistant"
-      }
     }
   },
   "notificationsPage": {
