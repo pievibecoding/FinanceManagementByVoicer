@@ -29,6 +29,7 @@ import {
 import { ChartCard } from '@/components/common'
 import { getCategoryDisplayMeta } from '@/lib/category-display'
 import { getAccountDisplayColor } from '@/lib/account-display'
+import { cashDirectionForTransaction, operationTypeForTransaction } from '@/lib/transaction-types'
 
 type ChartType =
   | 'asset-fluctuation'
@@ -282,12 +283,11 @@ function accountBalanceAtDate(
   return transactions.reduce((balance, tx) => {
     if (normalizeId(tx.account_id) !== accountId) return balance
     if (dateKeyFromTransaction(tx) > dateKey) return balance
-    return tx.type === 'income' ? balance + tx.amount : balance - tx.amount
+    const direction = cashDirectionForTransaction(tx)
+    if (direction === 'in') return balance + tx.amount
+    if (direction === 'out') return balance - tx.amount
+    return balance
   }, account.initial_balance)
-}
-
-function currentAccountBalance(account: Account, transactions: Transaction[]) {
-  return accountBalanceAtDate(account, transactions, '9999-12-31')
 }
 
 function getCurrentMonth() {
@@ -395,7 +395,7 @@ export function DynamicChart({
     transactions.forEach((tx) => {
       const date = dateKeyFromTransaction(tx)
       if (date < dateWindow.start || date > dateWindow.end) return
-      if (tx.type !== 'income') return
+      if (operationTypeForTransaction(tx) !== 'income') return
       const bucketKey = getBucketKey(date, timeBucket)
       incomeByBucket.set(bucketKey, (incomeByBucket.get(bucketKey) ?? 0) + tx.amount)
     })
@@ -414,8 +414,9 @@ export function DynamicChart({
       if (date < dateWindow.start || date > dateWindow.end) return
       const bucketKey = getBucketKey(date, timeBucket)
       const current = byBucket.get(bucketKey) ?? { income: 0, expense: 0 }
-      if (tx.type === 'income') current.income += tx.amount
-      if (tx.type === 'expense') current.expense += tx.amount
+      const operationType = operationTypeForTransaction(tx)
+      if (operationType === 'income') current.income += tx.amount
+      if (operationType === 'expense') current.expense += tx.amount
       byBucket.set(bucketKey, current)
     })
 
@@ -431,7 +432,7 @@ export function DynamicChart({
     const currentMonth = getCurrentMonth()
     const byCategory = new Map<string, number>()
     transactions.forEach((tx) => {
-      if (tx.type !== 'expense') return
+      if (operationTypeForTransaction(tx) !== 'expense') return
       if (!tx.transaction_date.startsWith(currentMonth)) return
       const categoryId = normalizeId(tx.category_id)
       byCategory.set(categoryId, (byCategory.get(categoryId) ?? 0) + tx.amount)
@@ -463,7 +464,7 @@ export function DynamicChart({
       accounts
         .map((account, index) => ({
           name: account.account_name,
-          value: currentAccountBalance(account, transactions),
+          value: account.current_balance,
           color: getAccountDisplayColor(account, index),
           detail: account.account_type,
         }))
@@ -471,7 +472,7 @@ export function DynamicChart({
       DISTRIBUTION_VISIBLE_LIMIT,
       t('dashboard.chartSummary.other')
     )
-  }, [accounts, t, transactions])
+  }, [accounts, t])
 
   const savingsData = useMemo<DistributionPoint[]>(() => {
     return groupDistribution(

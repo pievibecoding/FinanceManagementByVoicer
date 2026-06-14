@@ -63,7 +63,13 @@ export const savingsApi = {
   getContributions(savingsId: number): Promise<SavingsContribution[]> {
     return apiFetch(`/api/savings/${savingsId}/contributions`, { method: 'GET', headers: getAuthHeaders() })
   },
-  createContribution(savingsId: number, data: { amount: number; contribution_date: string; transaction_id?: string | null }): Promise<{ message: string; contribution_id: number }> {
+  createContribution(savingsId: number, data: {
+    amount: number
+    contribution_date: string
+    account_id?: number | null
+    note?: string | null
+    transaction_id?: string | null
+  }): Promise<{ message: string; contribution_id: number }> {
     return apiFetch(`/api/savings/${savingsId}/contributions`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) })
   },
   deleteContribution(savingsId: number, contributionId: number): Promise<{ message: string }> {
@@ -72,5 +78,13 @@ export const savingsApi = {
       method: 'DELETE',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
+  },
+  createWithdrawal(savingsId: number, data: {
+    amount: number
+    withdrawal_date: string
+    account_id: number
+    note?: string | null
+  }): Promise<{ message: string; withdrawal_id: number }> {
+    return apiFetch(`/api/savings/${savingsId}/withdrawals`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) })
   },
 }

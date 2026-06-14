@@ -19,13 +19,25 @@ logger = logging.getLogger(__name__)
 payees_bp = Blueprint("payees", __name__)
 
 
+def _ensure_payees_schema(db) -> None:
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS payees (
+            payee_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            payee_name TEXT NOT NULL,
+            UNIQUE (user_id, payee_name)
+        )
+    """)
+
+
 @payees_bp.route("/api/payees", methods=["GET"])
 @require_auth
 def get_payees():
     db = get_db()
     try:
+        _ensure_payees_schema(db)
         result = db.execute(
-            "SELECT payee_id, payee_name, default_category_id FROM payees WHERE user_id = ? ORDER BY payee_name",
+            "SELECT payee_id, payee_name FROM payees WHERE user_id = ? ORDER BY payee_name",
             [g.user_id],
         )
         payees = rows_to_dicts(result)
@@ -37,19 +49,19 @@ def get_payees():
 @payees_bp.route("/api/payees", methods=["POST"])
 @require_auth
 def create_payee():
-    data                = request.get_json(silent=True) or {}
-    payee_name          = data.get("payee_name", "").strip()
-    default_category_id = data.get("default_category_id") or None
+    data       = request.get_json(silent=True) or {}
+    payee_name = data.get("payee_name", "").strip()
 
     if not payee_name:
         return jsonify({"error": "payee_name is required"}), 400
 
     db = get_db()
     try:
+        _ensure_payees_schema(db)
         try:
             db.execute(
-                "INSERT INTO payees (user_id, payee_name, default_category_id) VALUES (?, ?, ?)",
-                [g.user_id, payee_name, default_category_id],
+                "INSERT INTO payees (user_id, payee_name) VALUES (?, ?)",
+                [g.user_id, payee_name],
             )
         except Exception as e:
             if "UNIQUE" in str(e).upper():
@@ -74,6 +86,7 @@ def update_payee(payee_id: int):
 
     db = get_db()
     try:
+        _ensure_payees_schema(db)
         # Verify ownership
         check = db.execute(
             "SELECT payee_id FROM payees WHERE payee_id = ? AND user_id = ?",
@@ -88,10 +101,6 @@ def update_payee(payee_id: int):
         if "payee_name" in data and data["payee_name"].strip():
             updates.append("payee_name = ?")
             params.append(data["payee_name"].strip())
-        if "default_category_id" in data:
-            updates.append("default_category_id = ?")
-            params.append(data["default_category_id"] or None)
-
         if updates:
             params += [payee_id, g.user_id]
             db.execute(
@@ -109,6 +118,7 @@ def update_payee(payee_id: int):
 def delete_payee(payee_id: int):
     db = get_db()
     try:
+        _ensure_payees_schema(db)
         check = db.execute(
             "SELECT payee_id FROM payees WHERE payee_id = ? AND user_id = ?",
             [payee_id, g.user_id],

@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+BACKEND_DIR = Path(__file__).resolve().parent
+load_dotenv(BACKEND_DIR / ".env", override=True)
 
 # ── Turso database ─────────────────────────────────────────────────────────────
 TURSO_DB_URL     = os.getenv("TURSO_DB_URL")

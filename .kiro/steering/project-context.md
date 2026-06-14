@@ -118,17 +118,20 @@ frontend/
 │
 ├── hooks/                        ← TanStack Query hooks
 │   ├── useDashboard.ts           ← useDashboardMetrics (uses useAccounts + useTransactions + useBudgets + useDebts + useSavings)
+│   │                               totalBalance = Σ acc.current_balance (server-maintained, not recomputed)
 │   ├── useTransactions.ts        ← useTransactions (key: ['transactions']), useAddTransaction,
 │   │                               useUpdateTransaction, useDeleteTransaction
 │   │                               All mutations use refetchType: 'all' for immediate UI update
-│   ├── useAccounts.ts            ← useAccounts, useAddAccount; update/delete hooks call non-existent Flask routes
+│   ├── useAccounts.ts            ← useAccounts, useAddAccount, useUpdateAccount (backed ✅),
+│   │                               useDeleteAccount (NOT backed ⚠️ — Flask has no DELETE /api/accounts/<id>),
+│   │                               useTransferBetweenAccounts (backed ✅ — calls POST /api/accounts/transfer)
 │   ├── useCategories.ts          ← useCategories, useAddCategory, useUpdateCategory, useDeleteCategory
 │   ├── useBudgets.ts             ← useBudgets, useUpsertBudget, useDeleteBudget
 │   ├── useDebts.ts               ← useDebts, useCreateDebt, useUpdateDebt, useDeleteDebt,
 │   │                               useDebtPayments, useCreatePayment, useDeletePayment
 │   ├── useSavings.ts             ← useSavings, useCreateSavings, useUpdateSavings, useDeleteSavings,
 │   │                               useSavingsContributions, useCreateContribution, useDeleteContribution
-│   ├── useAnalytics.ts           ← ⚠️ calls non-existent Flask endpoints
+│   ├── useAnalytics.ts           ← ⚠️ calls non-existent /api/analytics/* Flask endpoints
 │   ├── use-dialog-state.tsx
 │   ├── use-mobile.tsx
 │   └── use-table-url-state.ts
@@ -148,12 +151,14 @@ frontend/
 │   │   ├── IncomeExpenseChart.tsx  ← bar chart, 6 time range options (7d/30d/3m/6m/12m/ytd)
 │   │   ├── DynamicChart.tsx        ← MetricCard-driven chart surface:
 │   │   │                              net worth area, income bar, income/expense bar,
-│   │   │                              expense/account/savings donuts, split debt/loan donuts;
+│   │   │                              expense/account/savings donuts, separate debt/loan donuts;
 │   │   │                              time-series charts support range, bucket, custom dates, Brush
 │   │   ├── AccountsSummary.tsx     ← shows real current_balance computed from transactions
 │   │   ├── BudgetOverview.tsx      ← grid progress bars, current month only
-│   │   └── AIChatWidget.tsx        ← floating button, continuous mic, confirm/reject parsed tx
-│   │                                  supports: transaction, new_debt, debt_payment, new_savings, savings_contribution
+│   │   └── AIChatWidget.tsx        ← floating button, continuous mic, editable operation drafts
+│   │                                  supports 7 operation_type flows plus legacy draft compatibility
+│   │                                  dual-layer inner_transfer fix: server rule-based override +
+│   │                                  client-side detectInnerTransferFromText() fallback
 │   ├── transactions/
 │   │   ├── TransactionTable.tsx    ← shows category name (not ID), receives categories prop
 │   │   ├── TransactionDetailsView.tsx ← view-only panel, Edit/Delete buttons
@@ -194,17 +199,19 @@ frontend/
 6. **Transaction filtering is client-side** — `useTransactions()` always fetches all transactions. Page components filter with `useMemo`.
 7. **`transaction_date` format** — Flask requires `'YYYY-MM-DD HH:MM:SS'`. HTML `<input type="date">` returns `YYYY-MM-DD` — always append time before sending to Flask.
 8. **Edit modal state** — `TransactionDetailsView` and `EditTransactionModal` must NOT be open simultaneously. Close details first (`setDetailsOpen(false)`), then open edit.
-9. **Transaction soft delete** — transaction DELETE sets parent `Transaction_Fact.is_deleted=1` and all transaction GETs filter `WHERE is_deleted = 0`. Split rows for that transaction are physically deleted before the parent is soft-deleted.
+9. **Transaction soft delete** — transaction DELETE sets `Transaction_Fact.is_deleted=1` and all transaction GETs filter `WHERE is_deleted = 0`.
 10. **Express 5 wildcard** — use `/api/*path` (named wildcard), not `/api/*`.
 11. **DELETE proxy** — no `Content-Type` header and no body sent for DELETE requests.
-12. **Unbacked account delete wrapper** — `api/accounts.ts` exposes account DELETE but Flask does not support it. Do not wire account delete deeper until backend support exists.
-13. **Analytics page** — currently calls `/api/analytics/overview` etc. which **do not exist** in Flask. The only analytics endpoint is `POST /api/sql-query`.
-14. **Dashboard chart behavior** — `DynamicChart.tsx` owns chart aggregation and interaction state. Pass raw transactions/accounts/categories/savings/debts unless the component contract changes; keep chart labels/i18n keys in both locale files.
-15. **Color system** — two layers:
+12. **Unbacked account delete wrapper** — `api/accounts.ts` and `hooks/useAccounts.ts` expose `deleteAccount`/`useDeleteAccount` but Flask has no `DELETE /api/accounts/<id>`. Do not wire account delete into UI until backend support exists.
+13. **`/api/accounts/transfer`** — Flask endpoint exists (`POST`). Use `accountsApi.transferBetweenAccounts()` / `useTransferBetweenAccounts()`. Creates one `inner_transfer` row and atomically updates both account balances.
+14. **`/api/transactions/<id>/transfer`** — Flask `PUT` endpoint exists for editing an existing inner_transfer transaction.
+15. **Analytics page** — currently calls `/api/analytics/overview` etc. which **do not exist** in Flask. The only analytics endpoint is `POST /api/sql-query`.
+16. **Dashboard chart behavior** — `DynamicChart.tsx` owns chart aggregation and interaction state. Pass raw transactions/accounts/categories/savings/debts unless the component contract changes; keep chart labels/i18n keys in both locale files.
+17. **Color system** — two layers:
     - CSS tokens in `styles/theme.css` (`:root {}`) — used via Tailwind utilities (`text-primary`, `bg-destructive`, `border-border`, etc.)
     - JS tokens in `styles/tokens.ts` — hex values used directly in Recharts (`fill`, `stroke`, `dot`) and inline styles. **When changing the color scheme, update BOTH files.**
     - Tailwind arbitrary dynamic values like `` `border-[${hex}]` `` do NOT work at runtime — use `style={{ borderColor: hex }}` instead.
-16. **Render health checks** — `/ping`, `/api/ping`, `/health`, and `/api/health` are public and intentionally avoid auth/DB access so Render/UptimeRobot can wake the free service without waiting for Turso or migrations.
+18. **Render health checks** — `/ping`, `/api/ping`, `/health`, and `/api/health` are public and intentionally avoid auth/DB access so Render/UptimeRobot can wake the free service without waiting for Turso or migrations.
 
 ---
 
@@ -225,9 +232,9 @@ All endpoints under `/api/`. JSON in, JSON out. All routes **except `/api/auth/*
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/transactions` | user-scoped, `is_deleted=0`, sorted DESC |
-| POST | `/api/transactions` | `{transaction_date, account_id, category_id, amount, type, note?, payee_id?, location?, splits?[]}` |
+| POST | `/api/transactions` | `{transaction_date, account_id, category_id, amount, transaction_type, note?, payee_id?, location?}` |
 | PUT | `/api/transactions/<id>` | partial update, allowed fields: `transaction_date, account_id, category_id, amount, type, note, payee_id, location` |
-| DELETE | `/api/transactions/<id>` | physically deletes split rows, then soft deletes parent (`is_deleted=1`) |
+| DELETE | `/api/transactions/<id>` | soft deletes parent (`is_deleted=1`) |
 
 ### Accounts
 | Method | Path | Notes |
@@ -235,6 +242,7 @@ All endpoints under `/api/`. JSON in, JSON out. All routes **except `/api/auth/*
 | GET | `/api/accounts` | user-scoped |
 | POST | `/api/accounts` | `{account_name, account_type, initial_balance, color?}` |
 | PUT | `/api/accounts/<id>` | partial metadata update: `account_name, account_type, initial_balance, color` |
+| POST | `/api/accounts/transfer` | `{from_account_id, to_account_id, amount, date, note?}` — creates `inner_transfer` row + updates both balances atomically |
 
 **⚠️ No DELETE for accounts.**
 
@@ -261,14 +269,6 @@ Categories are seeded per user at registration, but users can add/edit/delete un
 | GET/POST | `/api/payees` |
 | PUT/DELETE | `/api/payees/<id>` |
 
-### Recurring Transactions
-| Method | Path |
-|---|---|
-| GET/POST | `/api/recurring` |
-| PUT/DELETE | `/api/recurring/<id>` |
-| PATCH | `/api/recurring/<id>/toggle` |
-| POST | `/api/recurring/process` |
-
 ### Analytics (SQL passthrough)
 | Method | Path | Notes |
 |---|---|---|
@@ -280,12 +280,11 @@ Categories are seeded per user at registration, but users can add/edit/delete un
 
 ## 6. Database Schema (key facts)
 
-- All amounts: **positive integers in VND**. Direction encoded in `type` ('income'|'expense'). Investment-related entries are treated as expenses.
+- All amounts: **positive integers in VND**. `Transaction_Fact.transaction_type` is `income`, `expense`, or `inner_transfer`. Debt and savings movements live in their own domain fact tables.
 - `transaction_date` format: `'YYYY-MM-DD HH:MM:SS'`
 - `transaction_id` format: `'tx-{timestamp_ms}'`
-- `category_id = 'split'` is sentinel for multi-category transactions
 - `is_deleted=1` = soft deleted, never returned by GET
-- `Account_Dim.initial_balance` only — `current_balance` computed client-side in `AccountsSummary.tsx`
+- `Account_Dim.current_balance` — maintained server-side by Flask on every mutation. Frontend reads directly from API, no client-side recomputation needed.
 - Per-user default categories seeded at registration: Thiết yếu, Ăn uống, Tiền lương, Di chuyển, Mua sắm, Giải trí, Học tập, Sức khỏe, Khác
 - System user `user_id=1` owns old seed data — new users cannot see it
 
@@ -320,7 +319,6 @@ FLASK_BACKEND_URL=http://localhost:5000   (server-side only, used by server.ts)
 | Debts management | ✅ `/debts` route — full CRUD + payment history |
 | Savings goals | ✅ `/savings` route — full CRUD + contribution history |
 | Payees management | ⚠️ Backend route exists; no frontend hook or dedicated page |
-| Recurring transactions | ⚠️ Backend route exists; no frontend hook or dedicated page |
 | Settings page | ✅ Core profile/account/billing UI exists |
 | SQL analytics console | ❌ Not in new app |
 

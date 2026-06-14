@@ -25,7 +25,6 @@ WATCHED_PREFIXES = (
 
 WATCHED_FILES = {
     "backend/database.py",
-    "database/schema.sql",
     "frontend/server.ts",
     "frontend/types.ts",
     "frontend/components/common/AppCard.tsx",

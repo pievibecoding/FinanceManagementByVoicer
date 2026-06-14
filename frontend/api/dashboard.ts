@@ -29,6 +29,7 @@ export interface Account {
   account_name: string;
   account_type: string;
   initial_balance: number;
+  current_balance: number;
   color?: string | null;
 }
 
@@ -39,11 +40,37 @@ export interface Transaction {
   category_id: string;
   amount: number;
   type: string;
+  transaction_type?: string | null;
+  operation_type?: string | null;
+  source_account_id?: number | null;
+  destination_account_id?: number | null;
+  savings_id?: number | null;
+  debt_id?: number | null;
   note: string;
   user_id: number;
   payee_id: number | null;
   location?: string | null;
-  splits: any[];
+  transfer_context?: {
+    direction: 'in' | 'out' | 'pair';
+    source_label: string;
+    destination_label: string;
+    related_kind: 'account' | 'savings' | 'debt' | null;
+    related_id?: number | string | null;
+    source_account_id?: number | null;
+    destination_account_id?: number | null;
+    destination_savings_id?: number | null;
+    account_id?: number | null;
+    debt_id?: number | null;
+  } | null;
+  cash_flow?: {
+    source_label: string;
+    destination_label: string;
+    source_account_id?: number | null;
+    destination_account_id?: number | null;
+    savings_id?: number | null;
+    debt_id?: number | null;
+    operation_type: string;
+  } | null;
 }
 
 export interface Budget {

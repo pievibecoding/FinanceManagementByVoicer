@@ -40,7 +40,7 @@ export function AccountCard({ account, onClick }: AccountCardProps) {
       </div>
 
       <p className="text-foreground text-xl font-bold tabular-nums mb-1">
-        {formatCurrency(account.initial_balance)}
+        {formatCurrency(account.current_balance)}
       </p>
 
       <p className="text-muted-foreground text-sm capitalize">{account.account_type}</p>

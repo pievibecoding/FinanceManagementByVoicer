@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { Category } from '@/api/categories';
 import type { Account } from '@/api/accounts';
-import { TRANSACTION_TYPE_OPTIONS } from '@/lib/transaction-types';
+import { FILTER_TRANSACTION_TYPE_OPTIONS } from '@/lib/transaction-types';
 
 interface FilterPanelProps {
   filters: {
@@ -81,7 +81,7 @@ export function FilterPanel({
   const activeChips = [
     ...filters.types.map((type) => ({
       key: `type-${type}`,
-      label: t(`types.${type}`, type),
+      label: t(`operationTypes.${type}`, type),
       remove: () => onFiltersChange({ ...filters, types: filters.types.filter((item) => item !== type) }),
     })),
     ...filters.categoryIds.map((categoryId) => {
@@ -174,9 +174,9 @@ export function FilterPanel({
             <FilterDropdown
               title={t('transactions.type')}
               fallbackLabel={t('transactions.allTypes')}
-              options={TRANSACTION_TYPE_OPTIONS.map((type) => ({
+              options={FILTER_TRANSACTION_TYPE_OPTIONS.map((type) => ({
                 value: type,
-                label: t(`types.${type}`),
+                label: t(`operationTypes.${type}`),
               }))}
               values={filters.types}
               emptyLabel={t('common.none')}

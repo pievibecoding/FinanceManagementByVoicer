@@ -79,7 +79,7 @@ export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
       <div className="space-y-2">
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground text-sm">{t('accounts.balance')}</span>
-          <span className="text-foreground font-bold tabular-nums">{formatCurrency(account.initial_balance)}</span>
+          <span className="text-foreground font-bold tabular-nums">{formatCurrency(account.current_balance)}</span>
         </div>
       </div>
     </AppCard>

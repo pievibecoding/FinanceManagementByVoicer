@@ -14,7 +14,7 @@ import type { Transaction } from '@/api/transactions'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { EmptyState, ErrorState, PageHeader } from '@/components/common'
-import { isTransactionTypeOption } from '@/lib/transaction-types'
+import { isFilterTransactionTypeOption, matchesTransactionTypeFilter } from '@/lib/transaction-types'
 
 export const Route = createFileRoute('/_authenticated/transactions/')({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -45,6 +45,10 @@ function splitParam(value?: string) {
   return value ? Array.from(new Set(value.split(',').map((item) => item.trim()).filter(Boolean))) : []
 }
 
+function normalizeTypeFilters(values: string[]) {
+  return Array.from(new Set(values)).filter(isFilterTransactionTypeOption)
+}
+
 function joinParam(values: string[]) {
   return values.length > 0 ? values.join(',') : undefined
 }
@@ -62,7 +66,7 @@ function TransactionsPage() {
   const filters: TransactionFilterState = {
     startDate: search.start,
     endDate: search.end,
-    types: splitParam(search.types).filter(isTransactionTypeOption),
+    types: normalizeTypeFilters(splitParam(search.types)),
     categoryIds: splitParam(search.categories),
     accountIds: splitParam(search.accounts),
     minAmount: numberParam(search.min),
@@ -89,7 +93,9 @@ function TransactionsPage() {
 
   const filtered = useMemo(() => {
     let list = allTransactions
-    if (filters.types.length > 0) list = list.filter(t => filters.types.includes(t.type))
+    if (filters.types.length > 0) list = list.filter(t =>
+      filters.types.some((type) => matchesTransactionTypeFilter(t.type, type, t.operation_type ?? undefined))
+    )
     if (filters.categoryIds.length > 0) list = list.filter(t => filters.categoryIds.includes(String(t.category_id)))
     if (filters.accountIds.length > 0) list = list.filter(t => filters.accountIds.includes(String(t.account_id)))
     if (filters.minAmount !== undefined) list = list.filter(t => t.amount >= filters.minAmount!)
@@ -198,6 +204,7 @@ function TransactionsPage() {
         <TransactionTable
           transactions={paginated}
           categories={categories}
+          accounts={accounts}
           onEdit={(t) => { setSelectedTransaction(t); setEditModalOpen(true) }}
           onDelete={(id) => { setDeleteTransactionId(id); setDeleteDialogOpen(true) }}
           onViewDetails={handleViewDetails}

@@ -42,6 +42,42 @@ LEGACY_ICON_MAP = {
 }
 
 
+def _table_columns(db, table_name: str) -> set[str]:
+    try:
+        return {row["name"] for row in rows_to_dicts(db.execute(f"PRAGMA table_info({table_name})"))}
+    except Exception:
+        return set()
+
+
+def _ensure_category_schema(db) -> None:
+    category_columns = {
+        "user_id": "INTEGER NOT NULL DEFAULT 1",
+        "category_type": "TEXT NOT NULL DEFAULT 'expense'",
+        "budget": "INTEGER NOT NULL DEFAULT 0",
+        "icon": "TEXT",
+        "color": "TEXT",
+    }
+    existing_category_columns = _table_columns(db, "Category_Dim")
+    for column_name, column_def in category_columns.items():
+        if column_name in existing_category_columns:
+            continue
+        try:
+            db.execute(f"ALTER TABLE Category_Dim ADD COLUMN {column_name} {column_def}")
+        except Exception:
+            pass
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS budgets (
+            budget_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            month TEXT NOT NULL,
+            amount_limit INTEGER NOT NULL DEFAULT 0,
+            UNIQUE (user_id, category_id, month)
+        )
+    """)
+
+
 def normalize_category_icon(value) -> str:
     icon = (value or DEFAULT_CATEGORY_ICON).strip() if isinstance(value, str) else DEFAULT_CATEGORY_ICON
     return LEGACY_ICON_MAP.get(icon, icon or DEFAULT_CATEGORY_ICON)
@@ -53,6 +89,7 @@ def get_categories():
     current_month = datetime.now().strftime("%Y-%m")
     db = get_db()
     try:
+        _ensure_category_schema(db)
         result = db.execute(
             """SELECT * FROM Category_Dim
                WHERE user_id = ?
@@ -99,6 +136,7 @@ def create_category():
 
     db = get_db()
     try:
+        _ensure_category_schema(db)
         duplicate = db.execute(
             "SELECT category_id FROM Category_Dim WHERE user_id = ? AND category_name = ?",
             [g.user_id, category_name],
@@ -162,6 +200,7 @@ def update_category(category_id: str):
 
     db = get_db()
     try:
+        _ensure_category_schema(db)
         check = db.execute(
             "SELECT category_id FROM Category_Dim WHERE category_id = ? AND user_id = ?",
             [category_id, g.user_id],
@@ -207,6 +246,7 @@ def update_category(category_id: str):
 def delete_category(category_id: str):
     db = get_db()
     try:
+        _ensure_category_schema(db)
         check = db.execute(
             "SELECT category_id FROM Category_Dim WHERE category_id = ? AND user_id = ?",
             [category_id, g.user_id],

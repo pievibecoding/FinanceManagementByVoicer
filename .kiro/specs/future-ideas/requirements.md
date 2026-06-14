@@ -35,7 +35,6 @@ This spec converts `.kiro/future-ideas.md` into implementation-ready requirement
 - Backend schema changes.
 - New analytics endpoints.
 - Payee management UI.
-- Recurring transaction UI.
 - Changing transaction creation/editing behavior.
 - Replacing the existing chart library.
 

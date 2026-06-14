@@ -238,9 +238,7 @@ FinanceManagementByVoicer/
 │       ├── Icons.tsx
 │       └── DottedGlowBackground.tsx
 │
-└── database/
-    ├── schema.sql             # DDL reference
-    └── analytics.sql          # Sample SQL queries
+└── database/                  # Legacy SQL references removed; runtime schema lives in backend/database.py
 ```
 
 ---

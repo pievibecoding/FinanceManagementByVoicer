@@ -13,6 +13,7 @@ import { chartColors, chartInteractionColors } from '@/styles/tokens'
 import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 import { ChartCard } from '@/components/common'
+import { operationTypeForTransaction } from '@/lib/transaction-types'
 
 interface IncomeExpenseChartProps {
   transactions: Transaction[]
@@ -66,8 +67,9 @@ function buildChartData(transactions: Transaction[], range: RangeKey) {
       const d = new Date(tx.transaction_date)
       const key = `${d.getDate()}/${d.getMonth() + 1}`
       if (!buckets[key]) buckets[key] = { income: 0, expense: 0 }
-      if (tx.type === 'income') buckets[key].income += tx.amount
-      if (tx.type === 'expense') buckets[key].expense += tx.amount
+      const operationType = operationTypeForTransaction(tx)
+      if (operationType === 'income') buckets[key].income += tx.amount
+      if (operationType === 'expense') buckets[key].expense += tx.amount
     })
   } else {
     // One bucket per month
@@ -81,8 +83,9 @@ function buildChartData(transactions: Transaction[], range: RangeKey) {
       const d = new Date(tx.transaction_date)
       const key = `T${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`
       if (!buckets[key]) buckets[key] = { income: 0, expense: 0 }
-      if (tx.type === 'income') buckets[key].income += tx.amount
-      if (tx.type === 'expense') buckets[key].expense += tx.amount
+      const operationType = operationTypeForTransaction(tx)
+      if (operationType === 'income') buckets[key].income += tx.amount
+      if (operationType === 'expense') buckets[key].expense += tx.amount
     })
   }
 
