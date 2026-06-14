@@ -281,11 +281,16 @@ function accountBalanceAtDate(
 ) {
   const accountId = normalizeId(account.account_id)
   return transactions.reduce((balance, tx) => {
-    if (normalizeId(tx.account_id) !== accountId) return balance
     if (dateKeyFromTransaction(tx) > dateKey) return balance
-    const direction = cashDirectionForTransaction(tx)
-    if (direction === 'in') return balance + tx.amount
-    if (direction === 'out') return balance - tx.amount
+    const opType = operationTypeForTransaction(tx)
+    if (opType === 'inner_transfer') {
+      if (normalizeId(tx.source_account_id) === accountId) return balance - tx.amount
+      if (normalizeId(tx.destination_account_id) === accountId) return balance + tx.amount
+      return balance
+    }
+    if (normalizeId(tx.account_id) !== accountId) return balance
+    if (opType === 'income') return balance + tx.amount
+    if (opType === 'expense') return balance - tx.amount
     return balance
   }, account.initial_balance)
 }

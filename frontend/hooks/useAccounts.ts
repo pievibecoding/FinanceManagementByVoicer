@@ -22,7 +22,6 @@ export function useAddAccount() {
     }) => accountsApi.addAccount(account),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -44,7 +43,6 @@ export function useUpdateAccount() {
     }) => accountsApi.updateAccount(accountId, account),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -56,7 +54,6 @@ export function useDeleteAccount() {
     mutationFn: (accountId: number) => accountsApi.deleteAccount(accountId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -69,7 +66,6 @@ export function useTransferBetweenAccounts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
