@@ -340,6 +340,49 @@ export function AIChatWidget() {
     }))
   }, [debtsForDrafts])
 
+  // Tự động điền số thứ tự lần thanh toán vào note khi draft debt_payment có debt_id
+  const paymentCountFetchedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    entries.forEach(entry => {
+      if (
+        !entry.draft ||
+        entry.draft.kind !== 'debt_payment' ||
+        !entry.draft.debt_id ||
+        entry.confirmed ||
+        entry.rejected
+      ) return
+
+      // Key: entry.id + debt_id để re-fetch khi user đổi sang debt khác
+      const fetchKey = `${entry.id}:${entry.draft.debt_id}`
+      if (paymentCountFetchedRef.current.has(fetchKey)) return
+
+      const debtId = Number(entry.draft.debt_id)
+      paymentCountFetchedRef.current.add(fetchKey)
+
+      debtsApi.getPayments(debtId)
+        .then(payments => {
+          const nextIndex = payments.length + 1
+          setEntries(prev => prev.map(e => {
+            if (e.id !== entry.id || !e.draft || e.draft.kind !== 'debt_payment') return e
+            // Chỉ prepend nếu note chưa có "Lần N" để tránh ghi đè khi user đã sửa
+            const currentNote = e.draft.note || ''
+            const alreadyHasIndex = /^Lần \d+/i.test(currentNote)
+            if (alreadyHasIndex) return e
+            const baseNote = currentNote || e.draft.debt_name || ''
+            const newNote = baseNote ? `Lần ${nextIndex} - ${baseNote}` : `Lần ${nextIndex}`
+            return {
+              ...e,
+              draft: { ...e.draft, note: newNote },
+            }
+          }))
+        })
+        .catch(() => {
+          paymentCountFetchedRef.current.delete(fetchKey)
+        })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries.map(e => `${e.id}:${e.draft?.kind === 'debt_payment' ? (e.draft as DebtPaymentDraftForm).debt_id : ''}`).join(',')])
+
   const buildDraft = (parsed: ParsedData): AiDraftForm => {
     const opType = parsed.operation_type ?? (parsed.type === 'in' ? 'income' : 'expense')
     if (opType === 'inner_transfer') {
