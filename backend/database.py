@@ -42,9 +42,7 @@ def initialize_db() -> None:
             _create_tables(db)
             _create_migrations_table(db)
             _migrate_schema(db)
-            _seed_system_user(db)
             _create_budgets_table(db)
-            _migrate_budgets_from_categories(db)
             _create_payees_table(db)
             _migrate_payee_column(db)
             _add_location_column(db)
@@ -53,8 +51,6 @@ def initialize_db() -> None:
             _create_domain_fact_tables(db)
             _migrate_debt_schema(db)
             _migrate_savings_schema(db)
-            _seed_accounts(db)
-            _seed_categories(db)
             _migrate_category_id_to_integer(db)
             _add_category_display_columns(db)
             _migrate_account_id_to_integer(db)
@@ -265,26 +261,6 @@ def _create_budgets_table(db) -> None:
         "CREATE INDEX IF NOT EXISTS idx_budgets_user_month ON budgets(user_id, month)"
     )
     logger.info("budgets table ready.")
-
-
-def _migrate_budgets_from_categories(db) -> None:
-    """One-time migration: copy non-zero Category_Dim.budget rows into budgets
-    for user_id=1 and the current calendar month. Idempotent via INSERT OR IGNORE."""
-    current_month = datetime.now().strftime("%Y-%m")
-    result = db.execute(
-        "SELECT category_id, budget FROM Category_Dim WHERE budget > 0 AND user_id = 1"
-    )
-    rows = result.rows
-    count = 0
-    for row in rows:
-        category_id, budget = row[0], row[1]
-        db.execute(
-            "INSERT OR IGNORE INTO budgets (user_id, category_id, month, amount_limit) VALUES (?, ?, ?, ?)",
-            [1, category_id, current_month, budget],
-        )
-        count += 1
-    if count:
-        logger.info(f"Migrated {count} budget rows from Category_Dim → budgets (month={current_month}).")
 
 
 # ── Schema migrations tracker ─────────────────────────────────────────────────
@@ -1062,75 +1038,8 @@ def _migrate_savings_schema(db) -> None:
 
 # ── Seed helpers ───────────────────────────────────────────────────────────────
 
-def _seed_system_user(db) -> None:
-    """Create the default system user (user_id=1) for existing data. Idempotent."""
-    result = db.execute("SELECT COUNT(*) FROM users WHERE user_id = 1")
-    if result.rows[0][0] != 0:
-        return
-    db.execute(
-        """
-        INSERT OR IGNORE INTO users (user_id, username, email, password_hash, created_at)
-        VALUES (1, ?, ?, ?, datetime('now'))
-        """,
-        ["system_default", "system-default@local", None],
-    )
-    logger.info("Seeded system user (user_id=1).")
-
-
-def _seed_accounts(db) -> None:
-    result = db.execute("SELECT COUNT(*) as cnt FROM Account_Dim")
-    if result.rows[0][0] != 0:
-        return
-    accounts = [
-        ("Ví MoMo",       "E-Wallet",      5_000_000),
-        ("Ngân hàng VCB",  "Bank",         45_000_000),
-        ("Tiền mặt",       "Cash",          2_000_000),
-    ]
-    for name, acc_type, balance in accounts:
-        db.execute(
-            "INSERT INTO Account_Dim (account_name, account_type, initial_balance, current_balance, user_id) VALUES (?, ?, ?, ?, 1)",
-            [name, acc_type, balance, balance],
-        )
-    logger.info("Seeded Account_Dim.")
-
-
-def _seed_categories(db) -> None:
-    result = db.execute("SELECT COUNT(*) as cnt FROM Category_Dim")
-    if result.rows[0][0] != 0:
-        return
-    categories = [
-        ("Thiết yếu",            "expense",    5_000_000),
-        ("Ăn uống",             "expense",    4_000_000),
-        ("Tiền lương",           "income",             0),
-        ("Di chuyển",            "expense",    1_500_000),
-        ("Mua sắm",              "expense",    3_000_000),
-        ("Giải trí",             "expense",    2_000_000),
-        ("Học tập",              "expense",    2_000_000),
-        ("Sức khỏe",             "expense",    1_000_000),
-        ("Khác",                 "expense",    1_500_000),
-    ]
-    for name, cat_type, budget in categories:
-        db.execute(
-            "INSERT INTO Category_Dim (category_name, category_type, budget, user_id) VALUES (?, ?, ?, 1)",
-            [name, cat_type, budget],
-        )
-    logger.info("Seeded Category_Dim.")
-
-
 def seed_categories_for_user(db, user_id: int) -> None:
     """Seed default categories for a newly registered user."""
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS Category_Dim (
-            category_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id       INTEGER NOT NULL DEFAULT 1,
-            category_name TEXT NOT NULL,
-            category_type TEXT NOT NULL,
-            budget        INTEGER NOT NULL DEFAULT 0,
-            icon          TEXT,
-            color         TEXT,
-            created_at    TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-    """)
     slugs = [
         ("Thiết yếu",            "expense",    5_000_000),
         ("Ăn uống",             "expense",    4_000_000),
