@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  Landmark,
   Wallet,
   CreditCard,
   TrendingUp,
@@ -26,7 +27,7 @@ export const sidebarData: SidebarData = {
   teams: [
     {
       name: 'Finance Management',
-      logo: LayoutDashboard,
+      logo: Landmark,
       plan: 'Personal Finance',
     },
   ],
@@ -65,14 +66,14 @@ export const sidebarData: SidebarData = {
           icon: PieChart,
         },
         {
-          title: 'Analytics',
-          url: '/analytics',
-          icon: BarChart,
-        },
-        {
           title: 'Budgets',
           url: '/budgets',
           icon: TrendingUp,
+        },
+        {
+          title: 'Analytics',
+          url: '/analytics',
+          icon: BarChart,
         },
       ],
     },

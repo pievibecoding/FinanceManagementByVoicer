@@ -43,6 +43,9 @@
     "viewAnalytics": "View analytics",
     "currentMonthBudget": "This month's budget",
     "noBudgetSetup": "No budgets have been set up.",
+    "budgetTitle": "Budget",
+    "noBudgetForMonth": "No budget for {{month}}.",
+    "budgetLoadError": "Could not load budget data for the selected month.",
     "noExpenseDataThisMonth": "No expense data for this month",
     "noActiveDebtsLoans": "No active debts or loans",
     "noIncomeInPeriod": "No income in this period",
@@ -55,11 +58,20 @@
       "threeMonths": "3 months",
       "sixMonths": "6 months",
       "oneYear": "1 year",
+      "custom": "Custom",
       "all": "All",
       "sevenDays": "7 days",
       "thirtyDays": "30 days",
       "twelveMonths": "12 months",
       "yearToDate": "YTD"
+    },
+    "periods": {
+      "auto": "Auto",
+      "day": "Daily",
+      "week": "Weekly",
+      "month": "Monthly",
+      "quarter": "Quarterly",
+      "year": "Yearly"
     },
     "charts": {
       "assetFluctuation": "Asset fluctuation",
@@ -68,7 +80,28 @@
       "incomeExpense": "Income and expense",
       "savingsBreakdown": "Savings breakdown",
       "debtBreakdown": "Debt and loan overview",
-      "monthlyIncomeBreakdown": "Monthly income"
+      "monthlyIncomeBreakdown": "Monthly income",
+      "incomeOverTime": "Income over time"
+    },
+    "chartControls": {
+      "period": "Period",
+      "range": "Range",
+      "startDate": "From",
+      "endDate": "To"
+    },
+    "chartSummary": {
+      "current": "Current",
+      "currentMonth": "This month",
+      "noDataInRange": "No data in this date range",
+      "other": "Other",
+      "snapshot": "Snapshot",
+      "timeSeries": "Time series",
+      "total": "Total",
+      "items": "Items",
+      "value": "Value",
+      "assetSnapshotNote": "Account balances are historical; saving and debt values are current snapshot adjustments.",
+      "debtOwed": "Debt owed",
+      "moneyLent": "Money lent"
     }
   },
   "common": {
@@ -91,11 +124,26 @@
     "none": "None"
   },
   "types": {
+    "in": "Money in",
+    "out": "Money out",
+    "neutral": "No balance change",
     "income": "Income",
     "expense": "Expense",
-    "investment": "Investment",
+    "transfer": "Transfer",
+    "transfer_in": "Transfer",
+    "transfer_out": "Transfer",
     "debt": "Debt",
     "loan": "Loan"
+  },
+  "operationTypes": {
+    "expense": "Expense",
+    "income": "Income",
+    "account_transfer": "Account transfer",
+    "inner_transfer": "Internal transfer",
+    "savings_contribution": "Savings contribution",
+    "savings_withdrawal": "Savings withdrawal",
+    "debt_disbursement": "Debt disbursement",
+    "debt_payment": "Debt payment"
   },
   "transactions": {
     "title": "Transactions",
@@ -107,25 +155,35 @@
     "startDate": "Start date",
     "endDate": "End date",
     "type": "Type",
+    "filters": "Filters",
     "allTypes": "All types",
     "clearFilters": "Clear filters",
     "date": "Date",
+    "time": "Time",
     "category": "Category",
+    "source": "Source",
+    "destination": "Destination",
     "note": "Note",
     "location": "Location",
     "amount": "Amount",
+    "amountRange": "Amount range",
+    "resetAmount": "Reset amount range",
     "actions": "Actions",
     "details": "Transaction details",
     "fallbackName": "Transaction",
     "categoryId": "Category ID",
     "accountId": "Account ID",
     "transactionId": "Transaction ID",
-    "splits": "Splits",
+    "transferEditLimitedNotice": "These choices are saved together with account balances and linked savings or debt records when available.",
     "deleteTitle": "Delete transaction",
     "deleteDescription": "Are you sure you want to delete this transaction? This action cannot be undone.",
     "deleteFailed": "Delete failed",
     "edit": "Edit transaction",
     "account": "Account",
+    "cashFlow": "Cash flow",
+    "fromAccount": "From account",
+    "toAccount": "To account",
+    "aiExternalSource": "External source",
     "selectAccount": "Select account",
     "selectCategory": "Select category",
     "aiTitle": "AI transaction entry",
@@ -145,6 +203,33 @@
     "notFinancial": "Not a financial transaction.",
     "connectionError": "Connection error.",
     "newAccountCreated": "New account was created",
+    "newAccountNeedsSelection": "AI detected a new account. Select an existing account before saving.",
+    "aiSaveFailed": "Could not save the transaction.",
+    "aiDebtName": "Debt name",
+    "aiSavingsName": "Savings name",
+    "selectDebt": "Select debt",
+    "destinationSavings": "Destination fund",
+    "selectSavingsGoal": "Select destination fund",
+    "aiDebtBill": "Debt bill",
+    "aiSavingsBill": "Savings bill",
+    "aiValidationAmount": "Amount must be greater than 0.",
+    "aiValidationName": "Enter a name.",
+    "aiValidationAccount": "Select an account.",
+    "aiValidationCategory": "Select a category.",
+    "aiValidationType": "Invalid transaction type.",
+    "aiValidationDate": "Select a transaction date.",
+    "aiValidationDebt": "Select a debt.",
+    "aiValidationSavingsGoal": "Select a destination fund.",
+    "aiGuidanceMissingAccount": "Which account or money source did you use for this transaction?",
+    "aiGuidanceMissingCategory": "AI is not sure about the category. Select one before confirming.",
+    "aiGuidanceMissingSourceAccount": "Which account should the money leave from?",
+    "aiGuidanceMissingDestinationAccount": "Which account should the money go into?",
+    "aiGuidanceSameTransferAccount": "Source and destination accounts must be different.",
+    "aiGuidanceMissingDebtSource": "This is a loan you gave. Which account did you use to send the money?",
+    "aiGuidanceMissingDebtDestination": "This is money you borrowed. Which account should receive it?",
+    "aiGuidanceMissingDebt": "AI could not identify the existing debt. Select the debt before confirming.",
+    "aiGuidanceMissingSavings": "AI could not identify the saving fund. Select the destination fund before confirming.",
+    "aiGuidanceMissingSavingsCreate": "I could not find \"{{name}}\" in existing funds. If this is a new fund, create it in Savings first; if it already exists, select the destination fund.",
     "saved": "Saved",
     "cancelled": "Cancelled",
     "amountPlaceholder": "E.g. 500000"
@@ -165,7 +250,6 @@
     "cash": "Cash",
     "bank": "Bank",
     "creditCard": "Credit card",
-    "investment": "Investment",
     "savings": "Savings",
     "wallet": "Wallet",
     "deleteTitle": "Delete account",
@@ -184,6 +268,24 @@
     "deleteTitle": "Delete category",
     "deleteDescription": "Are you sure you want to delete this category? This action cannot be undone.",
     "fallbackWithId": "Category {{id}}"
+  },
+  "categoryIcons": {
+    "essential": "Essential",
+    "food": "Food",
+    "coffee": "Coffee",
+    "shopping": "Shopping",
+    "home": "Home",
+    "transport": "Transport",
+    "utilities": "Utilities",
+    "entertainment": "Entertainment",
+    "health": "Health",
+    "education": "Education",
+    "work": "Work",
+    "salary": "Salary",
+    "investment": "Investment",
+    "gift": "Gift",
+    "travel": "Travel",
+    "other": "Other"
   },
   "budgets": {
     "title": "Budgets",
@@ -207,15 +309,13 @@
     "error": "Error loading analytics data",
     "totalIncome": "Total income",
     "totalExpense": "Total expense",
-    "totalInvestment": "Total investment",
     "netBalance": "Net balance",
     "totalTransactions": "Total transactions",
-    "incomeVsExpense": "Income vs expense vs investment",
+    "incomeVsExpense": "Income vs expense",
     "total": "Total",
     "monthlyTrends": "Monthly trends",
     "spendingByCategory": "Spending by category",
     "noData": "No data available",
-    "investShort": "Invest",
     "net": "Net",
     "transactionCount_one": "{{count}} transaction",
     "transactionCount_other": "{{count}} transactions"
@@ -243,6 +343,13 @@
     "payment": "Record payment",
     "paymentAmount": "Payment amount (VND)",
     "paymentDate": "Payment date",
+    "selectAccount": "Select account",
+    "receivingAccount": "Receiving account",
+    "sourceAccount": "Source account",
+    "receivingAccountHint": "Borrowing increases this account balance.",
+    "sourceAccountHint": "Lending decreases this account balance.",
+    "paymentSourceAccount": "Payment source account",
+    "paymentReceivingAccount": "Payment receiving account",
     "paymentsHistory": "Payment history",
     "noPayments": "No payments yet",
     "deletePayment": "Delete payment",
@@ -262,14 +369,15 @@
       "nameRequired": "Debt name is required",
       "principalPositive": "Principal must be greater than 0",
       "amountPositive": "Amount must be greater than 0",
+      "accountRequired": "Please select an account to record the cash flow",
       "generic": "Something went wrong"
     }
   },
   "savingsPage": {
-    "title": "Savings goals",
-    "create": "Create savings goal",
-    "edit": "Edit savings goal",
-    "new": "Create savings goal",
+    "title": "Saving goals",
+    "create": "Create saving goal",
+    "edit": "Edit saving goal",
+    "new": "Create saving goal",
     "name": "Goal name",
     "namePlaceholder": "E.g. House fund, Japan trip fund",
     "targetPlaceholder": "500000000",
@@ -279,6 +387,7 @@
     "note": "Note",
     "contribute": "Contribute",
     "contribution": "Add contribution",
+    "withdraw": "Withdraw savings",
     "amount": "Amount (VND)",
     "amountPlaceholder": "E.g. 500000",
     "date": "Contribution date",
@@ -295,9 +404,9 @@
     "completedCount": "{{count}} completed goals",
     "active": "Active",
     "completedSection": "Completed",
-    "empty": "No savings goals yet. Create your first goal.",
-    "emptyShort": "No savings goals yet.",
-    "deleteTitle": "Delete savings goal?",
+    "empty": "No saving goals yet. Create your first goal.",
+    "emptyShort": "No saving goals yet.",
+    "deleteTitle": "Delete saving goal?",
     "deleteDescription": "Goal \"{{name}}\" and all contribution history will be permanently deleted.",
     "errors": {
       "nameRequired": "Goal name is required",
@@ -321,25 +430,171 @@
     "notifications": "Notifications",
     "helpCenter": "Help Center",
     "signOut": "Sign out",
-    "upgrade": "Upgrade to Pro",
-    "account": "Account",
-    "billing": "Billing"
+    "account": "Account"
   },
   "app": {
-    "name": "Finance Management",
-    "plan": "Personal Finance"
+    "name": "Finance Management"
   },
   "language": {
     "label": "Language",
     "english": "English",
     "vietnamese": "Vietnamese"
   },
+  "settingsCore": {
+    "title": "Settings",
+    "description": "Manage your account and app preferences for this device.",
+    "actions": {
+      "configure": "Configure"
+    },
+    "profile": {
+      "title": "Profile",
+      "description": "Your current authenticated account details.",
+      "fallbackName": "Finance user",
+      "active": "Active",
+      "userId": "User ID",
+      "email": "Email",
+      "readOnlyNotice": "Profile editing is not connected to a server endpoint in this version. These details come from your signed-in account."
+    },
+    "account": {
+      "title": "Preferences",
+      "description": "Device-level controls for the current app session.",
+      "language": "Language",
+      "languageDescription": "Switch between Vietnamese and English.",
+      "theme": "Theme",
+      "themeDescription": "Choose light, dark, or system appearance.",
+      "notifications": "Notifications",
+      "notificationsDescription": "Review local notification preferences."
+    }
+  },
+  "notificationsPage": {
+    "title": "Notifications",
+    "description": "Review finance reminder preferences for this session.",
+    "preferencesTitle": "Notification preferences",
+    "preferencesDescription": "These controls are usable locally and do not create server-side notification delivery.",
+    "deliveryTitle": "Delivery status",
+    "deliveryDescription": "Server notification delivery is outside the v1 scope.",
+    "localOnlyNotice": "Changes on this page are local UI preferences for the current session. They are not saved to your account yet.",
+    "preferences": {
+      "budgetAlerts": {
+        "title": "Budget alerts",
+        "description": "Warn when a category is close to or over budget."
+      },
+      "debtReminders": {
+        "title": "Debt reminders",
+        "description": "Remind you to review upcoming debt payments."
+      },
+      "savingsProgress": {
+        "title": "Savings progress",
+        "description": "Highlight saving goals that are moving or behind schedule."
+      },
+      "monthlySummary": {
+        "title": "Monthly summary",
+        "description": "Show a monthly finance review prompt."
+      },
+      "aiConfirmations": {
+        "title": "AI transaction confirmations",
+        "description": "Keep confirmations visible before AI-created records are saved."
+      }
+    }
+  },
+  "helpCenter": {
+    "title": "Help Center",
+    "back": "Back",
+    "description": "Find quick guidance for the finance workflows available in the app.",
+    "searchPlaceholder": "Search help topics...",
+    "noResults": "No matching help topics.",
+    "faqTitle": "Frequently asked questions",
+    "faqDescription": "Short answers for common product behavior.",
+    "supportTitle": "Support",
+    "supportDescription": "Where to go when you need more help.",
+    "supportNotice": "A real support inbox is not connected in this version. For now, keep issue details, screenshots, and reproduction steps with your project notes.",
+    "topics": {
+      "transactions": {
+        "title": "Adding transactions",
+        "description": "Record income and expenses with account and category context.",
+        "steps": [
+          "Open Transactions and choose Add transaction.",
+          "Select account, type, category, amount, and date.",
+          "Review the details before saving."
+        ]
+      },
+      "budgets": {
+        "title": "Budgets",
+        "description": "Set monthly limits by category and track spending progress.",
+        "steps": [
+          "Open Budgets and select the month.",
+          "Create or edit a category limit.",
+          "Review progress on the dashboard budget section."
+        ]
+      },
+      "debts": {
+        "title": "Debts and loans",
+        "description": "Track money you owe and money others owe you.",
+        "steps": [
+          "Create a debt or loan with the counterparty name.",
+          "Add payments when money moves.",
+          "Use the dashboard overview to compare owed and lent totals."
+        ]
+      },
+      "savings": {
+        "title": "Saving goals",
+        "description": "Create targets and record contributions over time.",
+        "steps": [
+          "Create a goal with a target amount and date.",
+          "Add contributions as you save.",
+          "Check progress and remaining amount."
+        ]
+      },
+      "categories": {
+        "title": "Categories",
+        "description": "Organize transactions into income and expense groups.",
+        "steps": [
+          "Open Categories to review available groups.",
+          "Use clear names and colors for scanning.",
+          "Assign categories when adding transactions."
+        ]
+      },
+      "charts": {
+        "title": "Dashboard charts",
+        "description": "Use time ranges and periods to inspect trends and distributions.",
+        "steps": [
+          "Select a metric card to change the active chart.",
+          "Use period controls for daily, weekly, monthly, quarterly, or yearly views.",
+          "Use distribution charts for category and account breakdowns."
+        ]
+      },
+      "assistant": {
+        "title": "AI assistant",
+        "description": "Use voice or text to draft finance records faster.",
+        "steps": [
+          "Open the assistant from the dashboard floating action.",
+          "Describe the transaction, debt, saving goal, or contribution.",
+          "Confirm the parsed result before saving."
+        ]
+      }
+    },
+    "faq": {
+      "localOnly": {
+        "question": "Are settings saved to my account?",
+        "answer": "Not yet. This version shows usable frontend controls, but settings persistence is not connected to a backend endpoint."
+      },
+      "missingData": {
+        "question": "Why does a chart or budget look empty?",
+        "answer": "Most views only show data for the selected month, range, or signed-in user. Check the date filter and account data first."
+      },
+      "voiceAssistant": {
+        "question": "Does the AI save records automatically?",
+        "answer": "No. The assistant prepares a draft and asks for confirmation before saving supported records."
+      },
+      "notifications": {
+        "question": "Will I receive push or email notifications?",
+        "answer": "No. Notification delivery is not implemented in v1; the notification page is a frontend preference surface only."
+      }
+    }
+  },
   "pages": {
     "settings": "Settings",
-    "settingsComingSoon": "Settings page - Coming Soon",
     "notifications": "Notifications",
-    "notificationsComingSoon": "Notifications settings page - Coming Soon",
-    "helpCenter": "Help Center",
-    "helpComingSoon": "Help Center page - Coming Soon"
+    "helpCenter": "Help Center"
   }
 }

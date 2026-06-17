@@ -1,6 +1,7 @@
 import { Account } from '@/api/dashboard';
-import { accountBorderColors } from '@/styles/tokens';
 import { useLocaleFormat } from '@/hooks/useLocaleFormat';
+import { AppCard } from '@/components/common';
+import { getAccountDisplayColor } from '@/lib/account-display';
 
 interface AccountCardProps {
   account: Account;
@@ -17,27 +18,32 @@ export function AccountCard({ account, onClick }: AccountCardProps) {
     return icons[type] || '📁';
   };
 
-  const getAccountBorderColor = (type: string): string =>
-    accountBorderColors[type] ?? '';
+  const accountColor = getAccountDisplayColor(account);
 
   return (
-    <div
-      className="bg-card border rounded-[var(--radius)] p-4 backdrop-blur-sm hover:bg-muted/40 transition-all cursor-pointer"
-      style={{ borderColor: getAccountBorderColor(account.account_type) || undefined }}
+    <AppCard
+      interactive
+      className="rounded-[var(--radius)] p-4"
+      style={{ borderColor: `${accountColor}99` }}
       onClick={onClick}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">{getAccountIcon(account.account_type)}</span>
+          <span
+            className="grid size-10 place-items-center rounded-full text-2xl"
+            style={{ backgroundColor: `${accountColor}22`, color: accountColor }}
+          >
+            {getAccountIcon(account.account_type)}
+          </span>
           <span className="text-foreground font-medium">{account.account_name}</span>
         </div>
       </div>
 
       <p className="text-foreground text-xl font-bold tabular-nums mb-1">
-        {formatCurrency(account.initial_balance)}
+        {formatCurrency(account.current_balance)}
       </p>
 
       <p className="text-muted-foreground text-sm capitalize">{account.account_type}</p>
-    </div>
+    </AppCard>
   );
 }

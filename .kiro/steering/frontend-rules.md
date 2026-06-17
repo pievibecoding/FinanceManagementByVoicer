@@ -16,6 +16,7 @@ Use this for React, routes, components, hooks, i18n, and UI changes.
 - Prefer existing TanStack Query hooks in `frontend/hooks`.
 - Reuse query keys; do not duplicate `['transactions']`.
 - Dashboard totals must use existing shared hooks where possible.
+- Some existing wrappers/hooks are ahead of the Flask API: account update/delete are not backed. Verify `.kiro/steering/api-contract.md` before wiring mutators into UI.
 
 ## UI
 
@@ -23,6 +24,7 @@ Use this for React, routes, components, hooks, i18n, and UI changes.
 - Keep changes scoped to the requested workflow.
 - Do not add marketing/landing-page patterns to app screens.
 - For charts, use `frontend/styles/tokens.ts` for Recharts hex values and CSS tokens for Tailwind classes.
+- Dashboard `DynamicChart.tsx` aggregates from raw transactions/accounts/categories/savings/debts and owns range, bucket, custom-date, donut tooltip, and Brush interaction state. Keep new chart behavior in that component unless the contract is intentionally redesigned.
 
 ## i18n
 

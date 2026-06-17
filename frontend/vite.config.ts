@@ -5,6 +5,13 @@ import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 
 export default defineConfig(({ mode }) => {
+  // vitest test configuration (only active during test runs)
+  const testConfig = {
+    test: {
+      environment: 'node',
+      include: ['__tests__/**/*.test.ts'],
+    },
+  } as any;
     const env = loadEnv(mode, '.', '');
     return {
       server: {
@@ -44,6 +51,7 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      ...testConfig,
     };
 });

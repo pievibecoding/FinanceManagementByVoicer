@@ -20,6 +20,7 @@ export function useAddCategory() {
     }) => categoriesApi.addCategory(category),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -40,6 +41,7 @@ export function useUpdateCategory() {
     }) => categoriesApi.updateCategory(categoryId, category),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
@@ -52,6 +54,7 @@ export function useDeleteCategory() {
     mutationFn: (categoryId: string) => categoriesApi.deleteCategory(categoryId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

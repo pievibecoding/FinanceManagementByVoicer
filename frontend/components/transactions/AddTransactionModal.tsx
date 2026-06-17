@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useAddTransaction } from '@/hooks/useTransactions';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useCategories } from '@/hooks/useCategories';
+import { FormDialog } from '@/components/common';
+import { Button } from '@/components/ui/button';
+import { STANDARD_TRANSACTION_TYPE_OPTIONS } from '@/lib/transaction-types';
 
 interface AddTransactionModalProps {
   open: boolean;
@@ -14,7 +17,7 @@ const EMPTY_FORM = () => ({
   account_id: 0,
   category_id: '',
   amount: 0,
-  type: 'expense',
+    operation_type: 'expense',
   note: '',
   location: '',
 });
@@ -34,17 +37,19 @@ export function AddTransactionModal({ open, onOpenChange }: AddTransactionModalP
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     addTransaction.mutate(
-      { ...formData, transaction_date: `${formData.transaction_date} ${timeStr}` },
+      {
+        ...formData,
+        type: formData.operation_type === 'income' ? 'in' : 'out',
+        source_account_id: formData.operation_type === 'expense' ? formData.account_id : null,
+        destination_account_id: formData.operation_type === 'income' ? formData.account_id : null,
+        transaction_date: `${formData.transaction_date} ${timeStr}`,
+      },
       { onSuccess: () => { onOpenChange(false); setFormData(EMPTY_FORM()); } }
     );
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-popover border border-border rounded-[var(--radius)] p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-foreground mb-4">{t('transactions.add')}</h2>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={t('transactions.add')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('transactions.date')}</label>
@@ -65,12 +70,12 @@ export function AddTransactionModal({ open, onOpenChange }: AddTransactionModalP
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('transactions.type')}</label>
-            <select value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            <select value={formData.operation_type}
+              onChange={(e) => setFormData({ ...formData, operation_type: e.target.value })}
               className={INPUT_CLS} required>
-              <option value="expense">{t('types.expense')}</option>
-              <option value="income">{t('types.income')}</option>
-              <option value="investment">{t('types.investment')}</option>
+              {STANDARD_TRANSACTION_TYPE_OPTIONS.map((type) => (
+                <option key={type} value={type}>{t(`types.${type}`)}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -103,17 +108,14 @@ export function AddTransactionModal({ open, onOpenChange }: AddTransactionModalP
               className={INPUT_CLS} />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => onOpenChange(false)}
-              className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-secondary-foreground hover:bg-secondary/80 transition-all">
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="flex-1">
               {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={addTransaction.isPending}
-              className="flex-1 px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all disabled:opacity-50">
+            </Button>
+            <Button type="submit" disabled={addTransaction.isPending} className="flex-1">
               {addTransaction.isPending ? t('common.saving') : t('common.create')}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </FormDialog>
   );
 }

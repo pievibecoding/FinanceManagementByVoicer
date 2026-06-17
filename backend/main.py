@@ -3,12 +3,14 @@ main.py — Application entry point.
 
 Responsibilities:
   1. Create the Flask app and register all Blueprints.
-  2. Run DB initialization (create tables + seed data) at startup.
-  3. Start the development server when executed directly.
+  2. Expose lightweight health checks that do not touch the database.
+  3. Start the server when executed directly.
 """
 import logging
+import os
+import threading
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 
 from database import initialize_db
@@ -19,7 +21,6 @@ from routes.categories   import categories_bp
 from routes.analytics    import analytics_bp
 from routes.budgets      import budgets_bp
 from routes.payees       import payees_bp
-from routes.recurring    import recurring_bp
 from routes.debts        import debts_bp
 from routes.savings      import savings_bp
 
@@ -34,6 +35,16 @@ logger = logging.getLogger(__name__)
 def create_app() -> Flask:
     app = Flask(__name__)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+    @app.route("/ping", methods=["GET", "HEAD"])
+    @app.route("/api/ping", methods=["GET", "HEAD"])
+    def ping():
+        return "pong", 200
+
+    @app.route("/health", methods=["GET", "HEAD"])
+    @app.route("/api/health", methods=["GET", "HEAD"])
+    def health():
+        return jsonify({"status": "ok"}), 200
 
     # Global error handler — returns JSON instead of HTML for all unhandled exceptions
     @app.errorhandler(Exception)
@@ -73,16 +84,21 @@ def create_app() -> Flask:
     app.register_blueprint(analytics_bp)
     app.register_blueprint(budgets_bp)
     app.register_blueprint(payees_bp)
-    app.register_blueprint(recurring_bp)
     app.register_blueprint(debts_bp)
     app.register_blueprint(savings_bp)
 
     return app
 
 
+def initialize_db_async() -> None:
+    """Run database initialization without blocking Render's port bind."""
+    thread = threading.Thread(target=initialize_db, name="db-initializer", daemon=True)
+    thread.start()
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    initialize_db()
-
     app = create_app()
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    initialize_db_async()
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(debug=False, host="0.0.0.0", port=port)

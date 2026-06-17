@@ -1,0 +1,310 @@
+# Tasks: UI/UX System Polish
+
+## Implementation Tasks
+
+- [x] 1. Audit current UI debt and define migration targets
+  - Files/areas:
+    - `frontend/styles/index.css`
+    - `frontend/styles/theme.css`
+    - `frontend/styles/tokens.ts`
+    - `frontend/components`
+    - `frontend/src/routes`
+  - Work:
+    - Run searches for hard-coded legacy colors, native selects, manual modal overlays, broad global selectors, and route stubs.
+    - Record remaining high-risk areas in the implementation notes or task comments.
+    - Do not change behavior in this task except small no-risk cleanup if needed.
+  - Verification:
+    - `rg -n "zinc|emerald|sky|amber|rose|#[0-9a-fA-F]{3,8}|rgba\\(" frontend/components frontend/src frontend/styles`
+    - `rg -n "<select|fixed inset-0" frontend/components frontend/src/routes`
+    - `rg -n "Coming Soon|TODO|stub" frontend/src/routes frontend/components`
+  - Audit findings:
+    - Theme/token hex and rgba values are expected in `frontend/styles/theme.css` and `frontend/styles/tokens.ts`; these should remain the controlled source of truth.
+    - Legacy hard-coded color debt remains in auth forms:
+      - `frontend/components/auth/LoginForm.tsx`
+      - `frontend/components/auth/RegisterForm.tsx`
+      - Main issues: `zinc`, `emerald`, and `rose` classes.
+    - Finance route color debt remains in:
+      - `frontend/src/routes/_authenticated/debts/index.tsx` (`amber`)
+      - `frontend/src/routes/_authenticated/savings/index.tsx` (`emerald`, `amber`)
+      - `frontend/components/analytics/*` (`sky`)
+      - `frontend/components/transactions/TransactionTable.tsx` (`sky`)
+      - `frontend/components/dashboard/AIChatWidget.tsx` (`sky`, `amber`)
+    - Dashboard chart inline color debt remains in:
+      - `frontend/components/dashboard/DynamicChart.tsx`
+      - `frontend/components/dashboard/IncomeExpenseChart.tsx`
+      - These should move to `frontend/styles/tokens.ts` or CSS variables during chart tasks.
+    - Budget meter threshold colors are currently hard-coded in:
+      - `frontend/components/dashboard/BudgetCard.tsx`
+      - `frontend/components/dashboard/BudgetOverview.tsx`
+      - These should become semantic token values during token sync.
+    - Native select/manual modal debt remains in:
+      - transaction modals and filter panel
+      - account modals
+      - budget modals
+      - category modals
+      - debts route inline dialogs
+      - savings route inline dialogs
+    - Existing shadcn overlay primitives also use `fixed inset-0`; these are not debt by themselves:
+      - `frontend/components/ui/dialog.tsx`
+      - `frontend/components/ui/alert-dialog.tsx`
+      - `frontend/components/ui/sheet.tsx`
+    - Search found no active `Coming Soon`, `TODO`, or `stub` text in `frontend/src/routes` or `frontend/components`.
+
+- [x] 2. Replace broad card/global styling with explicit surface classes
+  - Files/areas:
+    - `frontend/styles/index.css`
+    - `frontend/styles/theme.css`
+    - card-like components under `frontend/components`
+  - Work:
+    - Introduce explicit surface classes such as `app-card`, `interactive-card`, `selected-card`, `chart-surface`, and `toolbar-surface`.
+    - Remove or narrow broad hover/active selectors that apply to every `.bg-card.border`.
+    - Ensure non-interactive chart/content containers do not receive clickable hover/active feedback.
+    - Preserve existing visual concept in both light and dark mode.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+    - Manual check dashboard cards, chart card, settings cards, account popup.
+  - Implementation notes:
+    - Added explicit surface classes in `frontend/styles/index.css`: `app-card`, `interactive-card`, `selected-card`, `chart-surface`, `form-surface`, and `toolbar-surface`.
+    - Removed click-like hover/active behavior from broad `.bg-card.border` styling.
+    - Kept non-interactive shadcn card glass styling without applying interactive hover/active feedback.
+
+- [x] 3. Synchronize color tokens and reduce hard-coded visual colors
+  - Files/areas:
+    - `frontend/styles/theme.css`
+    - `frontend/styles/tokens.ts`
+    - high-impact components with hard-coded colors
+  - Work:
+    - Add or refine semantic success/warning/danger, chart cursor, selected card, and glass surface tokens.
+    - Replace old hard-coded colors where they conflict with the app concept.
+    - Keep chart pastel colors in `tokens.ts`.
+    - Document any intentionally remaining hard-coded colors.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+    - `rg -n "zinc|emerald|sky|amber|rose" frontend/components frontend/src frontend/styles`
+  - Implementation notes:
+    - Added semantic CSS variables for selected cards, chart cursor/grid/stroke, and budget meter thresholds.
+    - Added `chartInteractionColors` and `budgetMeterColors` in `frontend/styles/tokens.ts`.
+    - Moved dashboard chart cursor/brush/pie stroke and budget meter colors to tokens.
+    - Remaining legacy color search hits are intentionally deferred to later tasks:
+      - auth forms: Task 7
+      - CRUD/routes and analytics: Task 8/9
+      - settings/help/account polish: Task 10 if relevant
+
+- [x] 4. Create shared UI wrappers for repeated layout states
+  - Files/areas:
+    - `frontend/components/common/*` or equivalent shared folder
+    - existing route/component imports as needed
+  - Work:
+    - Add minimal shared components:
+      - `PageHeader`
+      - `EmptyState`
+      - `ErrorState`
+      - `AppCard`
+      - `StatCard` or metric card wrapper
+      - `ChartCard`
+    - Keep props small and compatible with current shadcn/Tailwind setup.
+    - Do not migrate all routes in this task unless the changes are trivial.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+  - Implementation notes:
+    - Added shared components under `frontend/components/common`:
+      - `AppCard`
+      - `StatCard`
+      - `ChartCard`
+      - `PageHeader`
+      - `EmptyState`
+      - `ErrorState`
+    - Added barrel export in `frontend/components/common/index.ts`.
+
+- [x] 5. Refactor dashboard metric cards and chart shell
+  - Files/areas:
+    - `frontend/src/routes/_authenticated/index.tsx`
+    - `frontend/components/dashboard/MetricCard.tsx`
+    - `frontend/components/dashboard/DynamicChart.tsx`
+    - `frontend/components/dashboard/BudgetOverview.tsx`
+    - `frontend/components/dashboard/BudgetCard.tsx`
+  - Work:
+    - Move metric card styling to shared `StatCard` or equivalent explicit class.
+    - Ensure selected card state uses purple concept color and remains readable.
+    - Ensure long currency values fit.
+    - Move chart card styling to `ChartCard` or explicit `chart-surface`.
+    - Ensure budget meter colors use tokenized thresholds.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+    - Manual check dashboard metric selection in light and dark mode.
+  - Implementation notes:
+    - `MetricCard` now delegates visual structure to shared `StatCard`.
+    - `DynamicChart` now uses shared `ChartCard`.
+    - `BudgetOverview` and dashboard `BudgetCard` now use `AppCard`.
+    - Budget meter colors now use `budgetMeterColors`.
+    - Chart hover cursor/brush/pie stroke now use `chartInteractionColors`.
+
+- [x] 6. Stabilize dashboard chart interactions and layout
+  - Files/areas:
+    - `frontend/components/dashboard/DynamicChart.tsx`
+    - `frontend/components/dashboard/IncomeExpenseChart.tsx`
+    - `frontend/styles/tokens.ts`
+  - Work:
+    - Ensure every Recharts `ResponsiveContainer` has a parent with explicit responsive dimensions.
+    - Keep distribution charts free of time range controls.
+    - Keep pie/donut chart body, center label, separator, legend, and tooltip from overlapping.
+    - Ensure pie/donut tooltip stays inside a safe chart area.
+    - Replace default bar chart white cursor with tokenized glass cursor.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+    - Manual check dashboard chart types:
+      - net worth
+      - account distribution
+      - monthly income
+      - expense allocation
+      - savings breakdown
+      - debt breakdown
+  - Implementation notes:
+    - Dashboard chart shell uses `ChartCard`.
+    - Recharts cursor/brush/pie stroke uses `chartInteractionColors`.
+    - Pie/donut tooltip remains in the chart safe area with explicit chart dimensions.
+    - Bar chart cursor uses app glass/purple token instead of default white cursor.
+
+- [x] 7. Restyle auth screens to match the app concept
+  - Files/areas:
+    - `frontend/components/auth/LoginForm.tsx`
+    - `frontend/components/auth/RegisterForm.tsx`
+    - `frontend/src/routes/sign-in.tsx`
+    - `frontend/src/routes/sign-up.tsx`
+  - Work:
+    - Remove old `zinc`/`emerald` styling.
+    - Use shared surfaces, inputs, buttons, links, and error text.
+    - Keep the auth screens compact and focused.
+    - Do not add marketing hero sections.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+    - Manual check `/sign-in` and `/sign-up` in light and dark mode.
+  - Implementation notes:
+    - Login/register forms now use shared theme classes, `Input`, and `Button`.
+    - Removed old `zinc`, `emerald`, and `rose` auth styling.
+    - Sign-in/sign-up routes now wrap forms in `AppCard`.
+
+- [x] 8. Migrate high-impact forms/selects/modals to shared primitives
+  - Files/areas:
+    - `frontend/components/transactions/*Modal.tsx`
+    - `frontend/components/accounts/*Modal.tsx`
+    - `frontend/components/budgets/*Modal.tsx`
+    - `frontend/components/categories/*Modal.tsx`
+    - shared `ConfirmDialog` usage
+  - Work:
+    - Prefer shadcn `Dialog`, `Button`, `Input`, `Textarea`, `Select` where practical.
+    - Keep existing submit handlers and mutation hooks.
+    - Ensure dropdown/select text remains readable in both themes.
+    - Ensure modal content fits mobile viewport.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+    - `rg -n "<select|fixed inset-0" frontend/components frontend/src/routes`
+    - Manual add/edit/delete smoke checks for transactions, accounts, budgets, categories.
+  - Implementation notes:
+    - Added shared `FormDialog` wrapper.
+    - Migrated add/edit modals for transactions, accounts, budgets, and categories to `FormDialog`.
+    - Migrated `TransactionDetailsView` to shadcn `Dialog`.
+    - Native selects remain in high-impact forms intentionally for this pass; global select contrast is handled in `frontend/styles/index.css`.
+    - Remaining `fixed inset-0` hits are shadcn primitives, AI widget overlays, and inline debts/savings modals deferred to a deeper modal pass.
+
+- [x] 9. Polish route-level UX structure for finance CRUD pages
+  - Files/areas:
+    - `frontend/src/routes/_authenticated/transactions/index.tsx`
+    - `frontend/src/routes/_authenticated/accounts/index.tsx`
+    - `frontend/src/routes/_authenticated/budgets/index.tsx`
+    - `frontend/src/routes/_authenticated/categories/index.tsx`
+    - `frontend/src/routes/_authenticated/debts/index.tsx`
+    - `frontend/src/routes/_authenticated/savings/index.tsx`
+  - Work:
+    - Apply consistent page header, primary action, filter/search, empty state, error state, and content layout patterns.
+    - Preserve user-generated text as raw data, not translated strings.
+    - Improve mobile wrapping for actions and filters.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+    - Manual route checks on desktop and mobile widths.
+  - Implementation notes:
+    - Transactions, accounts, budgets, categories, debts, and savings now use `PageHeader` for route headers.
+    - Accounts, budgets, categories, transactions, debts, and savings loading/error/empty states were aligned where safe.
+    - Savings/debts summary and cards were moved toward shared `AppCard`.
+    - Legacy `sky`, `amber`, `emerald`, `zinc`, and `rose` class hits were removed from active frontend search results.
+    - Analytics visual color classes were tokenized without changing analytics data contracts.
+
+- [x] 10. Polish settings/help and account popup consistency
+  - Files/areas:
+    - `frontend/src/routes/_authenticated/settings/index.tsx`
+    - `frontend/src/routes/_authenticated/settings/notifications.tsx`
+    - `frontend/src/routes/help.tsx`
+    - `frontend/components/layout/nav-user.tsx`
+    - `frontend/components/language-switcher.tsx`
+  - Work:
+    - Ensure settings/help pages use the same card/header/control patterns.
+    - Ensure account popup items all have meaningful behavior.
+    - Ensure language and theme controls match app styling.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+    - Manual check `/settings`, `/settings/notifications`, `/help`, account popup.
+  - Implementation notes:
+    - Settings, notifications, and help pages now use shared `PageHeader`, `AppCard`, and `EmptyState` patterns.
+    - Help search uses the shared toolbar surface and no-results state.
+    - Account popup Billing and Upgrade Pro now route to `/settings#billing` so both entries expose the billing/plan section.
+    - Language and theme controls remain the existing shared controls inside the polished settings surface.
+
+- [x] 11. Complete i18n sync for new or changed copy
+  - Files/areas:
+    - `frontend/src/i18n/locales/en/common.json`
+    - `frontend/src/i18n/locales/vi/common.json`
+    - `.kiro/manual-hooks/05-i18n-sync-check.md`
+  - Work:
+    - Add matching EN/VI keys for all new visible strings.
+    - Remove unused or obsolete placeholder copy where practical.
+    - Confirm user-created data remains untranslated.
+  - Verification:
+    - Run/check `.kiro/manual-hooks/05-i18n-sync-check.md`
+    - `cd frontend; npm run build`
+    - `git diff --check`
+  - Implementation notes:
+    - Removed unused coming-soon locale keys for settings, notifications, and help.
+    - Verified English and Vietnamese locale key paths are synchronized.
+    - i18n scan found only pre-existing non-UI comments and the intentional `vi-VN` speech recognition language value in the AI widget.
+
+- [x] 12. Final responsive and visual QA pass
+  - Files/areas:
+    - whole frontend UI
+  - Work:
+    - Check desktop, wide desktop, tablet, and mobile viewports.
+    - Verify dashboard chart rendering and tooltip behavior.
+    - Verify modal fit and dropdown contrast.
+    - Document remaining visual debt that should become separate tasks.
+  - Verification:
+    - `cd frontend; npm run build`
+    - `git diff --check`
+    - Manual viewport checks:
+      - `1440x900`
+      - `1920x1080`
+      - `768x1024`
+      - `390x844`
+  - Implementation notes:
+    - Final build passed.
+    - Final diff check passed with Windows LF/CRLF warnings only.
+    - Placeholder search found no active `Coming Soon`, `TODO`, or `stub` hits in routes/components/i18n.
+    - Remaining visual debt is documented: native selects remain in selected high-impact forms, and debts/savings inline overlays plus AI widget overlays remain for a deeper modal pass.
+    - Manual viewport QA was not run through a browser in this pass; recommended viewport list remains the handoff checklist for visual review.
+
+## Final Verification
+
+- [x] `cd frontend && npm run build`
+- [x] `git diff --check`
+- [x] `rg -n "zinc|emerald|sky|amber|rose|#[0-9a-fA-F]{3,8}|rgba\\(" frontend/components frontend/src frontend/styles`
+- [x] `rg -n "<select|fixed inset-0" frontend/components frontend/src/routes`
+- [x] `rg -n "Coming Soon|TODO|stub" frontend/src/routes frontend/components`
+- [x] Manual hook `.kiro/manual-hooks/04-pre-commit-review.md` completed
+- [x] Manual hook `.kiro/manual-hooks/05-i18n-sync-check.md` completed

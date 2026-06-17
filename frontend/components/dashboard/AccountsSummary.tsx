@@ -1,21 +1,11 @@
-import type { Account, Transaction } from '@/api/dashboard'
-import { accountBorderColors } from '@/styles/tokens'
+import type { Account } from '@/api/dashboard'
 import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
+import { AppCard } from '@/components/common'
+import { getAccountDisplayColor } from '@/lib/account-display'
 
 interface AccountsSummaryProps {
   accounts: Account[]
-  transactions: Transaction[]
-}
-
-function computeBalance(account: Account, transactions: Transaction[]): number {
-  let balance = account.initial_balance
-  transactions.forEach(tx => {
-    if (tx.account_id !== account.account_id) return
-    if (tx.type === 'income') balance += tx.amount
-    else balance -= tx.amount
-  })
-  return balance
 }
 
 const ACCOUNT_ICONS: Record<string, string> = {
@@ -25,31 +15,35 @@ const ACCOUNT_ICONS: Record<string, string> = {
   'Cash': '💵',
 }
 
-const ACCOUNT_COLORS: Record<string, string> = accountBorderColors
-
-export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps) {
+export function AccountsSummary({ accounts }: AccountsSummaryProps) {
   const { t } = useTranslation()
   const { formatCurrency } = useLocaleFormat()
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm h-full">
+    <AppCard className="h-full rounded-[var(--radius)] p-5">
       <h3 className="text-foreground font-semibold text-sm mb-4">{t('accounts.title')}</h3>
 
       {accounts.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t('accounts.emptyShort')}</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {accounts.map(acc => {
-            const balance = computeBalance(acc, transactions)
+          {accounts.map((acc, index) => {
+            const balance = acc.current_balance
             const isNegative = balance < 0
+            const accountColor = getAccountDisplayColor(acc, index)
             return (
               <div
                 key={acc.account_id}
                 className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border"
-                style={{ borderColor: (ACCOUNT_COLORS[acc.account_type] ?? '') + '99' }}
+                style={{ borderColor: `${accountColor}99` }}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xl">{ACCOUNT_ICONS[acc.account_type] ?? '📁'}</span>
+                  <span
+                    className="grid size-9 place-items-center rounded-full text-xl"
+                    style={{ backgroundColor: `${accountColor}22`, color: accountColor }}
+                  >
+                    {ACCOUNT_ICONS[acc.account_type] ?? '📁'}
+                  </span>
                   <div>
                     <p className="text-foreground text-sm font-medium leading-tight">{acc.account_name}</p>
                     <p className="text-muted-foreground text-xs">{acc.account_type}</p>
@@ -63,6 +57,6 @@ export function AccountsSummary({ accounts, transactions }: AccountsSummaryProps
           })}
         </div>
       )}
-    </div>
+    </AppCard>
   )
 }

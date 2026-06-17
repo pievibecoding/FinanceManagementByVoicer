@@ -9,9 +9,11 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import type { Transaction } from '@/api/dashboard'
-import { chartColors } from '@/styles/tokens'
+import { chartColors, chartInteractionColors } from '@/styles/tokens'
 import { useTranslation } from 'react-i18next'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
+import { ChartCard } from '@/components/common'
+import { operationTypeForTransaction } from '@/lib/transaction-types'
 
 interface IncomeExpenseChartProps {
   transactions: Transaction[]
@@ -65,8 +67,9 @@ function buildChartData(transactions: Transaction[], range: RangeKey) {
       const d = new Date(tx.transaction_date)
       const key = `${d.getDate()}/${d.getMonth() + 1}`
       if (!buckets[key]) buckets[key] = { income: 0, expense: 0 }
-      if (tx.type === 'income') buckets[key].income += tx.amount
-      if (tx.type === 'expense') buckets[key].expense += tx.amount
+      const operationType = operationTypeForTransaction(tx)
+      if (operationType === 'income') buckets[key].income += tx.amount
+      if (operationType === 'expense') buckets[key].expense += tx.amount
     })
   } else {
     // One bucket per month
@@ -80,8 +83,9 @@ function buildChartData(transactions: Transaction[], range: RangeKey) {
       const d = new Date(tx.transaction_date)
       const key = `T${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`
       if (!buckets[key]) buckets[key] = { income: 0, expense: 0 }
-      if (tx.type === 'income') buckets[key].income += tx.amount
-      if (tx.type === 'expense') buckets[key].expense += tx.amount
+      const operationType = operationTypeForTransaction(tx)
+      if (operationType === 'income') buckets[key].income += tx.amount
+      if (operationType === 'expense') buckets[key].expense += tx.amount
     })
   }
 
@@ -122,7 +126,7 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
   )
 
   return (
-    <div className="bg-card border border-border rounded-[var(--radius)] p-5 backdrop-blur-sm h-full">
+    <ChartCard className="p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-foreground font-semibold text-sm">{t('dashboard.charts.incomeExpense')}</h3>
@@ -157,25 +161,28 @@ export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
       {/* Chart */}
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={chartData} barGap={3} barCategoryGap="30%" barSize={range === '7d' || range === '30d' ? 5 : 16}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(200,107,250,0.10)" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="name"
-            tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }}
+            tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
             tickFormatter={(value) => formatCompactNumber(Number(value))}
-            tick={{ fill: 'rgba(240,230,255,0.45)', fontSize: 10 }}
+            tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             width={38}
           />
-          <Tooltip content={<CustomTooltip incomeLabel={t('types.income')} expenseLabel={t('types.expense')} formatCurrency={formatCurrency} />} cursor={{ fill: 'rgba(200,107,250,0.06)' }} />
+          <Tooltip
+            content={<CustomTooltip incomeLabel={t('types.income')} expenseLabel={t('types.expense')} formatCurrency={formatCurrency} />}
+            cursor={{ fill: chartInteractionColors.cursor }}
+          />
           <Bar dataKey="income" fill={INCOME_COLOR} radius={[4, 4, 0, 0]} name="income" />
           <Bar dataKey="expense" fill={EXPENSE_COLOR} radius={[4, 4, 0, 0]} name="expense" />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </ChartCard>
   )
 }

@@ -161,6 +161,8 @@ All routes under `/api/` require `Authorization: Bearer <token>` except the `/ap
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/accounts` | List user's accounts |
+| POST | `/api/accounts` | Create account |
+| PUT | `/api/accounts/:id` | Update account metadata, including color |
 
 ### Categories
 
@@ -212,7 +214,7 @@ FinanceManagementByVoicer/
 │   │   └── password_hasher.py # bcrypt (rounds=12)
 │   └── routes/
 │       ├── transactions.py    # GET/POST/DELETE /api/transactions
-│       ├── accounts.py        # GET /api/accounts
+│       ├── accounts.py        # GET/POST/PUT /api/accounts
 │       ├── categories.py      # GET/PUT /api/categories
 │       └── analytics.py       # POST /api/sql-query
 │
@@ -236,9 +238,7 @@ FinanceManagementByVoicer/
 │       ├── Icons.tsx
 │       └── DottedGlowBackground.tsx
 │
-└── database/
-    ├── schema.sql             # DDL reference
-    └── analytics.sql          # Sample SQL queries
+└── database/                  # Legacy SQL references removed; runtime schema lives in backend/database.py
 ```
 
 ---

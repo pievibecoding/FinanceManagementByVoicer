@@ -59,6 +59,8 @@ export function useCreateContribution() {
     onSuccess: (_res, vars) => {
       qc.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['savings-contributions', vars.savingsId] })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
     },
   })
 }
@@ -71,6 +73,22 @@ export function useDeleteContribution() {
     onSuccess: (_res, vars) => {
       qc.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['savings-contributions', vars.savingsId] })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+    },
+  })
+}
+
+export function useCreateWithdrawal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ savingsId, data }: { savingsId: number; data: Parameters<typeof savingsApi.createWithdrawal>[1] }) =>
+      savingsApi.createWithdrawal(savingsId, data),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ['savings'], refetchType: 'all' })
+      qc.invalidateQueries({ queryKey: ['savings-contributions', vars.savingsId] })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
     },
   })
 }

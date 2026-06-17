@@ -6,6 +6,7 @@ services:
     plan: free
     buildCommand: pip install -r backend/requirements.txt
     startCommand: python backend/main.py
+    healthCheckPath: /ping
     envVars:
       - key: TURSO_DB_URL
         sync: false

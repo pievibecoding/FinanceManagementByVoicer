@@ -57,10 +57,14 @@ export const transactionsApi = {
     category_id: string;
     amount: number;
     type: string;
+    operation_type?: string;
+    source_account_id?: number | null;
+    destination_account_id?: number | null;
+    savings_id?: number | null;
+    debt_id?: number | null;
     note: string;
     payee_id?: number;
     location?: string;
-    splits?: Array<{ category_id: string; amount: number; note: string }>;
   }): Promise<{ message: string; transaction_id: string }> {
     return request('/api/transactions', {
       method: 'POST',
@@ -75,11 +79,34 @@ export const transactionsApi = {
     category_id?: string;
     amount?: number;
     type?: string;
+    operation_type?: string;
+    source_account_id?: number | null;
+    destination_account_id?: number | null;
+    savings_id?: number | null;
+    debt_id?: number | null;
     note?: string;
     payee_id?: number;
     location?: string;
   }): Promise<{ message: string }> {
     return request(`/api/transactions/${transactionId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(transaction),
+    });
+  },
+
+  async updateTransferTransaction(transactionId: string, transaction: {
+    transaction_date: string;
+    amount: number;
+    note?: string;
+    location?: string;
+    account_id?: number;
+    from_account_id?: number;
+    to_account_id?: number;
+    savings_id?: number;
+    debt_id?: number;
+  }): Promise<{ message: string }> {
+    return request(`/api/transactions/${transactionId}/transfer`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(transaction),

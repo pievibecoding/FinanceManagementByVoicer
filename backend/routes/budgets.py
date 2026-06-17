@@ -19,6 +19,19 @@ logger = logging.getLogger(__name__)
 budgets_bp = Blueprint("budgets", __name__)
 
 
+def _ensure_budgets_schema(db) -> None:
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS budgets (
+            budget_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            month TEXT NOT NULL,
+            amount_limit INTEGER NOT NULL DEFAULT 0,
+            UNIQUE (user_id, category_id, month)
+        )
+    """)
+
+
 def _current_month() -> str:
     return datetime.now().strftime("%Y-%m")
 
@@ -29,6 +42,7 @@ def get_budgets():
     month = request.args.get("month") or _current_month()
     db = get_db()
     try:
+        _ensure_budgets_schema(db)
         result = db.execute(
             "SELECT budget_id, category_id, month, amount_limit FROM budgets WHERE user_id = ? AND month = ?",
             [g.user_id, month],
@@ -57,6 +71,7 @@ def upsert_budget(category_id: int):
 
     db = get_db()
     try:
+        _ensure_budgets_schema(db)
         db.execute(
             """INSERT OR REPLACE INTO budgets (user_id, category_id, month, amount_limit)
                VALUES (?, ?, ?, ?)""",
@@ -79,6 +94,7 @@ def delete_budget(category_id: int):
     month = request.args.get("month") or _current_month()
     db = get_db()
     try:
+        _ensure_budgets_schema(db)
         # Check the row exists and belongs to this user
         check = db.execute(
             "SELECT budget_id FROM budgets WHERE user_id = ? AND category_id = ? AND month = ?",

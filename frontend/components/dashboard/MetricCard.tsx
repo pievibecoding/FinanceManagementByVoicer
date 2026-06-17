@@ -1,3 +1,5 @@
+import { StatCard } from '@/components/common'
+
 interface MetricCardProps {
   title: string;
   value: string;
@@ -11,22 +13,20 @@ interface MetricCardProps {
 
 export function MetricCard({ title, value, trend, icon, positive = true, onClick, selected = false, className = '' }: MetricCardProps) {
   return (
-    <div
+    <StatCard
       onClick={onClick}
-      className={`bg-card border rounded-[var(--radius)] p-6 backdrop-blur-sm transition-all cursor-pointer ${
-        selected ? 'border-primary/60 bg-primary/10' : 'border-border hover:bg-muted/40'
-      } ${className}`}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-2xl">{icon}</span>
-        {trend && (
-          <span className={`text-xs ${positive ? 'text-primary' : 'text-destructive'}`}>
+      selected={selected}
+      className={className}
+      icon={icon}
+      title={title}
+      value={value}
+      trend={
+        trend ? (
+          <span className={`text-xs ${selected ? 'text-white/80' : positive ? 'text-primary' : 'text-destructive'}`}>
             {positive ? '↑' : '↓'} {trend}
           </span>
-        )}
-      </div>
-      <h3 className="text-muted-foreground text-sm uppercase mb-1">{title}</h3>
-      <p className="text-foreground text-2xl font-bold tabular-nums">{value}</p>
-    </div>
+        ) : null
+      }
+    />
   );
 }

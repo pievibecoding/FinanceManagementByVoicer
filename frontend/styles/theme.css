@@ -1,96 +1,149 @@
 :root {
   --radius: 0.625rem;
 
-  /* Brand Palette */
-  --indigo:        #3d0066;
-  --indigo-2:      #5c0099;
-  --mauve-magic:   #c86bfa;
-  --school-bus-yellow: #fdc500;
-  --gold:          #ffd500;
-  --bright-lemon:  #ffee32;
-  --ink-black:     #03071e;
+  /* Brand concept */
+  --royal-violet: #40916c;
+  --purple-x11: #2ec4b6;
+  --soft-periwinkle: #d6d6e6;
+  --wisteria-blue: #ffc4d4;
+  --icy-blue: #e9ecef;
+  --frosted-blue: #f8f7f3;
+  --icy-aqua: #40916c;
+  --icy-aqua-2: #d8f3dc;
+  --ink-black: #12131a;
+  --glass-white: rgba(255, 255, 255, 0.60);
+  --glass-bright: rgba(255, 255, 255, 0.62);
+  --glass-shadow: 0 18px 42px rgba(45, 49, 66, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.74);
+  --glass-shadow-hover: 0 22px 52px rgba(45, 49, 66, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  --card-hover: rgba(255, 255, 255, 0.78);
+  --card-active: rgba(64, 145, 108, 0.16);
+  --selected-card: #40916c;
+  --selected-card-foreground: #ffffff;
+  --chart-cursor: rgba(64, 145, 108, 0.16);
+  --chart-grid: rgba(45, 49, 66, 0.09);
+  --chart-stroke-strong: rgba(45, 49, 66, 0.50);
+  --meter-safe: #40916c;
+  --meter-warning: #d99a42;
+  --meter-danger: #d65f5f;
+  --chart-elevation: 0 16px 32px rgba(45, 49, 66, 0.08);
+  --body-gradient:
+    radial-gradient(ellipse 78% 55% at 8% 0%, rgba(214, 214, 230, 0.58) 0%, transparent 62%),
+    radial-gradient(ellipse 70% 54% at 88% 4%, rgba(255, 196, 212, 0.44) 0%, transparent 64%),
+    radial-gradient(ellipse 62% 50% at 50% 100%, rgba(64, 145, 108, 0.10) 0%, transparent 60%),
+    linear-gradient(145deg, #faf9f6 0%, #f6f4ef 52%, #f8f7fb 100%);
 
-  /* Semantic tokens — dark purple/gold theme */
+  /* Pastel chart palette */
+  --powder-blush: #ffafcc;
+  --apricot-cream: #ffc4d4;
+  --cream: #ffd166;
+  --tea-green: #95d5b2;
+  --electric-aqua: #40916c;
+  --baby-blue-ice: #8ecae6;
+  --periwinkle: #b8b8dc;
+  --mauve: #cdb4db;
 
-  /* Background: ink-black với tím nhẹ */
-  --background: #0a0318;
-  /* Chữ trên nền: trắng sáng để tương phản cao */
-  --foreground: #f0e6ff;
+  /* Semantic tokens - warm glassmorphism concept */
+  --background: #faf9f6;
+  --foreground: #2d3142;
 
-  /* Card: tím đậm glassmorphism, đủ sáng hơn background */
-  --card: rgba(92, 0, 153, 0.20);
-  --card-foreground: #f0e6ff;
+  --card: rgba(255, 255, 255, 0.60);
+  --card-foreground: #2d3142;
 
-  /* Popover: tím đậm đặc hơn một chút */
-  --popover: rgba(61, 0, 102, 0.85);
-  --popover-foreground: #f0e6ff;
+  --popover: rgba(255, 255, 255, 0.88);
+  --popover-foreground: #2d3142;
 
-  /* Primary: mauve-magic (tím sáng) — contrast tốt trên nền tối */
-  --primary: #c86bfa;
-  /* Foreground của primary: ink-black để chữ trên nút primary dễ đọc */
-  --primary-foreground: #03071e;
+  --primary: #40916c;
+  --primary-foreground: #ffffff;
 
-  /* Secondary: tím trung gian, nền button secondary */
-  --secondary: rgba(92, 0, 153, 0.35);
-  --secondary-foreground: #f0e6ff;
+  --secondary: rgba(214, 214, 230, 0.42);
+  --secondary-foreground: #2d3142;
 
-  /* Muted: overlay nhẹ, dùng cho vùng phụ */
-  --muted: rgba(92, 0, 153, 0.18);
-  --muted-foreground: rgba(240, 230, 255, 0.60);
+  --muted: rgba(45, 49, 66, 0.06);
+  --muted-foreground: rgba(45, 49, 66, 0.64);
 
-  /* Accent: vàng gold — nổi bật, dùng cho highlight/badge */
-  --accent: #ffd500;
-  /* Foreground accent: ink-black để chữ trên vùng vàng dễ đọc */
-  --accent-foreground: #03071e;
+  --accent: #d6d6e6;
+  --accent-foreground: #2d3142;
 
-  --destructive: #ff4d4d;
+  --destructive: #d65f5f;
 
-  --border: rgba(200, 107, 250, 0.25);
-  --input: rgba(92, 0, 153, 0.22);
-  --ring: #c86bfa;
+  --border: rgba(45, 49, 66, 0.11);
+  --input: rgba(255, 255, 255, 0.64);
+  --ring: #40916c;
 
-  /* Charts: đa dạng, đủ contrast lẫn nhau trên nền tối */
-  --chart-1: #c86bfa;   /* mauve-magic */
-  --chart-2: #ffd500;   /* gold */
-  --chart-3: #ff6b9d;   /* hồng — tương phản với tím và vàng */
-  --chart-4: #5c9efa;   /* xanh dương nhạt */
-  --chart-5: #ffee32;   /* bright-lemon */
+  --chart-1: var(--powder-blush);
+  --chart-2: var(--apricot-cream);
+  --chart-3: var(--cream);
+  --chart-4: var(--tea-green);
+  --chart-5: var(--electric-aqua);
+  --chart-6: var(--baby-blue-ice);
+  --chart-7: var(--periwinkle);
+  --chart-8: var(--mauve);
 
-  /* Sidebar: tím đậm hơn background một bậc */
-  --sidebar: rgba(61, 0, 102, 0.55);
-  --sidebar-foreground: #f0e6ff;
-  --sidebar-primary: #c86bfa;
-  --sidebar-primary-foreground: #03071e;
-  --sidebar-accent: rgba(255, 213, 0, 0.15);
-  --sidebar-accent-foreground: #ffd500;
-  --sidebar-border: rgba(200, 107, 250, 0.20);
-  --sidebar-ring: #c86bfa;
+  --sidebar: rgba(255, 255, 255, 0.58);
+  --sidebar-foreground: #2d3142;
+  --sidebar-primary: #40916c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(214, 214, 230, 0.36);
+  --sidebar-accent-foreground: #2d3142;
+  --sidebar-border: rgba(45, 49, 66, 0.10);
+  --sidebar-ring: #40916c;
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.14 0.04 259.21);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --glass-white: rgba(34, 36, 49, 0.33);
+  --glass-bright: rgba(226, 232, 240, 0.14);
+  --glass-shadow: 0 18px 50px rgba(0, 0, 0, 0.20), inset 0 1px 0 rgba(226, 232, 240, 0.10);
+  --glass-shadow-hover: 0 22px 58px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(226, 232, 240, 0.15);
+  --card-hover: rgba(34, 36, 49, 0.54);
+  --card-active: rgba(46, 196, 182, 0.18);
+  --selected-card: #2ec4b6;
+  --selected-card-foreground: #12131a;
+  --chart-cursor: rgba(46, 196, 182, 0.14);
+  --chart-grid: rgba(241, 245, 249, 0.10);
+  --chart-stroke-strong: rgba(241, 245, 249, 0.56);
+  --meter-safe: #2ec4b6;
+  --meter-warning: #e29578;
+  --meter-danger: #ff8a8a;
+  --chart-elevation: 0 18px 32px rgba(0, 0, 0, 0.24);
+  --body-gradient:
+    radial-gradient(ellipse 78% 55% at 10% 0%, rgba(163, 163, 194, 0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 55% at 88% 8%, rgba(226, 149, 120, 0.16) 0%, transparent 62%),
+    radial-gradient(ellipse 64% 52% at 48% 98%, rgba(46, 196, 182, 0.10) 0%, transparent 62%),
+    linear-gradient(145deg, #12131a 0%, #1a1b23 54%, #101116 100%);
+  --background: #12131a;
+  --foreground: #f1f5f9;
+  --card: rgba(34, 36, 49, 0.33);
+  --card-foreground: #f1f5f9;
+  --popover: rgba(18, 19, 26, 0.92);
+  --popover-foreground: #f1f5f9;
+  --primary: #2ec4b6;
+  --primary-foreground: #12131a;
+  --secondary: rgba(34, 36, 49, 0.66);
+  --secondary-foreground: #f1f5f9;
+  --muted: rgba(241, 245, 249, 0.07);
+  --muted-foreground: rgba(241, 245, 249, 0.68);
+  --accent: #52b788;
+  --accent-foreground: #12131a;
+  --destructive: #ff8a8a;
+  --border: rgba(226, 232, 240, 0.13);
+  --input: rgba(34, 36, 49, 0.50);
+  --ring: #2ec4b6;
+  --chart-1: var(--powder-blush);
+  --chart-2: var(--apricot-cream);
+  --chart-3: var(--cream);
+  --chart-4: var(--tea-green);
+  --chart-5: var(--electric-aqua);
+  --chart-6: var(--baby-blue-ice);
+  --chart-7: var(--periwinkle);
+  --chart-8: var(--mauve);
+  --sidebar: rgba(18, 19, 26, 0.76);
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-primary: #2ec4b6;
+  --sidebar-primary-foreground: #12131a;
+  --sidebar-accent: rgba(46, 196, 182, 0.14);
+  --sidebar-accent-foreground: #f1f5f9;
+  --sidebar-border: rgba(226, 232, 240, 0.13);
+  --sidebar-ring: #2ec4b6;
 }
 
 @theme inline {
@@ -124,6 +177,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);

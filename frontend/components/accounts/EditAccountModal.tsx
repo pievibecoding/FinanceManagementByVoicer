@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUpdateAccount } from '@/hooks/useAccounts';
 import type { Account } from '@/api/accounts';
+import { defaultAccountColor } from '@/styles/tokens';
+import { FormDialog } from '@/components/common';
+import { Button } from '@/components/ui/button';
 
 interface EditAccountModalProps {
   open: boolean;
@@ -11,21 +14,32 @@ interface EditAccountModalProps {
 
 const INPUT_CLS = 'w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary';
 
+function normalizeAccountType(type: string) {
+  const typeMap: Record<string, string> = {
+    Bank: 'bank',
+    Cash: 'cash',
+    'E-Wallet': 'wallet',
+    Investment: 'savings',
+    investment: 'savings',
+  };
+  return typeMap[type] ?? type;
+}
+
 export function EditAccountModal({ open, onOpenChange, account }: EditAccountModalProps) {
   const { t } = useTranslation();
   const updateAccount = useUpdateAccount();
   const [formData, setFormData] = useState({
     account_name: '', account_type: 'cash',
-    initial_balance: 0, currency: 'VND', description: '',
+    initial_balance: 0, currency: 'VND', description: '', color: defaultAccountColor,
   });
 
   useEffect(() => {
     if (account) {
       setFormData({
         account_name: account.account_name,
-        account_type: account.account_type,
+        account_type: normalizeAccountType(account.account_type),
         initial_balance: account.initial_balance,
-        currency: 'VND', description: '',
+        currency: 'VND', description: '', color: account.color || defaultAccountColor,
       });
     }
   }, [account]);
@@ -38,12 +52,10 @@ export function EditAccountModal({ open, onOpenChange, account }: EditAccountMod
     });
   };
 
-  if (!open || !account) return null;
+  if (!account) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-popover border border-border rounded-[var(--radius)] p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-foreground mb-4">{t('accounts.edit')}</h2>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={t('accounts.edit')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('accounts.name')}</label>
@@ -59,7 +71,6 @@ export function EditAccountModal({ open, onOpenChange, account }: EditAccountMod
               <option value="cash">{t('accounts.cash')}</option>
               <option value="bank">{t('accounts.bank')}</option>
               <option value="credit_card">{t('accounts.creditCard')}</option>
-              <option value="investment">{t('accounts.investment')}</option>
               <option value="savings">{t('accounts.savings')}</option>
               <option value="wallet">{t('accounts.wallet')}</option>
             </select>
@@ -81,23 +92,31 @@ export function EditAccountModal({ open, onOpenChange, account }: EditAccountMod
             </select>
           </div>
           <div>
+            <label className="block text-muted-foreground text-sm mb-1">{t('categories.color')}</label>
+            <div className="flex gap-2">
+              <input type="color" value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                className="w-12 h-10 bg-input border border-border rounded-lg cursor-pointer" />
+              <input type="text" value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                className={`flex-1 ${INPUT_CLS}`} required />
+            </div>
+          </div>
+          <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('accounts.description')}</label>
             <textarea value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className={INPUT_CLS} rows={3} />
           </div>
           <div className="flex gap-3 pt-4">
-            <button type="button" onClick={() => onOpenChange(false)}
-              className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-secondary-foreground hover:bg-secondary/80 transition-all">
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="flex-1">
               {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={updateAccount.isPending}
-              className="flex-1 px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all disabled:opacity-50">
+            </Button>
+            <Button type="submit" disabled={updateAccount.isPending} className="flex-1">
               {updateAccount.isPending ? t('common.updating') : t('accounts.edit')}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </FormDialog>
   );
 }

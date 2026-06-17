@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useUpdateCategory } from '@/hooks/useCategories';
 import type { Category } from '@/api/categories';
 import { defaultCategoryColor } from '@/styles/tokens';
+import { FormDialog } from '@/components/common';
+import { Button } from '@/components/ui/button';
+import { CategoryIconPicker } from './CategoryIconPicker';
+import { defaultCategoryIcon, normalizeCategoryIcon } from '@/lib/category-icons';
 
 interface EditCategoryModalProps {
   open: boolean;
@@ -22,16 +26,16 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
   const { t } = useTranslation();
   const updateCategory = useUpdateCategory();
   const [formData, setFormData] = useState<CategoryFormData>({
-    category_name: '', category_type: 'expense', icon: '📦', color: defaultCategoryColor,
+    category_name: '', category_type: 'expense', icon: defaultCategoryIcon, color: defaultCategoryColor,
   });
 
   useEffect(() => {
     if (category) {
       setFormData({
         category_name: category.category_name,
-        category_type: category.category_type,
-        icon: category.icon,
-        color: category.color,
+        category_type: category.category_type === 'investment' ? 'expense' : category.category_type,
+        icon: normalizeCategoryIcon(category.icon),
+        color: category.color || defaultCategoryColor,
       });
     }
   }, [category]);
@@ -41,15 +45,20 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
     if (!category) return;
     updateCategory.mutate({ categoryId: category.category_id, category: formData }, {
       onSuccess: () => { onOpenChange(false); },
+      onError: (error) => {
+        console.error('[categories] edit failed', {
+          categoryId: category.category_id,
+          payload: formData,
+          error,
+        });
+      },
     });
   };
 
-  if (!open || !category) return null;
+  if (!category) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-popover border border-border rounded-[var(--radius)] p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold text-foreground mb-4">{t('categories.edit')}</h2>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={t('categories.edit')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('categories.name')}</label>
@@ -64,14 +73,14 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
               className={INPUT_CLS} required>
               <option value="income">{t('types.income')}</option>
               <option value="expense">{t('types.expense')}</option>
-              <option value="investment">{t('types.investment')}</option>
             </select>
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('categories.icon')}</label>
-            <input type="text" value={formData.icon}
-              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-              className={INPUT_CLS} required maxLength={2} />
+            <CategoryIconPicker
+              value={formData.icon}
+              onChange={(icon) => setFormData({ ...formData, icon })}
+            />
           </div>
           <div>
             <label className="block text-muted-foreground text-sm mb-1">{t('categories.color')}</label>
@@ -85,17 +94,14 @@ export function EditCategoryModal({ open, onOpenChange, category }: EditCategory
             </div>
           </div>
           <div className="flex gap-3 pt-4">
-            <button type="button" onClick={() => onOpenChange(false)}
-              className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-secondary-foreground hover:bg-secondary/80 transition-all">
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} className="flex-1">
               {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={updateCategory.isPending}
-              className="flex-1 px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all disabled:opacity-50">
+            </Button>
+            <Button type="submit" disabled={updateCategory.isPending} className="flex-1">
               {updateCategory.isPending ? t('common.updating') : t('categories.edit')}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </FormDialog>
   );
 }

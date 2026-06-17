@@ -13,6 +13,7 @@ import { Route as SignoutRouteImport } from './routes/signout'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as ChartLabRouteImport } from './routes/chart-lab'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedTransactionsIndexRouteImport } from './routes/_authenticated/transactions/index'
@@ -43,6 +44,11 @@ const SignInRoute = SignInRouteImport.update({
 const HelpRoute = HelpRouteImport.update({
   id: '/help',
   path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChartLabRoute = ChartLabRouteImport.update({
+  id: '/chart-lab',
+  path: '/chart-lab',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -110,6 +116,7 @@ const AuthenticatedSettingsNotificationsRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/chart-lab': typeof ChartLabRoute
   '/help': typeof HelpRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/transactions/': typeof AuthenticatedTransactionsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/chart-lab': typeof ChartLabRoute
   '/help': typeof HelpRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -143,6 +151,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/chart-lab': typeof ChartLabRoute
   '/help': typeof HelpRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/chart-lab'
     | '/help'
     | '/sign-in'
     | '/sign-up'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/transactions/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/chart-lab'
     | '/help'
     | '/sign-in'
     | '/sign-up'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/chart-lab'
     | '/help'
     | '/sign-in'
     | '/sign-up'
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ChartLabRoute: typeof ChartLabRoute
   HelpRoute: typeof HelpRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
@@ -246,6 +259,13 @@ declare module '@tanstack/react-router' {
       path: '/help'
       fullPath: '/help'
       preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chart-lab': {
+      id: '/chart-lab'
+      path: '/chart-lab'
+      fullPath: '/chart-lab'
+      preLoaderRoute: typeof ChartLabRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -360,6 +380,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ChartLabRoute: ChartLabRoute,
   HelpRoute: HelpRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,

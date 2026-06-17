@@ -14,26 +14,58 @@
 
 // ── Brand palette ──────────────────────────────────────────────────────────────
 export const palette = {
-  primary:     '#c86bfa',   // mauve-magic — primary action, income, confirmed
-  accent:      '#ffd500',   // gold — expense/chi tiêu, accent highlight
-  destructive: '#ff4d4d',   // đỏ — danger, delete, error
-  indigo:      '#3d0066',   // indigo deep — backgrounds
-  indigoDark:  '#5c0099',   // indigo-2 — gradient stop, sidebar
-  inkBlack:    '#03071e',   // background base
+  royalViolet:    '#40916c',
+  purpleX11:      '#2ec4b6',
+  softPeriwinkle: '#d6d6e6',
+  wisteriaBlue:   '#ffc4d4',
+  icyBlue:        '#e9ecef',
+  frostedBlue:    '#faf9f6',
+  icyAqua:        '#2ec4b6',
+  icyAqua2:       '#d8f3dc',
+  inkBlack:       '#12131a',
+  primary:        '#40916c',
+  accent:         '#2ec4b6',
+  destructive:    '#d65f5f',
+  success:        '#40916c',
+  warning:        '#d99a42',
+  indigo:         '#40916c',
+  indigoDark:     '#52b788',
+} as const
+
+export const pastelChartColors = {
+  powderBlush:    '#ffafcc',
+  apricotCream:   '#ffc4d4',
+  cream:          '#ffd166',
+  teaGreen:       '#95d5b2',
+  electricAqua:   '#40916c',
+  babyBlueIce:    '#8ecae6',
+  periwinkle:     '#b8b8dc',
+  mauve:          '#cdb4db',
 } as const
 
 // ── Semantic aliases ───────────────────────────────────────────────────────────
 /** Màu cho loại giao dịch */
 export const transactionColors = {
-  income:     palette.primary,
-  expense:    palette.accent,
-  investment: '#5c9efa',    // xanh dương — riêng cho investment
+  income:     pastelChartColors.teaGreen,
+  expense:    pastelChartColors.powderBlush,
 } as const
 
 /** Màu chart (Recharts cần hex, không dùng CSS var được) */
 export const chartColors = {
-  income:  palette.primary,   // bar/line thu nhập
-  expense: palette.accent,    // bar/line chi tiêu
+  income:  pastelChartColors.teaGreen,
+  expense: pastelChartColors.powderBlush,
+} as const
+
+export const chartInteractionColors = {
+  cursor: 'rgba(64, 145, 108, 0.16)',
+  brushFill: 'rgba(46, 196, 182, 0.12)',
+  pieStroke: 'rgba(18, 19, 26, 0.72)',
+} as const
+
+export const budgetMeterColors = {
+  safe: palette.success,
+  warning: palette.warning,
+  danger: palette.destructive,
 } as const
 
 /**
@@ -41,33 +73,42 @@ export const chartColors = {
  * Đổi bộ màu thì sửa array này.
  */
 export const categoryColors = [
-  palette.primary,   // mauve-magic
-  palette.accent,    // gold
-  '#ff6b9d',         // hồng
-  '#5c9efa',         // xanh dương nhạt
-  '#f59e0b',         // amber
-  '#34d399',         // emerald
-  '#fb923c',         // orange
-  '#a78bfa',         // violet nhạt
-  '#38bdf8',         // sky
-  '#f472b6',         // pink
+  pastelChartColors.powderBlush,
+  pastelChartColors.apricotCream,
+  pastelChartColors.cream,
+  pastelChartColors.teaGreen,
+  pastelChartColors.electricAqua,
+  pastelChartColors.babyBlueIce,
+  pastelChartColors.periwinkle,
+  pastelChartColors.mauve,
 ] as const
 
 /** Màu border theo loại tài khoản (dùng trong Tailwind arbitrary value) */
 export const accountBorderColors: Record<string, string> = {
-  Bank:        '#5c9efa',
-  'E-Wallet':  palette.primary,
-  Investment:  palette.accent,
-  Cash:        '#f59e0b',
+  Bank:        pastelChartColors.babyBlueIce,
+  'E-Wallet':  pastelChartColors.electricAqua,
+  Cash:        pastelChartColors.apricotCream,
+  bank:        pastelChartColors.babyBlueIce,
+  wallet:      pastelChartColors.electricAqua,
+  cash:        pastelChartColors.apricotCream,
+  savings:     pastelChartColors.teaGreen,
+  credit_card: pastelChartColors.powderBlush,
 }
 
 /** Màu fill/stroke theo loại tài khoản (dùng trong Recharts) */
 export const accountChartColors: Record<string, string> = {
-  Bank:        '#5c9efa',
-  'E-Wallet':  palette.primary,
-  Investment:  palette.accent,
-  Cash:        '#f59e0b',
+  Bank:        pastelChartColors.babyBlueIce,
+  'E-Wallet':  pastelChartColors.electricAqua,
+  Cash:        pastelChartColors.apricotCream,
+  bank:        pastelChartColors.babyBlueIce,
+  wallet:      pastelChartColors.electricAqua,
+  cash:        pastelChartColors.apricotCream,
+  savings:     pastelChartColors.teaGreen,
+  credit_card: pastelChartColors.powderBlush,
 }
 
 /** Default color cho form tạo category mới */
 export const defaultCategoryColor = palette.primary
+
+/** Default color cho form tạo account mới */
+export const defaultAccountColor = pastelChartColors.teaGreen

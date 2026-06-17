@@ -11,8 +11,11 @@ import {
   useCreatePayment,
   useDeletePayment,
 } from '@/hooks/useDebts'
+import { useAccounts } from '@/hooks/useAccounts'
 import { useLocaleFormat } from '@/hooks/useLocaleFormat'
 import type { Debt, DebtPayment } from '@/api/debts'
+import { AppCard, ErrorState, PageHeader } from '@/components/common'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/_authenticated/debts/')({
   component: DebtsPage,
@@ -45,6 +48,7 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
   const isEdit = !!debt
   const createDebt = useCreateDebt()
   const updateDebt = useUpdateDebt()
+  const { data: accounts = [] } = useAccounts()
 
   const [name, setName] = useState(debt?.name ?? '')
   const [debtType, setDebtType] = useState<'debt' | 'loan'>(debt?.debt_type ?? 'debt')
@@ -55,6 +59,7 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
   const [startDate, setStartDate] = useState(debt?.start_date?.slice(0, 10) ?? todayStr())
   const [dueDate, setDueDate] = useState(debt?.due_date?.slice(0, 10) ?? '')
   const [note, setNote] = useState(debt?.note ?? '')
+  const [accountId, setAccountId] = useState<number | ''>('')
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,6 +68,7 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
     const principalNum = parseInt(principal.replace(/\D/g, ''), 10)
     if (!name.trim()) return setError(t('debts.errors.nameRequired'))
     if (isNaN(principalNum) || principalNum <= 0) return setError(t('debts.errors.principalPositive'))
+    if (!isEdit && !accountId) return setError(t('debts.errors.accountRequired'))
 
     try {
       if (isEdit && debt) {
@@ -86,6 +92,8 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
           lender: lender.trim() || null,
           debtor: debtor.trim() || null,
           principal: principalNum,
+          account_id: Number(accountId),
+          transaction_date: startDate ? `${startDate} 00:00:00` : null,
           start_date: startDate || null,
           due_date: dueDate || null,
           note: note.trim() || null,
@@ -124,6 +132,24 @@ function DebtFormModal({ debt, onClose }: DebtFormModalProps) {
             <input value={name} onChange={e => setName(e.target.value)} placeholder={t('debts.namePlaceholder')}
               className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary" />
           </div>
+          {!isEdit && (
+            <div>
+              <label className="text-muted-foreground text-sm block mb-1">
+                {debtType === 'debt' ? t('debts.receivingAccount') : t('debts.sourceAccount')} *
+              </label>
+              <select value={accountId}
+                onChange={e => setAccountId(e.target.value ? Number(e.target.value) : '')}
+                className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary">
+                <option value="">{t('debts.selectAccount')}</option>
+                {accounts.map(account => (
+                  <option key={account.account_id} value={account.account_id}>{account.account_name}</option>
+                ))}
+              </select>
+              <p className="text-muted-foreground/60 text-xs mt-1">
+                {debtType === 'debt' ? t('debts.receivingAccountHint') : t('debts.sourceAccountHint')}
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-muted-foreground text-sm block mb-1">{t('debts.lender')}</label>
@@ -195,8 +221,10 @@ function PaymentModal({ debt, onClose }: PaymentModalProps) {
   const { t } = useTranslation()
   const { formatCurrency } = useLocaleFormat()
   const createPayment = useCreatePayment()
+  const { data: accounts = [] } = useAccounts()
   const [amount, setAmount] = useState('')
   const [paymentDate, setPaymentDate] = useState(todayStr())
+  const [accountId, setAccountId] = useState<number | ''>('')
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -204,10 +232,11 @@ function PaymentModal({ debt, onClose }: PaymentModalProps) {
     setError('')
     const amountNum = parseInt(amount.replace(/\D/g, ''), 10)
     if (isNaN(amountNum) || amountNum <= 0) return setError(t('debts.errors.amountPositive'))
+    if (!accountId) return setError(t('debts.errors.accountRequired'))
     try {
       await createPayment.mutateAsync({
         debtId: debt.debt_id,
-        data: { amount_paid: amountNum, payment_date: `${paymentDate} 00:00:00` },
+        data: { amount_paid: amountNum, payment_date: `${paymentDate} 00:00:00`, account_id: Number(accountId) },
       })
       onClose()
     } catch (err: any) {
@@ -226,6 +255,19 @@ function PaymentModal({ debt, onClose }: PaymentModalProps) {
             <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="1" placeholder={t('transactions.amountPlaceholder')} autoFocus
               className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary" />
             <p className="text-muted-foreground/60 text-xs mt-1">{t('debts.remaining')}: {formatCurrency(debt.outstanding_balance)}</p>
+          </div>
+          <div>
+            <label className="text-muted-foreground text-sm block mb-1">
+              {debt.debt_type === 'debt' ? t('debts.paymentSourceAccount') : t('debts.paymentReceivingAccount')} *
+            </label>
+            <select value={accountId}
+              onChange={e => setAccountId(e.target.value ? Number(e.target.value) : '')}
+              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary">
+              <option value="">{t('debts.selectAccount')}</option>
+              {accounts.map(account => (
+                <option key={account.account_id} value={account.account_id}>{account.account_name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="text-muted-foreground text-sm block mb-1">{t('debts.paymentDate')}</label>
@@ -318,7 +360,19 @@ function DebtRow({ debt, onEdit, onDelete, onPay, onHistory }: DebtRowProps) {
   }
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+    <AppCard
+      interactive
+      role="button"
+      tabIndex={0}
+      className="rounded-[var(--radius)] p-4 space-y-3"
+      onClick={() => onEdit(debt)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onEdit(debt)
+        }
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-foreground font-medium truncate">{debt.name}</p>
@@ -352,7 +406,7 @@ function DebtRow({ debt, onEdit, onDelete, onPay, onHistory }: DebtRowProps) {
           {alert === 'overdue' ? (
             <><AlertTriangle className="w-3 h-3 text-destructive" /><span className="text-destructive">{t('debts.overdue')}: {formatDate(debt.due_date)}</span></>
           ) : alert === 'soon' ? (
-            <><Clock className="w-3 h-3 text-amber-400" /><span className="text-amber-400">{t('debts.dueSoon')}: {formatDate(debt.due_date)}</span></>
+            <><Clock className="w-3 h-3 text-[var(--meter-warning)]" /><span className="text-[var(--meter-warning)]">{t('debts.dueSoon')}: {formatDate(debt.due_date)}</span></>
           ) : (
             <span className="text-muted-foreground/50">{t('debts.due')}: {formatDate(debt.due_date)}</span>
           )}
@@ -361,21 +415,21 @@ function DebtRow({ debt, onEdit, onDelete, onPay, onHistory }: DebtRowProps) {
 
       <div className="flex gap-2 pt-1">
         {debt.status !== 'settled' && (
-          <button onClick={() => onPay(debt)} className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 rounded-lg px-2.5 py-1.5 transition-all">
+          <button onClick={(event) => { event.stopPropagation(); onPay(debt) }} className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 rounded-lg px-2.5 py-1.5 transition-all">
             <Banknote className="w-3.5 h-3.5" /> {t('debts.payment')}
           </button>
         )}
-        <button onClick={() => onHistory(debt)} className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border hover:bg-muted/30 rounded-lg px-2.5 py-1.5 transition-all">
+        <button onClick={(event) => { event.stopPropagation(); onHistory(debt) }} className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border hover:bg-muted/30 rounded-lg px-2.5 py-1.5 transition-all">
           {t('common.history')}
         </button>
-        <button onClick={() => onEdit(debt)} className="ml-auto text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/30 transition-all">
+        <button onClick={(event) => { event.stopPropagation(); onEdit(debt) }} className="ml-auto text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/30 transition-all">
           <Pencil className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => onDelete(debt)} className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10 transition-all">
+        <button onClick={(event) => { event.stopPropagation(); onDelete(debt) }} className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10 transition-all">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
-    </div>
+    </AppCard>
   )
 }
 
@@ -417,8 +471,8 @@ function DebtsPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-4 text-foreground">{t('debts.title')}</h1>
-        <div className="text-muted-foreground text-sm">{t('common.loadingData')}</div>
+        <PageHeader title={t('debts.title')} />
+        <div className="mt-4 text-muted-foreground text-sm">{t('common.loadingData')}</div>
       </div>
     )
   }
@@ -426,10 +480,8 @@ function DebtsPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-4 text-foreground">{t('debts.title')}</h1>
-        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 text-destructive text-sm">
-          {t('common.loadError')}
-        </div>
+        <PageHeader title={t('debts.title')} />
+        <ErrorState className="mt-4" title={t('common.loadError')} />
       </div>
     )
   }
@@ -439,26 +491,25 @@ function DebtsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('debts.title')}</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-primary text-primary-foreground font-medium py-2 px-4 rounded-[var(--radius)] hover:bg-primary/80 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> {t('debts.add')}
-        </button>
-      </div>
+      <PageHeader
+        title={t('debts.title')}
+        actions={(
+          <Button onClick={() => setShowAddModal(true)}>
+            <Plus className="w-4 h-4" /> {t('debts.add')}
+          </Button>
+        )}
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
+        <AppCard className="rounded-[var(--radius)] p-4">
           <p className="text-muted-foreground text-xs mb-1 flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5" /> {t('debts.iOwe')}</p>
           <p className="text-destructive text-xl font-bold">{formatCurrency(totalDebt)}</p>
-        </div>
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-4">
+        </AppCard>
+        <AppCard className="rounded-[var(--radius)] p-4">
           <p className="text-muted-foreground text-xs mb-1 flex items-center gap-1.5"><Banknote className="w-3.5 h-3.5" /> {t('debts.owedToMe')}</p>
           <p className="text-primary text-xl font-bold">{formatCurrency(totalLoan)}</p>
-        </div>
+        </AppCard>
       </div>
 
       {/* Section: Tôi đang nợ */}

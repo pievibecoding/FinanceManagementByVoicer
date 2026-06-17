@@ -15,13 +15,20 @@ interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (token: string, userId: number, email: string, name?: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const DEV_AUTH_ENABLED =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === "true";
+const DEV_AUTH_EMAIL = import.meta.env.VITE_DEV_AUTH_EMAIL;
+const DEV_AUTH_PASSWORD = import.meta.env.VITE_DEV_AUTH_PASSWORD;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [isLoading, setIsLoading] = useState(true);
   const [token, setToken] = useState<string | null>(() =>
     localStorage.getItem(TOKEN_KEY)
   );
@@ -34,8 +41,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Verify stored token against server on initial load to catch expired/revoked tokens
   useEffect(() => {
+    let cancelled = false;
+
+    const clearAuthState = () => {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_ID_KEY);
+      localStorage.removeItem(EMAIL_KEY);
+      localStorage.removeItem(NAME_KEY);
+      setToken(null);
+      setUser(null);
+    };
+
+    const applyAuthState = (
+      newToken: string,
+      userId: number,
+      email: string,
+      name = ""
+    ) => {
+      localStorage.setItem(TOKEN_KEY, newToken);
+      localStorage.setItem(USER_ID_KEY, String(userId));
+      localStorage.setItem(EMAIL_KEY, email);
+      localStorage.setItem(NAME_KEY, name);
+      setToken(newToken);
+      setUser({ id: userId, email, name });
+    };
+
+    const signInWithDevAuth = () => {
+      if (!DEV_AUTH_ENABLED || !DEV_AUTH_EMAIL || !DEV_AUTH_PASSWORD) {
+        return false;
+      }
+
+      fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: DEV_AUTH_EMAIL,
+          password: DEV_AUTH_PASSWORD,
+        }),
+      })
+        .then(res => {
+          if (!res.ok) throw new Error("Dev auth login failed");
+          return res.json();
+        })
+        .then(data => {
+          if (cancelled) return;
+          const email = data.email ?? DEV_AUTH_EMAIL;
+          const name = data.username ?? data.name ?? email;
+          applyAuthState(data.access_token, data.user_id, email, name);
+        })
+        .catch(error => {
+          if (cancelled) return;
+          console.warn("Dev auth bypass failed:", error);
+          clearAuthState();
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false);
+        });
+      return true;
+    };
+
     const storedToken = localStorage.getItem(TOKEN_KEY);
-    if (!storedToken) return;
+    if (!storedToken) {
+      if (!signInWithDevAuth()) {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    let devAuthStarted = false;
 
     fetch("/api/auth/me", {
       headers: { "Authorization": `Bearer ${storedToken}` },
@@ -53,14 +126,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       })
       .catch(() => {
+        if (cancelled) return;
         // Token expired or server unreachable — clear auth state
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_ID_KEY);
-        localStorage.removeItem(EMAIL_KEY);
-        localStorage.removeItem(NAME_KEY);
-        setToken(null);
-        setUser(null);
+        clearAuthState();
+        devAuthStarted = signInWithDevAuth();
+      })
+      .finally(() => {
+        if (!cancelled && !devAuthStarted) setIsLoading(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = (newToken: string, userId: number, email: string, name = "") => {
@@ -84,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

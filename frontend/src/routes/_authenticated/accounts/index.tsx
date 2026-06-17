@@ -7,6 +7,8 @@ import { EditAccountModal } from '@/components/accounts/EditAccountModal'
 import { DeleteConfirmationDialog } from '@/components/accounts/DeleteConfirmationDialog'
 import type { Account } from '@/api/accounts'
 import { useTranslation } from 'react-i18next'
+import { Button } from '@/components/ui/button'
+import { EmptyState, ErrorState, PageHeader } from '@/components/common'
 
 export const Route = createFileRoute('/_authenticated/accounts/')({
   component: () => {
@@ -32,8 +34,8 @@ export const Route = createFileRoute('/_authenticated/accounts/')({
     if (isLoading) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('accounts.title')}</h1>
-          <div className="text-muted-foreground">{t('common.loading')}</div>
+          <PageHeader title={t('accounts.title')} />
+          <div className="mt-4 text-muted-foreground">{t('common.loading')}</div>
         </div>
       )
     }
@@ -41,21 +43,19 @@ export const Route = createFileRoute('/_authenticated/accounts/')({
     if (isError) {
       return (
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4 text-foreground">{t('accounts.title')}</h1>
-          <div className="text-destructive">{t('accounts.error')}</div>
+          <PageHeader title={t('accounts.title')} />
+          <ErrorState className="mt-4" title={t('accounts.error')} />
         </div>
       )
     }
 
     return (
       <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-foreground">{t('accounts.title')}</h1>
-          <button onClick={() => setAddModalOpen(true)}
-            className="px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all">
-            {t('accounts.add')}
-          </button>
-        </div>
+        <PageHeader
+          className="mb-6"
+          title={t('accounts.title')}
+          actions={<Button onClick={() => setAddModalOpen(true)}>{t('accounts.add')}</Button>}
+        />
 
         {accounts && accounts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -64,9 +64,7 @@ export const Route = createFileRoute('/_authenticated/accounts/')({
             ))}
           </div>
         ) : (
-          <div className="bg-card border border-border rounded-[var(--radius)] p-8 text-center text-muted-foreground">
-            {t('accounts.empty')}
-          </div>
+          <EmptyState title={t('accounts.empty')} />
         )}
 
         <AddAccountModal

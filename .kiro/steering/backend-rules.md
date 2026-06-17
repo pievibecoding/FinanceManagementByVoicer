@@ -21,6 +21,8 @@ Use this for Flask API, auth, database, migrations, and server-side business log
 - Amounts are positive VND integers.
 - `transaction_date` format is `YYYY-MM-DD HH:MM:SS`.
 - Transactions use soft delete with `is_deleted=1`.
+- `Account_Dim.current_balance` is maintained server-side by Flask. Every route that creates/edits/deletes a transaction, debt movement, or savings movement **must** update `current_balance` atomically in the same batch. Never leave balance computation to the frontend.
+- `POST /api/accounts/transfer` and `PUT /api/transactions/<id>/transfer` both exist and handle `inner_transfer` rows with atomic balance updates.
 - Avoid destructive migrations without an explicit rollback/data migration plan.
 
 ## API Compatibility

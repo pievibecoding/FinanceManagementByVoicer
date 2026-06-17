@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { accountsApi, Account } from '@/api/accounts';
+import { accountsApi, Account, TransferBetweenAccountsPayload } from '@/api/accounts';
 
 export function useAccounts() {
   return useQuery({
@@ -18,10 +18,10 @@ export function useAddAccount() {
       initial_balance: number;
       currency: string;
       description?: string;
+      color?: string;
     }) => accountsApi.addAccount(account),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -38,11 +38,11 @@ export function useUpdateAccount() {
         initial_balance?: number;
         currency?: string;
         description?: string;
+        color?: string;
       };
     }) => accountsApi.updateAccount(accountId, account),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -54,7 +54,18 @@ export function useDeleteAccount() {
     mutationFn: (accountId: number) => accountsApi.deleteAccount(accountId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useTransferBetweenAccounts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: TransferBetweenAccountsPayload) => accountsApi.transferBetweenAccounts(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }

@@ -3,45 +3,41 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useDebts } from '@/hooks/useDebts';
 import { useSavings } from '@/hooks/useSavings';
+import { operationTypeForTransaction } from '@/lib/transaction-types';
+
+function normalizeId(value: string | number | null | undefined) {
+  return value == null ? '' : String(value);
+}
 
 // useDashboardMetrics uses the SAME useTransactions hook as the transactions page.
 // This ensures both share the same TanStack Query cache entry ['transactions'].
-export function useDashboardMetrics() {
+export function useDashboardMetrics(budgetMonth?: string) {
   const accountsQuery = useAccounts();
   const transactionsQuery = useTransactions();
-  const budgetsQuery = useBudgets();
-  const { totalDebt } = useDebts();
+  const budgetsQuery = useBudgets(budgetMonth);
+  const { totalDebt, totalLoan } = useDebts();
   const { totalSaved } = useSavings();
 
-  const isLoading = accountsQuery.isLoading || transactionsQuery.isLoading || budgetsQuery.isLoading;
-  const isError = accountsQuery.isError || transactionsQuery.isError || budgetsQuery.isError;
+  const isLoading = accountsQuery.isLoading || transactionsQuery.isLoading;
+  const isError = accountsQuery.isError || transactionsQuery.isError;
 
   const accounts = accountsQuery.data ?? [];
   const transactions = transactionsQuery.data ?? [];
 
-  // Compute real current balance per account
-  const totalBalance = accounts.reduce((sum, acc) => {
-    let balance = acc.initial_balance;
-    transactions.forEach(tx => {
-      if (tx.account_id !== acc.account_id) return;
-      if (tx.type === 'income') balance += tx.amount;
-      else balance -= tx.amount; // expense + investment
-    });
-    return sum + balance;
-  }, 0);
+  const totalBalance = accounts.reduce((sum, acc) => sum + acc.current_balance, 0);
 
-  // Net worth = Total assets (sum of all account balances + savings) - Total debt
-  const netWorth = totalBalance + totalSaved - totalDebt;
+  // Net worth = liquid accounts + savings + receivables - liabilities.
+  const netWorth = totalBalance + totalSaved + totalLoan - totalDebt;
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const thisMonthTx = transactions.filter(tx => tx.transaction_date.startsWith(currentMonth));
 
   const monthlyIncome = thisMonthTx
-    .filter(tx => tx.type === 'income')
+    .filter(tx => operationTypeForTransaction(tx) === 'income')
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   const monthlyExpenses = thisMonthTx
-    .filter(tx => tx.type === 'expense')
+    .filter(tx => operationTypeForTransaction(tx) === 'expense')
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   const netSavings = monthlyIncome - monthlyExpenses;
@@ -49,7 +45,7 @@ export function useDashboardMetrics() {
   // Compute expense by category for current month (for expense-allocation chart)
   const expenseByCategory: Record<number, number> = {};
   thisMonthTx.forEach(tx => {
-    if (tx.type === 'expense') {
+    if (operationTypeForTransaction(tx) === 'expense') {
       const catId = Number(tx.category_id);
       expenseByCategory[catId] = (expenseByCategory[catId] ?? 0) + tx.amount;
     }
@@ -71,11 +67,17 @@ export function useDashboardMetrics() {
     let netWorth = 0;
     accounts.forEach(acc => {
       let balance = acc.initial_balance;
+      const accountId = normalizeId(acc.account_id);
       transactions.forEach(tx => {
-        if (tx.account_id !== acc.account_id) return;
-        if (tx.transaction_date.slice(0, 7) <= month) {
-          if (tx.type === 'income') balance += tx.amount;
-          else balance -= tx.amount;
+        if (tx.transaction_date.slice(0, 7) > month) return;
+        const opType = operationTypeForTransaction(tx);
+        if (opType === 'income' && normalizeId(tx.account_id) === accountId) {
+          balance += tx.amount;
+        } else if (opType === 'expense' && normalizeId(tx.account_id) === accountId) {
+          balance -= tx.amount;
+        } else if (opType === 'inner_transfer') {
+          if (normalizeId(tx.source_account_id) === accountId) balance -= tx.amount;
+          if (normalizeId(tx.destination_account_id) === accountId) balance += tx.amount;
         }
       });
       netWorth += balance;
@@ -100,5 +102,7 @@ export function useDashboardMetrics() {
     },
     isLoading,
     isError,
+    isBudgetLoading: budgetsQuery.isLoading,
+    isBudgetError: budgetsQuery.isError,
   };
 }

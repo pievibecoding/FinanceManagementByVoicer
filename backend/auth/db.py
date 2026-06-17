@@ -4,7 +4,35 @@ from typing import Optional
 from database import get_db
 
 
+def ensure_auth_schema() -> None:
+    db = get_db()
+    try:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                username      TEXT UNIQUE,
+                email         TEXT UNIQUE,
+                password_hash TEXT,
+                google_sub    TEXT UNIQUE,
+                created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+                is_deleted    INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS user_settings (
+                setting_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL,
+                currency   TEXT NOT NULL DEFAULT 'VND',
+                language   TEXT NOT NULL DEFAULT 'vi',
+                timezone   TEXT NOT NULL DEFAULT 'Asia/Ho_Chi_Minh'
+            )
+        """)
+    finally:
+        db.close()
+
+
 def find_user_by_email(email: str) -> Optional[dict]:
+    ensure_auth_schema()
     db = get_db()
     try:
         result = db.execute(
@@ -20,6 +48,7 @@ def find_user_by_email(email: str) -> Optional[dict]:
 
 
 def find_user_by_google_sub(google_sub: str) -> Optional[dict]:
+    ensure_auth_schema()
     db = get_db()
     try:
         result = db.execute(
@@ -35,6 +64,7 @@ def find_user_by_google_sub(google_sub: str) -> Optional[dict]:
 
 
 def find_user_by_id(user_id: int) -> Optional[dict]:
+    ensure_auth_schema()
     db = get_db()
     try:
         result = db.execute(
@@ -52,6 +82,7 @@ def find_user_by_id(user_id: int) -> Optional[dict]:
 def create_user(email: Optional[str], username: Optional[str],
                 password_hash: Optional[str], google_sub: Optional[str]) -> int:
     """Insert a new user and return the new user_id."""
+    ensure_auth_schema()
     db = get_db()
     try:
         db.execute(
@@ -65,6 +96,7 @@ def create_user(email: Optional[str], username: Optional[str],
 
 
 def update_google_sub(user_id: int, google_sub: str) -> None:
+    ensure_auth_schema()
     db = get_db()
     try:
         db.execute(

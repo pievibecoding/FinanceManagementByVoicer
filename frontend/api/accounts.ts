@@ -2,6 +2,14 @@ import type { Account } from './dashboard';
 
 export type { Account } from './dashboard';
 
+export interface TransferBetweenAccountsPayload {
+  from_account_id: number;
+  to_account_id: number;
+  amount: number;
+  date: string;
+  note?: string;
+}
+
 // Auth calls go through Express BFF (same origin = no CORS issues)
 const BASE = '';
 
@@ -41,6 +49,7 @@ export const accountsApi = {
     initial_balance: number;
     currency: string;
     description?: string;
+    color?: string;
   }): Promise<{ message: string; account_id: number }> {
     return request('/api/accounts', {
       method: 'POST',
@@ -55,6 +64,7 @@ export const accountsApi = {
     initial_balance?: number;
     currency?: string;
     description?: string;
+    color?: string;
   }): Promise<{ message: string }> {
     return request(`/api/accounts/${accountId}`, {
       method: 'PUT',
@@ -67,6 +77,20 @@ export const accountsApi = {
     return request(`/api/accounts/${accountId}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
+    });
+  },
+
+  async transferBetweenAccounts(payload: TransferBetweenAccountsPayload): Promise<{
+    message: string;
+    transaction_id?: string;
+    transfer_pair_id?: string;
+    out_transaction_id?: string;
+    in_transaction_id?: string;
+  }> {
+    return request('/api/accounts/transfer', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
     });
   },
 };

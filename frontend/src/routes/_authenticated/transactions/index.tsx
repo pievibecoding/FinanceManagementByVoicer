@@ -1,7 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/useTransactions'
 import { useCategories } from '@/hooks/useCategories'
+import { useAccounts } from '@/hooks/useAccounts'
 import { FilterPanel } from '@/components/transactions/FilterPanel'
 import { TransactionTable } from '@/components/transactions/TransactionTable'
 import { AddTransactionModal } from '@/components/transactions/AddTransactionModal'
@@ -11,19 +12,67 @@ import { TransactionDetailsView } from '@/components/transactions/TransactionDet
 import { Pagination } from '@/components/transactions/Pagination'
 import type { Transaction } from '@/api/transactions'
 import { useTranslation } from 'react-i18next'
+import { Button } from '@/components/ui/button'
+import { EmptyState, ErrorState, PageHeader } from '@/components/common'
+import { isFilterTransactionTypeOption, matchesTransactionTypeFilter } from '@/lib/transaction-types'
 
 export const Route = createFileRoute('/_authenticated/transactions/')({
+  validateSearch: (search: Record<string, unknown>) => ({
+    types: typeof search.types === 'string' ? search.types : undefined,
+    categories: typeof search.categories === 'string' ? search.categories : undefined,
+    accounts: typeof search.accounts === 'string' ? search.accounts : undefined,
+    start: typeof search.start === 'string' ? search.start : undefined,
+    end: typeof search.end === 'string' ? search.end : undefined,
+    min: typeof search.min === 'string' ? search.min : undefined,
+    max: typeof search.max === 'string' ? search.max : undefined,
+    q: typeof search.q === 'string' ? search.q : undefined,
+  }),
   component: TransactionsPage,
 })
 
+type TransactionFilterState = {
+  startDate?: string
+  endDate?: string
+  types: string[]
+  categoryIds: string[]
+  accountIds: string[]
+  minAmount?: number
+  maxAmount?: number
+  search?: string
+}
+
+function splitParam(value?: string) {
+  return value ? Array.from(new Set(value.split(',').map((item) => item.trim()).filter(Boolean))) : []
+}
+
+function normalizeTypeFilters(values: string[]) {
+  return Array.from(new Set(values)).filter(isFilterTransactionTypeOption)
+}
+
+function joinParam(values: string[]) {
+  return values.length > 0 ? values.join(',') : undefined
+}
+
+function numberParam(value?: string) {
+  if (!value) return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
+}
+
 function TransactionsPage() {
   const { t } = useTranslation()
-  const [filters, setFilters] = useState<{
-    startDate?: string
-    endDate?: string
-    type?: string
-    search?: string
-  }>({})
+  const navigate = useNavigate()
+  const search = Route.useSearch()
+  const filters: TransactionFilterState = {
+    startDate: search.start,
+    endDate: search.end,
+    types: normalizeTypeFilters(splitParam(search.types)),
+    categoryIds: splitParam(search.categories),
+    accountIds: splitParam(search.accounts),
+    minAmount: numberParam(search.min),
+    maxAmount: numberParam(search.max),
+    search: search.q,
+  }
 
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -36,11 +85,22 @@ function TransactionsPage() {
 
   const { data: allTransactions = [], isLoading, isError } = useTransactions()
   const { data: categories = [] } = useCategories()
+  const { data: accounts = [] } = useAccounts()
+  const amountBounds = useMemo(() => {
+    const max = Math.max(0, ...allTransactions.map((transaction) => transaction.amount))
+    return { min: 0, max }
+  }, [allTransactions])
 
   const filtered = useMemo(() => {
     let list = allTransactions
-    if (filters.type) list = list.filter(t => t.type === filters.type)
-    if (filters.startDate) list = list.filter(t => t.transaction_date >= filters.startDate!)
+    if (filters.types.length > 0) list = list.filter(t =>
+      filters.types.some((type) => matchesTransactionTypeFilter(t.type, type, t.operation_type ?? undefined))
+    )
+    if (filters.categoryIds.length > 0) list = list.filter(t => filters.categoryIds.includes(String(t.category_id)))
+    if (filters.accountIds.length > 0) list = list.filter(t => filters.accountIds.includes(String(t.account_id)))
+    if (filters.minAmount !== undefined) list = list.filter(t => t.amount >= filters.minAmount!)
+    if (filters.maxAmount !== undefined) list = list.filter(t => t.amount <= filters.maxAmount!)
+    if (filters.startDate) list = list.filter(t => t.transaction_date.slice(0, 10) >= filters.startDate!)
     if (filters.endDate) list = list.filter(t => t.transaction_date.slice(0, 10) <= filters.endDate!)
     if (filters.search) {
       const q = filters.search.toLowerCase()
@@ -55,9 +115,31 @@ function TransactionsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage))
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
-  const handleFiltersChange = (f: typeof filters) => {
-    setFilters(f)
+  const handleFiltersChange = (f: TransactionFilterState) => {
     setCurrentPage(1)
+    navigate({
+      to: '/transactions',
+      search: {
+        types: joinParam(f.types),
+        categories: joinParam(f.categoryIds),
+        accounts: joinParam(f.accountIds),
+        start: f.startDate || undefined,
+        end: f.endDate || undefined,
+        min: f.minAmount !== undefined ? String(f.minAmount) : undefined,
+        max: f.maxAmount !== undefined ? String(f.maxAmount) : undefined,
+        q: f.search?.trim() || undefined,
+      },
+      replace: true,
+    })
+  }
+
+  const handleClearFilters = () => {
+    setCurrentPage(1)
+    navigate({
+      to: '/transactions',
+      search: {},
+      replace: true,
+    })
   }
 
   const handleViewDetails = (t: Transaction) => {
@@ -80,8 +162,8 @@ function TransactionsPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-foreground">{t('transactions.title')}</h1>
-        <div className="text-muted-foreground">{t('common.loading')}</div>
+        <PageHeader title={t('transactions.title')} />
+        <div className="mt-4 text-muted-foreground">{t('common.loading')}</div>
       </div>
     )
   }
@@ -89,37 +171,45 @@ function TransactionsPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4 text-foreground">{t('transactions.title')}</h1>
-        <div className="text-destructive">{t('transactions.error')}</div>
+        <PageHeader title={t('transactions.title')} />
+        <ErrorState className="mt-4" title={t('transactions.error')} />
       </div>
     )
   }
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('transactions.title')}</h1>
-        <button
-          onClick={() => setAddModalOpen(true)}
-          className="px-4 py-2 bg-primary rounded-lg text-primary-foreground hover:bg-primary/80 transition-all"
-        >
-          + {t('transactions.add')}
-        </button>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title={t('transactions.title')}
+        actions={(
+          <Button onClick={() => setAddModalOpen(true)}>
+            + {t('transactions.add')}
+          </Button>
+        )}
+      />
 
       <FilterPanel
         filters={filters}
+        categories={categories}
+        accounts={accounts}
+        amountBounds={amountBounds}
         onFiltersChange={handleFiltersChange}
-        onClearFilters={() => { setFilters({}); setCurrentPage(1) }}
+        onClearFilters={handleClearFilters}
       />
 
-      <TransactionTable
-        transactions={paginated}
-        categories={categories}
-        onEdit={(t) => { setSelectedTransaction(t); setEditModalOpen(true) }}
-        onDelete={(id) => { setDeleteTransactionId(id); setDeleteDialogOpen(true) }}
-        onViewDetails={handleViewDetails}
-      />
+      {filtered.length === 0 ? (
+        <EmptyState title={t('transactions.empty')} />
+      ) : (
+        <TransactionTable
+          transactions={paginated}
+          categories={categories}
+          accounts={accounts}
+          onEdit={(t) => { setSelectedTransaction(t); setEditModalOpen(true) }}
+          onDelete={(id) => { setDeleteTransactionId(id); setDeleteDialogOpen(true) }}
+          onViewDetails={handleViewDetails}
+        />
+      )}
 
       {filtered.length > itemsPerPage && (
         <Pagination
