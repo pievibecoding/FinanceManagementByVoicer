@@ -899,7 +899,7 @@ export function DynamicChart({
         >
           {pie}
           <div className="hidden h-56 w-px self-center bg-border/70 lg:block" />
-          <div className="flex min-h-[270px] items-center self-center">
+          <div className="min-h-0 min-w-0 overflow-y-auto rounded-md border border-border/60 bg-muted/10 p-3 pr-2 self-stretch">
             {renderLegendList(chartItems)}
           </div>
           {renderDonutTooltip(tooltipScope)}
