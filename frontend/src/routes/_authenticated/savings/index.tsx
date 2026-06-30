@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Trash2, PiggyBank, AlertTriangle } from 'lucide-react'
+import { useAccounts } from '@/hooks/useAccounts'
 import {
   useSavings,
   useCreateSavings,
@@ -55,6 +56,7 @@ function SavingsFormModal({ goal, onClose }: SavingsFormModalProps) {
   const [targetDate, setTargetDate] = useState(goal?.target_date?.slice(0, 10) ?? '')
   const [note, setNote] = useState(goal?.note ?? '')
   const [error, setError] = useState('')
+  const balanceLabel = isEdit ? t('savingsPage.current') : 'Số tiền nạp lần đầu'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -109,8 +111,8 @@ function SavingsFormModal({ goal, onClose }: SavingsFormModalProps) {
                 className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="text-muted-foreground text-sm block mb-1">{t('savingsPage.current')}</label>
-              <input value={currentBalance} onChange={e => setCurrentBalance(e.target.value)} type="number" min="0"
+              <label className="text-muted-foreground text-sm block mb-1">{balanceLabel}</label>
+              <input value={currentBalance} onChange={e => setCurrentBalance(e.target.value)} type="number" min="0" placeholder="0"
                 className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary" />
             </div>
           </div>
@@ -149,20 +151,29 @@ interface ContributionModalProps {
 function ContributionModal({ goal, onClose }: ContributionModalProps) {
   const { t } = useTranslation()
   const { formatCurrency } = useLocaleFormat()
+  const { data: accounts = [] } = useAccounts()
   const createContribution = useCreateContribution()
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayStr())
+  const [accountId, setAccountId] = useState<number | ''>(accounts[0]?.account_id ?? '')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (accountId === '' && accounts.length > 0) {
+      setAccountId(accounts[0].account_id)
+    }
+  }, [accountId, accounts])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     const amountNum = parseInt(amount.replace(/\D/g, ''), 10)
     if (isNaN(amountNum) || amountNum <= 0) return setError(t('savingsPage.errors.amountPositive'))
+    if (!accountId) return setError(t('transactions.aiValidationAccount'))
     try {
       await createContribution.mutateAsync({
         savingsId: goal.savings_id,
-        data: { amount: amountNum, contribution_date: `${date} 00:00:00` },
+        data: { amount: amountNum, contribution_date: `${date} 00:00:00`, account_id: Number(accountId) },
       })
       onClose()
     } catch (err: any) {
@@ -183,6 +194,21 @@ function ContributionModal({ goal, onClose }: ContributionModalProps) {
             <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="1" placeholder={t('savingsPage.amountPlaceholder')} autoFocus
               className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary" />
             {remaining > 0 && <p className="text-muted-foreground/60 text-xs mt-1">{t('savingsPage.remaining')}: {formatCurrency(remaining)}</p>}
+          </div>
+          <div>
+            <label className="text-muted-foreground text-sm block mb-1">{t('transactions.account')} *</label>
+            <select
+              value={accountId}
+              onChange={e => setAccountId(e.target.value ? Number(e.target.value) : '')}
+              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-primary"
+            >
+              <option value="">{t('transactions.selectAccount')}</option>
+              {accounts.map(account => (
+                <option key={account.account_id} value={account.account_id}>
+                  {account.account_name}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="text-muted-foreground text-sm block mb-1">{t('savingsPage.date')}</label>

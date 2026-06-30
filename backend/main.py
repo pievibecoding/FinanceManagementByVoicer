@@ -36,6 +36,14 @@ def create_app() -> Flask:
     app = Flask(__name__)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+    @app.route("/", methods=["GET", "HEAD"])
+    def index():
+        return jsonify({
+            "status": "ok",
+            "service": "FinanceManagementByVoicer backend",
+            "message": "Backend is running. Use /health, /ping, or the frontend at http://localhost:3001.",
+        }), 200
+
     @app.route("/ping", methods=["GET", "HEAD"])
     @app.route("/api/ping", methods=["GET", "HEAD"])
     def ping():
@@ -100,5 +108,5 @@ def initialize_db_async() -> None:
 if __name__ == "__main__":
     app = create_app()
     initialize_db_async()
-    port = int(os.environ.get("PORT", "5000"))
+    port = int(os.environ.get("PORT", "5001"))
     app.run(debug=False, host="0.0.0.0", port=port)

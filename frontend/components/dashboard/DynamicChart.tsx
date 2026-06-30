@@ -27,6 +27,7 @@ import {
   palette,
 } from '@/styles/tokens'
 import { ChartCard } from '@/components/common'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { getCategoryDisplayMeta } from '@/lib/category-display'
 import { getAccountDisplayColor } from '@/lib/account-display'
 import { cashDirectionForTransaction, operationTypeForTransaction } from '@/lib/transaction-types'
@@ -657,7 +658,7 @@ export function DynamicChart({
   )
 
   const renderLegendList = (items: DistributionPoint[]) => (
-    <div className="flex min-w-0 flex-col justify-center gap-3 self-center">
+    <div className="flex min-w-0 flex-col justify-start gap-3 self-start">
       {items.map((item) => {
         const chartTotal = items.reduce(
           (sum, current) => sum + Math.abs(current.chartValue ?? current.value),
@@ -851,27 +852,31 @@ export function DynamicChart({
       </div>
     )
 
-    const detailsPanel = (
-      <div
-        className={`grid h-full gap-3 ${
-          detailsLayout === 'rows'
-            ? 'grid-rows-[auto_minmax(0,1fr)]'
-            : 'grid-cols-1 sm:grid-cols-[minmax(104px,1fr)_minmax(0,3fr)]'
-        } ${compactDetails ? 'min-h-0' : 'min-h-[270px]'}`}
-      >
-        <div className="min-w-0">
-          {renderSnapshotStats(
-            chartItems,
-            total,
-            centerLabel,
-            detailsLayout === 'rows' ? 'row' : 'stack'
-          )}
-        </div>
-        <div className="min-h-0 min-w-0 overflow-y-auto rounded-md border border-border/60 bg-muted/10 p-3 pr-2">
-          {renderLegendList(chartItems)}
-        </div>
+  const detailsPanel = (
+    <div
+      className={`grid h-full gap-3 ${
+        detailsLayout === 'rows'
+          ? 'grid-rows-[auto_minmax(0,1fr)]'
+          : 'grid-cols-1 sm:grid-cols-[minmax(104px,1fr)_minmax(0,3fr)]'
+      } min-h-0 ${compactDetails ? 'min-h-0' : 'min-h-[270px]'}`}
+    >
+      <div className="min-w-0">
+        {renderSnapshotStats(
+          chartItems,
+          total,
+          centerLabel,
+          detailsLayout === 'rows' ? 'row' : 'stack'
+        )}
       </div>
-    )
+      <div className="min-h-0 min-w-0 rounded-md border border-border/60 bg-muted/10">
+        <ScrollArea className="h-full min-h-0">
+          <div className="p-3 pr-2">
+            {renderLegendList(chartItems)}
+          </div>
+        </ScrollArea>
+      </div>
+    </div>
+  )
 
     if (variant === 'chart') {
       return (
@@ -916,10 +921,10 @@ export function DynamicChart({
             : ''
         }`}
       >
-        <div className="rounded-md border border-border/60 bg-muted/10 px-3 py-2">
+        <div className="min-h-0 rounded-md border border-border/60 bg-muted/10 px-3 py-2">
           {pie}
         </div>
-        <div className="rounded-md border border-border/60 bg-muted/10 p-3">
+        <div className="min-h-0 rounded-md border border-border/60 bg-muted/10 p-3">
           {detailsPanel}
         </div>
         {renderDonutTooltip(tooltipScope)}

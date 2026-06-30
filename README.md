@@ -24,13 +24,13 @@ Browser (React SPA)
   │  auth: JWT in localStorage
   │  all API calls: Authorization: Bearer <token>
   ▼
-Express BFF — port 3000          (frontend/server.ts)
+Express BFF — port 3001          (frontend/server.ts)
   │  serves Vite dev assets
   │  proxies /api/auth/* → Flask
   │  calls Gemini for voice parsing
   │  forwards Bearer token to Flask
   ▼
-Flask REST API — port 5000       (backend/main.py)
+Flask REST API — port 5001       (backend/main.py)
   │  JWT auth middleware on all /api/* routes
   │  full user_id data isolation
   ▼
@@ -102,7 +102,7 @@ copy .env.example .env.local
 # frontend/.env.local
 GEMINI_API_KEY=your-gemini-api-key
 VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com   # optional, enables Google sign-in
-FLASK_BACKEND_URL=http://localhost:5000                 # optional, defaults to localhost:5000
+FLASK_BACKEND_URL=http://localhost:5001                 # optional, defaults to localhost:5001
 ```
 
 ---
@@ -115,7 +115,7 @@ Open two terminals:
 ```bash
 cd backend
 python main.py
-# Starts on http://localhost:5000
+# Starts on http://localhost:5001
 # Auto-creates tables and seeds system user on first run
 ```
 
@@ -123,10 +123,10 @@ python main.py
 ```bash
 cd frontend
 npm run dev
-# Starts on http://localhost:3000
+# Starts on http://localhost:3001
 ```
 
-Open `http://localhost:3000` — you'll land on the login page.
+Open `http://localhost:3001` — you'll land on the login page.
 
 ---
 
@@ -202,7 +202,7 @@ Transaction_Fact (transaction_id PK, user_id FK, transaction_date, account_id FK
 ```
 FinanceManagementByVoicer/
 ├── backend/
-│   ├── main.py                # Flask app factory (port 5000)
+│   ├── main.py                # Flask app factory (port 5001)
 │   ├── database.py            # Turso connection + table init + seeding
 │   ├── config.py              # Env vars
 │   ├── requirements.txt
@@ -252,7 +252,7 @@ npm run build
 
 # Run production server
 npm start
-# Serves React SPA + API on port 3000
+# Serves React SPA + API on port 3001
 ```
 
 The production server (`dist/server.cjs`) serves the Vite-built static assets and all `/api/*` proxy routes.

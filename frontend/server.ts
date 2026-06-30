@@ -5,11 +5,11 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = 3001;
 
   app.use(express.json());
 
-  const FLASK_URL = process.env.FLASK_BACKEND_URL || "http://localhost:5000";
+  const FLASK_URL = process.env.FLASK_BACKEND_URL || "http://localhost:5001";
 
   // ── Auth proxy routes (avoids CORS issues by routing through Express) ──────
   const proxyToFlask = async (req: any, res: any, flaskPath: string) => {

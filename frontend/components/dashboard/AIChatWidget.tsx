@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Mic, MicOff, Send, X, Sparkles, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { Mic, MicOff, Send, X, Sparkles, CheckCircle, XCircle, Loader2, PencilLine, RotateCcw, Check, Plus } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { debtsApi } from '@/api/debts'
@@ -141,13 +141,9 @@ interface SavingsWithdrawalDraftForm {
   note: string
 }
 
-const SUGGESTION_KEYS = [
-  'transactions.aiSuggestionLunch',
-  'transactions.aiSuggestionCoffee',
-  'transactions.aiSuggestionDebt',
-  'transactions.aiSuggestionSavings',
-  'transactions.aiSuggestionLoan',
-]
+const CREATE_NEW_SAVINGS_VALUE = '__create_new_savings__'
+
+const QUICK_PROMPTS_STORAGE_KEY = 'ai-chat-quick-prompts-v1'
 
 const TYPE_LABEL: Record<string, string> = {
   income: 'types.income',
@@ -214,10 +210,52 @@ export function AIChatWidget() {
   const { savings: savingsGoals = [] } = useSavings()
   const addTransaction = useAddTransaction()
   const [debtsForDrafts, setDebtsForDrafts] = useState<Debt[]>([])
+  const [quickPrompts, setQuickPrompts] = useState<string[]>([])
+  const [editingPrompts, setEditingPrompts] = useState(false)
+
+  const defaultQuickPrompts = [
+    t('transactions.aiSuggestionLunch'),
+    t('transactions.aiSuggestionCoffee'),
+    t('transactions.aiSuggestionDebt'),
+    t('transactions.aiSuggestionSavings'),
+    t('transactions.aiSuggestionLoan'),
+  ].filter(Boolean)
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100)
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    try {
+      const saved = localStorage.getItem(QUICK_PROMPTS_STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          const normalized = parsed
+            .map((item) => String(item).trim())
+            .filter(Boolean)
+          if (normalized.length > 0) {
+            setQuickPrompts(normalized.slice(0, 8))
+            return
+          }
+        }
+      }
+    } catch {
+      // Fall back to defaults below.
+    }
+
+    setQuickPrompts(defaultQuickPrompts)
+  }, [open, t])
+
+  useEffect(() => {
+    if (quickPrompts.length === 0) return
+    try {
+      localStorage.setItem(QUICK_PROMPTS_STORAGE_KEY, JSON.stringify(quickPrompts))
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [quickPrompts])
 
   useEffect(() => {
     if (!open) return
@@ -233,6 +271,18 @@ export function AIChatWidget() {
       cancelled = true
     }
   }, [open])
+
+  const saveQuickPrompts = (nextPrompts: string[]) => {
+    const normalized = nextPrompts
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 8)
+    setQuickPrompts(normalized.length > 0 ? normalized : defaultQuickPrompts)
+  }
+
+  const resetQuickPrompts = () => {
+    setQuickPrompts(defaultQuickPrompts)
+  }
 
   const resolveParsedAccountId = (parsed: ParsedData) => {
     if (parsed.account_id) return parsed.account_id
@@ -1325,13 +1375,27 @@ export function AIChatWidget() {
               <select
                 value={draft.savings_id}
                 onChange={event => {
-                  const nextId = event.target.value ? Number(event.target.value) : ''
+                  const nextValue = event.target.value
+                  if (nextValue === CREATE_NEW_SAVINGS_VALUE) {
+                    const inferredName = draft.savings_name.trim() || parsed.savings_name?.trim() || parsed.note?.trim() || ''
+                    const inferredTarget = draft.amount || parsed.target_amount || ''
+                    updateEntryDraft(entry.id, {
+                      kind: 'new_savings',
+                      savings_name: inferredName,
+                      target_amount: inferredTarget,
+                      note: draft.note || parsed.note || '',
+                    } as Partial<AiDraftForm>)
+                    return
+                  }
+
+                  const nextId = nextValue ? Number(nextValue) : ''
                   const selectedGoal = activeSavingsGoals.find(goal => goal.savings_id === nextId)
                   updateEntryDraft(entry.id, { savings_id: nextId, savings_name: selectedGoal?.name ?? '' })
                 }}
                 className={inputCls}
               >
                 <option value="">{t('transactions.selectSavingsGoal')}</option>
+                <option value={CREATE_NEW_SAVINGS_VALUE}>{t('savingsPage.create')}</option>
                 {activeSavingsGoals.map(goal => (
                   <option key={goal.savings_id} value={goal.savings_id}>{goal.name}</option>
                 ))}
@@ -1488,36 +1552,49 @@ export function AIChatWidget() {
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 ${
-          open ? 'bg-popover border border-border rotate-45' : 'hover:scale-110'
+        className={`fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border transition-all duration-300 ${
+          open
+            ? 'rotate-45 border-border bg-popover shadow-2xl'
+            : 'border-white/10 shadow-[0_14px_30px_rgba(0,0,0,0.35)] hover:scale-110'
         }`}
-        style={open ? undefined : { background: `linear-gradient(135deg, ${palette.primary}, ${palette.indigoDark})` }}
+        style={
+          open
+            ? undefined
+            : {
+                background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.22), transparent 35%), linear-gradient(135deg, ${palette.primary}, ${palette.indigoDark})`,
+              }
+        }
         title={t('transactions.aiButtonTitle')}
       >
         {open ? (
           <X className="w-5 h-5 text-foreground" />
         ) : (
           <>
-            <Sparkles className="w-6 h-6 text-primary-foreground" />
-            <span className="absolute inset-0 rounded-full animate-ping bg-primary/30 pointer-events-none" />
+            <Sparkles className="w-7 h-7 text-primary-foreground drop-shadow" />
+            <span className="absolute inset-0 rounded-full animate-ping bg-primary/25 pointer-events-none" />
           </>
         )}
       </button>
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[380px] max-h-[520px] flex flex-col rounded-2xl border border-border bg-popover/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+        <div className="fixed bottom-24 right-6 z-50 flex max-h-[560px] w-[420px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-popover/95 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
           {/* Panel header */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">{t('transactions.aiTitle')}</span>
-            <span className="ml-auto text-[10px] text-muted-foreground font-mono">Gemini</span>
+          <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3.5">
+            <div className="grid size-9 place-items-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/10 text-primary shadow-inner">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="block text-sm font-semibold text-foreground">{t('transactions.aiTitle')}</span>
+              <span className="block text-[11px] text-muted-foreground">Gõ hoặc nói ngắn gọn, AI sẽ tự ghép giao dịch.</span>
+            </div>
+            <span className="ml-auto rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-[10px] font-mono text-muted-foreground">Gemini</span>
           </div>
 
           {/* Entries */}
-          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3">
             {entries.length === 0 && (
-              <p className="text-muted-foreground/60 text-xs text-center pt-4">
+              <p className="text-center text-xs text-muted-foreground/60 pt-4">
                 {t('transactions.aiEmpty')}
               </p>
             )}
@@ -1551,41 +1628,114 @@ export function AIChatWidget() {
           </div>
 
           {/* Suggestions */}
-          <div className="px-3 pb-1 shrink-0">
-            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {SUGGESTION_KEYS.map(key => {
-                const suggestion = t(key)
-                return (
+          <div className="shrink-0 px-3 pb-2">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <span>Câu chat sẵn</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEditingPrompts(v => !v)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground"
+                >
+                  <PencilLine className="w-3 h-3" />
+                  {editingPrompts ? 'Xong' : 'Sửa nhanh'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetQuickPrompts}
+                  className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground"
+                  title="Khôi phục câu mẫu mặc định"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {editingPrompts ? (
+              <div className="space-y-2 rounded-2xl border border-primary/20 bg-primary/5 p-2.5">
+                {quickPrompts.map((prompt, index) => (
+                  <div key={`${index}-${prompt}`} className="flex items-center gap-2">
+                    <input
+                      value={prompt}
+                      onChange={event => {
+                        const next = [...quickPrompts]
+                        next[index] = event.target.value
+                        setQuickPrompts(next)
+                      }}
+                      className="min-w-0 flex-1 rounded-xl border border-border/70 bg-background/70 px-3 py-2 text-xs text-foreground outline-none transition-colors focus:border-primary"
+                      placeholder="Nhập câu chat nhanh"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setQuickPrompts(prev => prev.filter((_, i) => i !== index))}
+                      className="grid size-8 place-items-center rounded-xl border border-border/70 text-muted-foreground transition-all hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                      disabled={quickPrompts.length <= 3}
+                      title="Xóa câu này"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
                   <button
-                    key={key}
+                    type="button"
+                    onClick={() => setQuickPrompts(prev => [...prev, ''])}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] text-primary transition-all hover:bg-primary/15"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Thêm câu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      saveQuickPrompts(quickPrompts)
+                      setEditingPrompts(false)
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/30 px-3 py-1.5 text-[11px] text-muted-foreground transition-all hover:border-primary/40 hover:text-foreground"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Lưu
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {quickPrompts.map((suggestion, index) => (
+                  <button
+                    key={`${index}-${suggestion}`}
                     onClick={() => handleSubmit(suggestion)}
-                    className="shrink-0 text-[10px] text-muted-foreground border border-border hover:border-primary/50 hover:text-foreground rounded-full px-2.5 py-1 transition-all whitespace-nowrap"
+                    className="shrink-0 rounded-full border border-border/80 bg-muted/20 px-3 py-1.5 text-[11px] text-muted-foreground transition-all whitespace-nowrap hover:border-primary/50 hover:bg-primary/10 hover:text-foreground"
                   >
                     {suggestion}
                   </button>
-                )
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Input bar */}
-          <div className="px-3 pb-3 shrink-0">
-            {micError && <p className="text-destructive text-[10px] mb-1 px-1">{micError}</p>}
-            {interim && <p className="text-muted-foreground text-xs italic px-1 mb-1">🎤 {interim}</p>}
-            <div className="flex items-center gap-2 bg-input border border-border rounded-xl px-3 py-2">
+          <div className="shrink-0 px-3 pb-3">
+            {micError && <p className="mb-1 px-1 text-[10px] text-destructive">{micError}</p>}
+            {interim && <p className="mb-1 px-1 text-xs italic text-muted-foreground">🎙 {interim}</p>}
+            <div className="flex items-center gap-2 rounded-2xl border border-border/80 bg-gradient-to-r from-input via-input to-muted/20 px-3 py-2.5 shadow-inner">
               <input
                 ref={inputRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmit(input)}
                 placeholder={t('transactions.aiInputPlaceholder')}
-                className="flex-1 bg-transparent text-foreground text-xs placeholder-muted-foreground/50 outline-none"
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
                 disabled={loading || listening}
               />
               <button
                 onClick={handleMic}
-                className={`p-1 rounded-lg transition-all ${
-                  listening ? 'text-destructive bg-destructive/10 animate-pulse' : 'text-muted-foreground hover:text-foreground'
+                className={`grid size-10 place-items-center rounded-full border transition-all ${
+                  listening
+                    ? 'border-destructive/40 bg-destructive/15 text-destructive shadow-[0_0_0_4px_rgba(239,68,68,0.12)] animate-pulse'
+                    : 'border-primary/20 bg-primary/10 text-primary shadow-[0_0_0_4px_rgba(45,212,191,0.08)] hover:border-primary/40 hover:bg-primary/15'
                 }`}
                 title={listening ? t('transactions.micStopAndSend') : t('transactions.micStart')}
               >
@@ -1594,7 +1744,7 @@ export function AIChatWidget() {
               <button
                 onClick={() => handleSubmit(input)}
                 disabled={!input.trim() || loading}
-                className="p-1 rounded-lg text-primary hover:bg-primary/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="grid size-10 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary transition-all hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Send className="w-4 h-4" />
               </button>

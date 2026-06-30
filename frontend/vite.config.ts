@@ -15,13 +15,13 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       server: {
-        port: 3000,
+        port: 3001,
         host: '0.0.0.0',
         proxy: {
           // Forward /api/* HTTP requests to Flask backend.
           // The bypass function prevents proxying Vite module requests (e.g. /api/auth.ts).
           '/api': {
-            target: env.FLASK_BACKEND_URL || env.VITE_FLASK_BACKEND_URL || 'http://localhost:5000',
+            target: env.FLASK_BACKEND_URL || env.VITE_FLASK_BACKEND_URL || 'http://localhost:5001',
             changeOrigin: true,
             bypass(req) {
               // If the URL ends with a source file extension, let Vite serve it as a module.
