@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, CreditCard, Pencil, Trash2, Banknote, AlertTriangle, Clock } from 'lucide-react'
+import { Plus, CreditCard, Pencil, Trash2, Banknote, AlertTriangle, Clock, X } from 'lucide-react'
 import {
   useDebts,
   useCreateDebt,
@@ -9,6 +9,7 @@ import {
   useDeleteDebt,
   useDebtPayments,
   useCreatePayment,
+  useUpdatePayment,
   useDeletePayment,
 } from '@/hooks/useDebts'
 import { useAccounts } from '@/hooks/useAccounts'
@@ -289,6 +290,130 @@ function PaymentModal({ debt, onClose }: PaymentModalProps) {
   )
 }
 
+// ── Payment edit modal ───────────────────────────────────────────────────────
+
+interface PaymentEditModalProps {
+  debt: Debt
+  payment: DebtPayment
+  onClose: () => void
+}
+
+function PaymentEditModal({ debt, payment, onClose }: PaymentEditModalProps) {
+  const { t } = useTranslation()
+  const { formatCurrency } = useLocaleFormat()
+  const updatePayment = useUpdatePayment()
+  const { data: accounts = [] } = useAccounts()
+  const [amount, setAmount] = useState(String(payment.amount_paid))
+  const [paymentDate, setPaymentDate] = useState(payment.payment_date?.slice(0, 10) ?? todayStr())
+  const [accountId, setAccountId] = useState<number | ''>(payment.account_id ?? '')
+  const [note, setNote] = useState(payment.note ?? '')
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    const amountNum = parseInt(amount.replace(/\D/g, ''), 10)
+    if (isNaN(amountNum) || amountNum <= 0) return setError(t('debts.errors.amountPositive'))
+    if (!accountId) return setError(t('debts.errors.accountRequired'))
+
+    try {
+      await updatePayment.mutateAsync({
+        debtId: debt.debt_id,
+        paymentId: payment.payment_id,
+        data: {
+          amount_paid: amountNum,
+          payment_date: `${paymentDate} 00:00:00`,
+          account_id: Number(accountId),
+          note: note.trim() || null,
+        },
+      })
+      onClose()
+    } catch (err: any) {
+      setError(err.message ?? t('debts.errors.generic'))
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+      <div className="w-full max-w-sm mx-4 rounded-xl border border-border bg-popover p-6">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{t('common.edit')}</h2>
+            <p className="text-sm text-muted-foreground">{debt.name}</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm text-muted-foreground">{t('debts.paymentAmount')} *</label>
+            <input
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              type="number"
+              min="1"
+              autoFocus
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+            />
+            <p className="mt-1 text-xs text-muted-foreground/60">{t('debts.remaining')}: {formatCurrency(debt.outstanding_balance)}</p>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-muted-foreground">
+              {debt.debt_type === 'debt' ? t('debts.paymentSourceAccount') : t('debts.paymentReceivingAccount')} *
+            </label>
+            <select
+              value={accountId}
+              onChange={e => setAccountId(e.target.value ? Number(e.target.value) : '')}
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+            >
+              <option value="">{t('debts.selectAccount')}</option>
+              {accounts.map(account => (
+                <option key={account.account_id} value={account.account_id}>{account.account_name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-muted-foreground">{t('debts.paymentDate')}</label>
+            <input
+              type="date"
+              value={paymentDate}
+              onChange={e => setPaymentDate(e.target.value)}
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-muted-foreground">{t('debts.note')}</label>
+            <textarea
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+            />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={updatePayment.isPending}
+              className="flex-1 rounded-lg bg-primary py-2 font-medium text-primary-foreground transition-all hover:bg-primary/80 disabled:opacity-50"
+            >
+              {updatePayment.isPending ? t('common.saving') : t('common.save')}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-border py-2 text-muted-foreground transition-all hover:bg-muted/30"
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Payments history modal ───────────────────────────────────────────────────
 
 interface PaymentsHistoryModalProps {
@@ -299,8 +424,12 @@ interface PaymentsHistoryModalProps {
 function PaymentsHistoryModal({ debt, onClose }: PaymentsHistoryModalProps) {
   const { t } = useTranslation()
   const { formatCurrency, formatDate } = useLocaleFormat()
+  const { data: accounts = [] } = useAccounts()
   const { data: payments = [], isLoading } = useDebtPayments(debt.debt_id)
   const deletePayment = useDeletePayment()
+  const [editingPayment, setEditingPayment] = useState<DebtPayment | null>(null)
+  const accountNameFor = (accountId: number | null | undefined) =>
+    accounts.find(account => account.account_id === Number(accountId))?.account_name ?? ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -316,11 +445,29 @@ function PaymentsHistoryModal({ debt, onClose }: PaymentsHistoryModalProps) {
           {isLoading && <p className="text-muted-foreground text-sm">{t('common.loading')}</p>}
           {!isLoading && payments.length === 0 && <p className="text-muted-foreground text-sm text-center py-4">{t('debts.noPayments')}</p>}
           {payments.map((p: DebtPayment) => (
-            <div key={p.payment_id} className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2">
-              <div>
+            <div key={p.payment_id} className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2">
+              <div className="min-w-0">
                 <p className="text-foreground font-medium text-sm">{formatCurrency(p.amount_paid)}</p>
                 <p className="text-muted-foreground text-xs">{p.payment_date ? formatDate(p.payment_date) : ''}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {debt.debt_type === 'debt' ? (
+                    <>
+                      {t('debts.paymentSourceAccount')}: <span className="text-foreground">{accountNameFor(p.account_id) || `#${p.account_id}`}</span>
+                    </>
+                  ) : (
+                    <>
+                      {t('debts.paymentReceivingAccount')}: <span className="text-foreground">{accountNameFor(p.account_id) || `#${p.account_id}`}</span>
+                    </>
+                  )}
+                </p>
               </div>
+              <button
+                onClick={() => setEditingPayment(p)}
+                className="rounded p-1 text-muted-foreground/60 transition-colors hover:bg-muted/40 hover:text-foreground"
+                title={t('common.edit')}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
               <button
                 onClick={() => deletePayment.mutate({ debtId: debt.debt_id, paymentId: p.payment_id })}
                 className="text-muted-foreground/50 hover:text-destructive transition-colors p-1"
@@ -332,6 +479,13 @@ function PaymentsHistoryModal({ debt, onClose }: PaymentsHistoryModalProps) {
           ))}
         </div>
       </div>
+      {editingPayment && (
+        <PaymentEditModal
+          debt={debt}
+          payment={editingPayment}
+          onClose={() => setEditingPayment(null)}
+        />
+      )}
     </div>
   )
 }

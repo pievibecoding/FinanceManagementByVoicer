@@ -22,6 +22,8 @@ export interface DebtPayment {
   amount_paid: number
   principal_portion: number
   interest_portion: number
+  account_id: number
+  note?: string | null
 }
 
 function getAuthHeaders(): HeadersInit {
@@ -81,6 +83,15 @@ export const debtsApi = {
     transaction_id?: string | null
   }): Promise<{ message: string; payment_id: number }> {
     return apiFetch(`/api/debts/${debtId}/payments`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data) })
+  },
+  updatePayment(debtId: number, paymentId: number, data: {
+    amount_paid: number
+    payment_date: string
+    account_id?: number | null
+    note?: string | null
+    transaction_id?: string | null
+  }): Promise<{ message: string }> {
+    return apiFetch(`/api/debts/${debtId}/payments/${paymentId}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(data) })
   },
   deletePayment(debtId: number, paymentId: number): Promise<{ message: string }> {
     const token = localStorage.getItem('finance_auth_token')

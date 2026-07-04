@@ -73,6 +73,23 @@ export function useCreatePayment() {
   })
 }
 
+export function useUpdatePayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ debtId, paymentId, data }: {
+      debtId: number
+      paymentId: number
+      data: Parameters<typeof debtsApi.updatePayment>[2]
+    }) => debtsApi.updatePayment(debtId, paymentId, data),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ['debts'], refetchType: 'all' })
+      qc.invalidateQueries({ queryKey: ['debt-payments', vars.debtId] })
+      qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+    },
+  })
+}
+
 export function useDeletePayment() {
   const qc = useQueryClient()
   return useMutation({

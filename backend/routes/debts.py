@@ -435,6 +435,120 @@ def create_debt_payment(debt_id: int):
     return jsonify({"message": "Payment recorded successfully", "payment_id": payment_id}), 201
 
 
+@debts_bp.route("/api/debts/<int:debt_id>/payments/<int:payment_id>", methods=["PUT"])
+@require_auth
+def update_debt_payment(debt_id: int, payment_id: int):
+    data = request.get_json(silent=True) or {}
+
+    payment_date = data.get("payment_date")
+    account_id = data.get("account_id")
+    note_raw = data.get("note")
+
+    if not payment_date:
+        return jsonify({"error": "payment_date is required"}), 400
+
+    try:
+        amount_paid = int(data.get("amount_paid") or 0)
+        if amount_paid <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "amount_paid must be a positive integer"}), 400
+
+    db = get_db()
+    try:
+        _ensure_debt_schema(db)
+
+        debt_check = db.execute(
+            "SELECT debt_id, debt_type, name, lender, debtor, outstanding_balance, status FROM Debt_Dim WHERE debt_id = ? AND user_id = ?",
+            [debt_id, g.user_id],
+        )
+        if not debt_check.rows:
+            return jsonify({"error": "Debt not found"}), 404
+
+        _, debt_type, debt_name, lender, debtor, _, _ = debt_check.rows[0]
+        payment_row = db.execute(
+            """
+            SELECT debt_transaction_id, amount, account_id, cash_direction, note
+            FROM Debt_Transaction_Fact
+            WHERE debt_transaction_id = ? AND debt_id = ? AND user_id = ? AND is_deleted = 0
+            """,
+            [payment_id, debt_id, g.user_id],
+        )
+        if not payment_row.rows:
+            return jsonify({"error": "Payment not found"}), 404
+
+        _, old_amount, old_account_id, old_cash_direction, old_note = payment_row.rows[0]
+        if account_id is None:
+            return jsonify({"error": "account_id is required"}), 400
+        try:
+            account_id = int(account_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": "account_id must be an integer"}), 400
+
+        account = db.execute(
+            "SELECT account_id FROM Account_Dim WHERE account_id = ? AND user_id = ?",
+            [account_id, g.user_id],
+        )
+        if not account.rows:
+            return jsonify({"error": "Account not found"}), 404
+
+        cash_direction = "out" if debt_type == "debt" else "in"
+        old_delta = old_amount if old_cash_direction == "in" else -old_amount
+        new_delta = amount_paid if cash_direction == "in" else -amount_paid
+        note = old_note if note_raw is None else (str(note_raw).strip() or debt_name)
+        payee_name = lender if debt_type == "debt" else debtor
+        payee_id = _payee_id_for_name(db, g.user_id, payee_name)
+
+        statements = [
+            libsql_client.Statement(
+                """
+                UPDATE Debt_Transaction_Fact
+                SET account_id = ?, payee_id = ?, amount = ?, cash_direction = ?, transaction_date = ?, note = ?, updated_at = datetime('now')
+                WHERE debt_transaction_id = ? AND debt_id = ? AND user_id = ?
+                """,
+                [account_id, payee_id, amount_paid, cash_direction, payment_date, note, payment_id, debt_id, g.user_id],
+            ),
+        ]
+
+        if int(old_account_id) == int(account_id):
+            statements.append(
+                libsql_client.Statement(
+                    "UPDATE Account_Dim SET current_balance = current_balance + ? WHERE account_id = ? AND user_id = ?",
+                    [new_delta - old_delta, account_id, g.user_id],
+                )
+            )
+        else:
+            statements.extend([
+                libsql_client.Statement(
+                    "UPDATE Account_Dim SET current_balance = current_balance - ? WHERE account_id = ? AND user_id = ?",
+                    [old_delta, old_account_id, g.user_id],
+                ),
+                libsql_client.Statement(
+                    "UPDATE Account_Dim SET current_balance = current_balance + ? WHERE account_id = ? AND user_id = ?",
+                    [new_delta, account_id, g.user_id],
+                ),
+            ])
+
+        statements.extend([
+            libsql_client.Statement(
+                "UPDATE Debt_Dim SET outstanding_balance = outstanding_balance + ? - ? WHERE debt_id = ? AND user_id = ?",
+                [old_amount, amount_paid, debt_id, g.user_id],
+            ),
+            libsql_client.Statement(
+                "UPDATE Debt_Dim SET status = CASE WHEN outstanding_balance <= 0 THEN 'settled' WHEN status = 'settled' THEN 'active' ELSE status END WHERE debt_id = ? AND user_id = ?",
+                [debt_id, g.user_id],
+            ),
+        ])
+
+        db.batch(statements)
+    except Exception as e:
+        logger.error(f"Error updating debt payment: {e}")
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+    finally:
+        db.close()
+    return jsonify({"message": "Payment updated successfully"}), 200
+
+
 @debts_bp.route("/api/debts/<int:debt_id>/payments/<int:payment_id>", methods=["DELETE"])
 @require_auth
 def delete_debt_payment(debt_id: int, payment_id: int):
