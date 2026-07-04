@@ -23,6 +23,8 @@ export interface DebtPayment {
   principal_portion: number
   interest_portion: number
   account_id: number
+  debt_transaction_type: 'disbursement' | 'payment'
+  cash_direction: 'in' | 'out'
   note?: string | null
 }
 

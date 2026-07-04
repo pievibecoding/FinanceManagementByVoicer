@@ -37,6 +37,11 @@ function dueDateStatus(debt: Debt): 'overdue' | 'soon' | null {
   return null
 }
 
+function debtCashDirection(debtType: Debt['debt_type'], transactionType: DebtPayment['debt_transaction_type']): 'in' | 'out' {
+  if (transactionType === 'disbursement') return debtType === 'debt' ? 'in' : 'out'
+  return debtType === 'debt' ? 'out' : 'in'
+}
+
 // ── Debt form modal ──────────────────────────────────────────────────────────
 
 interface DebtFormModalProps {
@@ -308,6 +313,8 @@ function PaymentEditModal({ debt, payment, onClose }: PaymentEditModalProps) {
   const [accountId, setAccountId] = useState<number | ''>(payment.account_id ?? '')
   const [note, setNote] = useState(payment.note ?? '')
   const [error, setError] = useState('')
+  const isDisbursement = payment.debt_transaction_type === 'disbursement'
+  const isCashOut = debtCashDirection(debt.debt_type, payment.debt_transaction_type) === 'out'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -338,7 +345,9 @@ function PaymentEditModal({ debt, payment, onClose }: PaymentEditModalProps) {
       <div className="w-full max-w-sm mx-4 rounded-xl border border-border bg-popover p-6">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">{t('common.edit')}</h2>
+            <h2 className="text-lg font-semibold text-foreground">
+              {isDisbursement ? t('debts.editDisbursement') : t('debts.editPayment')}
+            </h2>
             <p className="text-sm text-muted-foreground">{debt.name}</p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -360,7 +369,7 @@ function PaymentEditModal({ debt, payment, onClose }: PaymentEditModalProps) {
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted-foreground">
-              {debt.debt_type === 'debt' ? t('debts.paymentSourceAccount') : t('debts.paymentReceivingAccount')} *
+              {isCashOut ? t('debts.paymentSourceAccount') : t('debts.paymentReceivingAccount')} *
             </label>
             <select
               value={accountId}
@@ -447,10 +456,15 @@ function PaymentsHistoryModal({ debt, onClose }: PaymentsHistoryModalProps) {
           {payments.map((p: DebtPayment) => (
             <div key={p.payment_id} className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2">
               <div className="min-w-0">
-                <p className="text-foreground font-medium text-sm">{formatCurrency(p.amount_paid)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-foreground font-medium text-sm">{formatCurrency(p.amount_paid)}</p>
+                  <span className="rounded bg-background/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    {p.debt_transaction_type === 'disbursement' ? t('debts.disbursement') : t('debts.repayment')}
+                  </span>
+                </div>
                 <p className="text-muted-foreground text-xs">{p.payment_date ? formatDate(p.payment_date) : ''}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {debt.debt_type === 'debt' ? (
+                  {debtCashDirection(debt.debt_type, p.debt_transaction_type) === 'out' ? (
                     <>
                       {t('debts.paymentSourceAccount')}: <span className="text-foreground">{accountNameFor(p.account_id) || `#${p.account_id}`}</span>
                     </>
@@ -468,13 +482,15 @@ function PaymentsHistoryModal({ debt, onClose }: PaymentsHistoryModalProps) {
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
-              <button
-                onClick={() => deletePayment.mutate({ debtId: debt.debt_id, paymentId: p.payment_id })}
-                className="text-muted-foreground/50 hover:text-destructive transition-colors p-1"
-                title={t('debts.deletePayment')}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {p.debt_transaction_type === 'payment' && (
+                <button
+                  onClick={() => deletePayment.mutate({ debtId: debt.debt_id, paymentId: p.payment_id })}
+                  className="text-muted-foreground/50 hover:text-destructive transition-colors p-1"
+                  title={t('debts.deletePayment')}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </div>

@@ -99,6 +99,13 @@ def _transaction_delta(tx_type: str, amount: int) -> int:
     return 0
 
 
+def _debt_cash_direction(debt_type: str, transaction_type: str) -> str:
+    """Return the account-side cash direction for a debt transaction."""
+    if transaction_type == "disbursement":
+        return "in" if debt_type == "debt" else "out"
+    return "out" if debt_type == "debt" else "in"
+
+
 def _payee_id_for_name(db, user_id: int, name: str | None):
     clean_name = (name or "").strip()
     if not clean_name:
@@ -201,7 +208,7 @@ def create_debt():
         )
         debt_id = row.rows[0][0]
 
-        cash_direction = "in" if debt_type == "debt" else "out"
+        cash_direction = _debt_cash_direction(debt_type, "disbursement")
         payee_id = _payee_id_for_name(db, g.user_id, lender if debt_type == "debt" else debtor)
         db.batch([
             libsql_client.Statement(
@@ -468,7 +475,8 @@ def update_debt_payment(debt_id: int, payment_id: int):
         _, debt_type, debt_name, lender, debtor, _, _ = debt_check.rows[0]
         payment_row = db.execute(
             """
-            SELECT debt_transaction_id, amount, account_id, cash_direction, note
+            SELECT debt_transaction_id, amount, account_id, cash_direction, note,
+                   debt_transaction_type
             FROM Debt_Transaction_Fact
             WHERE debt_transaction_id = ? AND debt_id = ? AND user_id = ? AND is_deleted = 0
             """,
@@ -477,7 +485,7 @@ def update_debt_payment(debt_id: int, payment_id: int):
         if not payment_row.rows:
             return jsonify({"error": "Payment not found"}), 404
 
-        _, old_amount, old_account_id, old_cash_direction, old_note = payment_row.rows[0]
+        _, old_amount, old_account_id, old_cash_direction, old_note, transaction_type = payment_row.rows[0]
         if account_id is None:
             return jsonify({"error": "account_id is required"}), 400
         try:
@@ -492,7 +500,7 @@ def update_debt_payment(debt_id: int, payment_id: int):
         if not account.rows:
             return jsonify({"error": "Account not found"}), 404
 
-        cash_direction = "out" if debt_type == "debt" else "in"
+        cash_direction = _debt_cash_direction(debt_type, transaction_type)
         old_delta = old_amount if old_cash_direction == "in" else -old_amount
         new_delta = amount_paid if cash_direction == "in" else -amount_paid
         note = old_note if note_raw is None else (str(note_raw).strip() or debt_name)
@@ -529,11 +537,27 @@ def update_debt_payment(debt_id: int, payment_id: int):
                 ),
             ])
 
+        if transaction_type == "disbursement":
+            statements.append(
+                libsql_client.Statement(
+                    """
+                    UPDATE Debt_Dim
+                    SET principal = ?,
+                        outstanding_balance = MAX(0, outstanding_balance + ? - ?)
+                    WHERE debt_id = ? AND user_id = ?
+                    """,
+                    [amount_paid, amount_paid, old_amount, debt_id, g.user_id],
+                )
+            )
+        else:
+            statements.append(
+                libsql_client.Statement(
+                    "UPDATE Debt_Dim SET outstanding_balance = MAX(0, outstanding_balance + ? - ?) WHERE debt_id = ? AND user_id = ?",
+                    [old_amount, amount_paid, debt_id, g.user_id],
+                )
+            )
+
         statements.extend([
-            libsql_client.Statement(
-                "UPDATE Debt_Dim SET outstanding_balance = outstanding_balance + ? - ? WHERE debt_id = ? AND user_id = ?",
-                [old_amount, amount_paid, debt_id, g.user_id],
-            ),
             libsql_client.Statement(
                 "UPDATE Debt_Dim SET status = CASE WHEN outstanding_balance <= 0 THEN 'settled' WHEN status = 'settled' THEN 'active' ELSE status END WHERE debt_id = ? AND user_id = ?",
                 [debt_id, g.user_id],
@@ -564,13 +588,15 @@ def delete_debt_payment(debt_id: int, payment_id: int):
             return jsonify({"error": "Debt not found"}), 404
 
         pmt = db.execute(
-            "SELECT amount, account_id, cash_direction FROM Debt_Transaction_Fact WHERE debt_transaction_id = ? AND debt_id = ? AND user_id = ? AND is_deleted = 0",
+            "SELECT amount, account_id, cash_direction, debt_transaction_type FROM Debt_Transaction_Fact WHERE debt_transaction_id = ? AND debt_id = ? AND user_id = ? AND is_deleted = 0",
             [payment_id, debt_id, g.user_id],
         )
         if not pmt.rows:
             return jsonify({"error": "Payment not found"}), 404
 
-        amount_paid, account_id, cash_direction = pmt.rows[0]
+        amount_paid, account_id, cash_direction, transaction_type = pmt.rows[0]
+        if transaction_type != "payment":
+            return jsonify({"error": "The initial disbursement cannot be deleted; edit or delete the debt instead"}), 400
         delta = amount_paid if cash_direction == "in" else -amount_paid
         statements = [
             libsql_client.Statement(
