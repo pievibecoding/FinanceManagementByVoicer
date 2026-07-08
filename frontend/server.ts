@@ -14,7 +14,24 @@ async function startServer() {
     process.env.FLASK_BACKEND_URL || "",
     process.env.FLASK_BACKEND_HOSTPORT || process.env.FLASK_BACKEND_URL ? "" : "http://localhost:5001",
   ].filter(Boolean).map(url => url.replace(/\/+$/, ""))));
-  const FLASK_URL = FLASK_URLS[0];
+
+  const fetchFlaskJson = async <T>(flaskPath: string, init?: RequestInit): Promise<T> => {
+    let lastError: any = null;
+    for (const flaskUrl of FLASK_URLS) {
+      try {
+        const response = await fetch(`${flaskUrl}${flaskPath}`, init);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${(await response.text()).substring(0, 200)}`);
+        }
+        return await response.json() as T;
+      } catch (err: any) {
+        lastError = err;
+        const cause = err.cause ? ` cause=${err.cause.code || err.cause.message || err.cause}` : "";
+        console.error(`Context fetch error for ${flaskUrl}${flaskPath}: ${err.message}${cause}`);
+      }
+    }
+    throw lastError || new Error(`Flask unreachable for ${flaskPath}`);
+  };
 
   // ── Auth proxy routes (avoids CORS issues by routing through Express) ──────
   const proxyToFlask = async (req: any, res: any, flaskPath: string) => {
@@ -79,10 +96,9 @@ async function startServer() {
       // Fetch live account list from Flask so Gemini always knows current accounts
       let accountList: Array<{ account_id: number; account_name: string; account_type: string }> = [];
       try {
-        const accRes = await fetch(`${FLASK_URL}/api/accounts`, {
+        accountList = await fetchFlaskJson("/api/accounts", {
           headers: { "Authorization": authHeader },
         });
-        accountList = await accRes.json();
       } catch {
         accountList = []; // Can't resolve IDs offline — transactions will be skipped
       }
@@ -90,10 +106,9 @@ async function startServer() {
       // Fetch user's payee list so Gemini can match known merchants
       let payeeList: Array<{ payee_id: number; payee_name: string }> = [];
       try {
-        const payeeRes = await fetch(`${FLASK_URL}/api/payees`, {
+        payeeList = await fetchFlaskJson("/api/payees", {
           headers: { "Authorization": authHeader },
         });
-        payeeList = await payeeRes.json();
       } catch {
         payeeList = [];
       }
@@ -105,10 +120,9 @@ async function startServer() {
       // Fetch user's savings goals so savings contributions can point to a real destination fund.
       let savingsList: Array<{ savings_id: number; name: string; status: string }> = [];
       try {
-        const savingsRes = await fetch(`${FLASK_URL}/api/savings`, {
+        savingsList = await fetchFlaskJson("/api/savings", {
           headers: { "Authorization": authHeader },
         });
-        savingsList = await savingsRes.json();
       } catch {
         savingsList = [];
       }
@@ -121,10 +135,9 @@ async function startServer() {
       // Fetch user's category list before calling Gemini so custom categories can be matched.
       let categoryList: Array<{ category_id: number; category_name: string; category_type?: string }> = [];
       try {
-        const catRes = await fetch(`${FLASK_URL}/api/categories`, {
+        categoryList = await fetchFlaskJson("/api/categories", {
           headers: { "Authorization": authHeader },
         });
-        categoryList = await catRes.json();
       } catch {
         categoryList = [];
       }
