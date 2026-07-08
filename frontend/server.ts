@@ -171,6 +171,39 @@ async function startServer() {
       const genericCategoryNames = new Set(["khac", "thu nhap khac", "chi tieu khac", "khac nhau", "other"]);
       const isGenericCategoryName = (value: string) =>
         genericCategoryNames.has(normalizeLookupText(value));
+      const categoryAliases: Record<string, string[]> = {
+        "an uong": ["an", "com", "bun", "pho", "mien", "chao", "banh", "cafe", "ca phe", "tra sua", "nuoc", "quan an", "di an"],
+        "di chuyen": ["grab", "taxi", "xang", "gui xe", "bus", "xe buyt", "ve xe", "di lai"],
+        "mua sam": ["mua", "shopping", "sieu thi", "dat hang", "shopee", "lazada", "tiki"],
+        "giai tri": ["phim", "netflix", "game", "karaoke", "du lich", "di choi"],
+        "hoc tap": ["hoc", "sach", "khoa hoc", "tai lieu", "hoc phi"],
+        "suc khoe": ["thuoc", "benh vien", "bac si", "kham", "y te"],
+        "tien luong": ["luong", "salary", "thuong", "bonus"],
+        "chu cap tu gia dinh": ["chu cap", "ba cho", "me cho", "bo cho", "gia dinh cho", "nhan tien tu ba", "nhan tien tu me"],
+      };
+      const findCategoryAliasMatch = (value: string, transactionType?: string) => {
+        const normalized = normalizeLookupText(value || "");
+        if (!normalized) return null;
+        const compatibleCategories = categoryList.filter(category =>
+          !transactionType || !category.category_type || category.category_type === transactionType
+        );
+        let bestMatch: typeof compatibleCategories[number] | null = null;
+        let bestScore = 0;
+        for (const category of compatibleCategories) {
+          const categoryName = normalizeLookupText(category.category_name);
+          const aliases = categoryAliases[categoryName] || [];
+          for (const alias of aliases) {
+            const normalizedAlias = normalizeLookupText(alias);
+            if (!normalizedAlias || !normalized.includes(normalizedAlias)) continue;
+            const score = normalizedAlias.length;
+            if (score > bestScore) {
+              bestMatch = category;
+              bestScore = score;
+            }
+          }
+        }
+        return bestMatch;
+      };
       const findCategoryMatch = (value: string, transactionType?: string) => {
         const normalized = normalizeLookupText(value || "");
         const compatibleCategories = categoryList.filter(category =>
@@ -224,6 +257,22 @@ async function startServer() {
             compactName.includes(compactMention) ||
             compactMention.includes(compactName);
         }) ?? null;
+      };
+      const resolveAccountFromPrompt = (value: string) => {
+        const normalized = normalizeLookupText(cleanAccountMention(value || ""));
+        if (!normalized) return null;
+        const words = new Set(normalized.split(/\s+/).filter(Boolean));
+        let bestMatch: typeof accountList[number] | null = null;
+        let bestScore = 0;
+        for (const account of accountList) {
+          const accountWords = normalizeLookupText(account.account_name).split(/\s+/).filter(Boolean);
+          const shared = accountWords.filter(word => words.has(word)).length;
+          if (shared > bestScore) {
+            bestMatch = account;
+            bestScore = shared;
+          }
+        }
+        return bestScore > 0 ? bestMatch : null;
       };
       const detectInnerTransfer = (value: string) => {
         const normalizedPrompt = normalizeLookupText(value);
@@ -396,6 +445,7 @@ Return ONLY valid JSON.
       const resolvedAccountId: number | null =
         ACCOUNT_NAME_TO_ID[parsedData.account] ??
         resolveAccountByMention(parsedData.account || "")?.account_id ??
+        resolveAccountFromPrompt(`${prompt} ${parsedData.note || ""}`)?.account_id ??
         null;
 
       // Resolve category name → integer category_id using exact and normalized matching.
@@ -404,7 +454,10 @@ Return ONLY valid JSON.
           : parsedData.operation_type === "expense" || parsedData.type === "out" ? "expense"
             : "";
       const geminiCategory = (parsedData.category || "") as string;
-      const promptCategoryMatch = findCategoryMatch(`${prompt} ${parsedData.note || ""}`, transactionCategoryType);
+      const promptCategoryText = `${prompt} ${parsedData.note || ""}`;
+      const promptCategoryMatch =
+        findCategoryAliasMatch(promptCategoryText, transactionCategoryType) ||
+        findCategoryMatch(promptCategoryText, transactionCategoryType);
       const geminiCategoryMatch = findCategoryMatch(geminiCategory, transactionCategoryType);
       const matchedCategory =
         geminiCategoryMatch && !isGenericCategoryName(geminiCategoryMatch.category_name)
