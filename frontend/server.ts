@@ -148,6 +148,8 @@ async function startServer() {
         `Income categories: [${incomeCategoryNames.map(n => `'${n}'`).join(", ")}]`,
         `Expense categories: [${expenseCategoryNames.map(n => `'${n}'`).join(", ")}]`,
       ].join("\n");
+      console.log("[AI parse] prompt:", prompt);
+      console.log("[AI parse] category context:", categoryContext);
       const categoryStopWords = new Set(["tu", "từ", "va", "và", "cho", "cua", "của", "vao", "vào", "bang", "bằng"]);
       const categoryTokens = (value: string) =>
         normalizeLookupText(value)
@@ -329,6 +331,7 @@ Return ONLY valid JSON.
       });
 
       const resultText = response.text?.trim() || "{}";
+      console.log("[AI parse] Gemini raw result:", resultText.substring(0, 2000));
       const parsedData = JSON.parse(resultText);
       if (parsedData.type === "investment") {
         parsedData.type = "expense";
@@ -397,6 +400,25 @@ Return ONLY valid JSON.
       if (matchedCategory) {
         parsedData.category = matchedCategory.category_name;
       }
+      console.log("[AI parse] category resolution:", {
+        geminiCategory,
+        transactionCategoryType,
+        promptCategoryMatch: promptCategoryMatch ? {
+          id: promptCategoryMatch.category_id,
+          name: promptCategoryMatch.category_name,
+          type: promptCategoryMatch.category_type,
+        } : null,
+        geminiCategoryMatch: geminiCategoryMatch ? {
+          id: geminiCategoryMatch.category_id,
+          name: geminiCategoryMatch.category_name,
+          type: geminiCategoryMatch.category_type,
+        } : null,
+        selectedCategory: matchedCategory ? {
+          id: matchedCategory.category_id,
+          name: matchedCategory.category_name,
+          type: matchedCategory.category_type,
+        } : null,
+      });
       const resolvedCategoryId: number | null =
         matchedCategory?.category_id ??
         null;
