@@ -9,7 +9,11 @@ async function startServer() {
 
   app.use(express.json());
 
-  const FLASK_URL = process.env.FLASK_BACKEND_URL || "http://localhost:5001";
+  const FLASK_URL = (
+    process.env.FLASK_BACKEND_HOSTPORT
+      ? `http://${process.env.FLASK_BACKEND_HOSTPORT}`
+      : process.env.FLASK_BACKEND_URL || "http://localhost:5001"
+  ).replace(/\/+$/, "");
 
   // ── Auth proxy routes (avoids CORS issues by routing through Express) ──────
   const proxyToFlask = async (req: any, res: any, flaskPath: string) => {
