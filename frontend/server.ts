@@ -118,6 +118,17 @@ async function startServer() {
         ? activeSavingsList.map(s => `"${s.name}"`).join(", ")
         : "none";
 
+      // Fetch user's category list before calling Gemini so custom categories can be matched.
+      let categoryList: Array<{ category_id: number; category_name: string; category_type?: string }> = [];
+      try {
+        const catRes = await fetch(`${FLASK_URL}/api/categories`, {
+          headers: { "Authorization": authHeader },
+        });
+        categoryList = await catRes.json();
+      } catch {
+        categoryList = [];
+      }
+
       const accountNames = accountList.map(a => a.account_name);
       const normalizeLookupText = (value: string) =>
         value
@@ -127,6 +138,55 @@ async function startServer() {
           .replace(/đ/g, "d")
           .replace(/[^a-z0-9]+/g, " ")
           .trim();
+      const incomeCategoryNames = categoryList
+        .filter(c => !c.category_type || c.category_type === "income")
+        .map(c => c.category_name);
+      const expenseCategoryNames = categoryList
+        .filter(c => !c.category_type || c.category_type === "expense")
+        .map(c => c.category_name);
+      const categoryContext = [
+        `Income categories: [${incomeCategoryNames.map(n => `'${n}'`).join(", ")}]`,
+        `Expense categories: [${expenseCategoryNames.map(n => `'${n}'`).join(", ")}]`,
+      ].join("\n");
+      const categoryStopWords = new Set(["tu", "từ", "va", "và", "cho", "cua", "của", "vao", "vào", "bang", "bằng"]);
+      const categoryTokens = (value: string) =>
+        normalizeLookupText(value)
+          .split(/\s+/)
+          .filter(token => token.length > 1 && !categoryStopWords.has(token));
+      const findCategoryMatch = (value: string, transactionType?: string) => {
+        const normalized = normalizeLookupText(value || "");
+        const compatibleCategories = categoryList.filter(category =>
+          !transactionType || !category.category_type || category.category_type === transactionType
+        );
+        if (!normalized || compatibleCategories.length === 0) return null;
+
+        const exact = compatibleCategories.find(category =>
+          normalizeLookupText(category.category_name) === normalized
+        );
+        if (exact) return exact;
+
+        const contains = compatibleCategories.find(category => {
+          const categoryName = normalizeLookupText(category.category_name);
+          return categoryName.includes(normalized) || normalized.includes(categoryName);
+        });
+        if (contains) return contains;
+
+        const queryTokens = new Set(categoryTokens(value));
+        if (queryTokens.size === 0) return null;
+        let bestMatch: typeof compatibleCategories[number] | null = null;
+        let bestScore = 0;
+        for (const category of compatibleCategories) {
+          const tokens = categoryTokens(category.category_name);
+          if (tokens.length === 0) continue;
+          const shared = tokens.filter(token => queryTokens.has(token)).length;
+          const score = shared / tokens.length;
+          if (shared >= 2 && score >= 0.5 && score > bestScore) {
+            bestMatch = category;
+            bestScore = score;
+          }
+        }
+        return bestMatch;
+      };
       const cleanAccountMention = (value: string) =>
         value
           .replace(/\b\d+(?:[.,]\d+)?\s*(?:k|ngan|ngàn|nghin|nghìn|cu|củ|tr|trieu|triệu|m|loet|loét|lit|lít|xi|xị|toi|tỏi)?\b/gi, " ")
@@ -178,7 +238,11 @@ Ensure you convert any financial slang or abbreviations typical in Vietnamese:
   * Debt payment: if the user pays debt, account is the source account; if someone pays the user back, account is the destination account.
   * If the user does not mention a cash/bank/wallet account for these operations, leave account empty and account_is_new FALSE so the UI can require manual account selection.
 - For inner_transfer, always extract both accounts: source_account is the account after "từ", destination_account is the account after "sang/qua/vào/đến". Example "chuyển khoản nội bộ từ OCB sang MOMO 4000k" => operation_type="inner_transfer", type="neutral", source_account="OCB", destination_account="MOMO", category="".
-- Category names must follow consistent financial categories, specifically match from: ['Ăn uống', 'Tiền lương', 'Di chuyển', 'Mua sắm', 'Giải trí', 'Học tập', 'Sức khỏe', 'Khác']. For investment-related spending, use category 'Khác' and type 'expense'.
+- Category names must match the user's existing categories exactly. Use only categories from this list:
+${categoryContext}
+- For income transactions, choose only an income category. For expense transactions, choose only an expense category.
+- If no existing category is a good semantic match, leave category empty. Do not invent a category name and do not use a hard-coded default.
+- For investment-related spending, use the closest existing expense category if available; otherwise leave category empty.
 
 Special operations (set operation_type to one of these when detected):
 - Expense: normal spending → operation_type = "expense"
@@ -310,33 +374,26 @@ Return ONLY valid JSON.
         ACCOUNT_NAME_TO_ID[a.account_name] = a.account_id;
       }
 
-      // Fetch user's category list so we resolve to their actual integer IDs
-      let categoryList: Array<{ category_id: number; category_name: string }> = [];
-      try {
-        const catRes = await fetch(`${FLASK_URL}/api/categories`, {
-          headers: { "Authorization": authHeader },
-        });
-        categoryList = await catRes.json();
-      } catch {
-        categoryList = [];
-      }
-
-      // Build name → integer ID map from the user's actual categories
-      const CATEGORY_NAME_TO_ID: Record<string, number> = {};
-      for (const c of categoryList) {
-        CATEGORY_NAME_TO_ID[c.category_name] = c.category_id;
-      }
-
       const resolvedAccountId: number | null =
         ACCOUNT_NAME_TO_ID[parsedData.account] ??
         resolveAccountByMention(parsedData.account || "")?.account_id ??
         null;
 
-      // Resolve category name → integer category_id
-      const geminiCategory = parsedData.category as string;
+      // Resolve category name → integer category_id using exact and normalized matching.
+      const transactionCategoryType =
+        parsedData.operation_type === "income" || parsedData.type === "in" ? "income"
+          : parsedData.operation_type === "expense" || parsedData.type === "out" ? "expense"
+            : "";
+      const geminiCategory = (parsedData.category || "") as string;
+      const matchedCategory =
+        findCategoryMatch(geminiCategory, transactionCategoryType) ||
+        findCategoryMatch(`${prompt} ${parsedData.note || ""}`, transactionCategoryType);
+      if (matchedCategory) {
+        parsedData.category = matchedCategory.category_name;
+      }
       const resolvedCategoryId: number | null =
-        CATEGORY_NAME_TO_ID[geminiCategory] ??
-        (categoryList.length > 0 ? categoryList[categoryList.length - 1].category_id : null); // last = "Khác"
+        matchedCategory?.category_id ??
+        null;
 
       // Resolve payee_name → payee_id. Parsing is draft-only, so do not auto-create payees here.
       let resolvedPayeeId: number | null = null;
