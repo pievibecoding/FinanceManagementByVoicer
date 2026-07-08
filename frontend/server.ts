@@ -9,38 +9,46 @@ async function startServer() {
 
   app.use(express.json());
 
-  const FLASK_URL = (
-    process.env.FLASK_BACKEND_HOSTPORT
-      ? `http://${process.env.FLASK_BACKEND_HOSTPORT}`
-      : process.env.FLASK_BACKEND_URL || "http://localhost:5001"
-  ).replace(/\/+$/, "");
+  const FLASK_URLS = Array.from(new Set([
+    process.env.FLASK_BACKEND_HOSTPORT ? `http://${process.env.FLASK_BACKEND_HOSTPORT}` : "",
+    process.env.FLASK_BACKEND_URL || "",
+    "http://localhost:5001",
+  ].filter(Boolean).map(url => url.replace(/\/+$/, ""))));
+  const FLASK_URL = FLASK_URLS[0];
 
   // ── Auth proxy routes (avoids CORS issues by routing through Express) ──────
   const proxyToFlask = async (req: any, res: any, flaskPath: string) => {
-    console.log(`Proxying ${req.method} ${flaskPath} to ${FLASK_URL}`);
-    try {
-      // DELETE requests must not send a body — some servers reject DELETE+body
-      const hasBody = req.method !== "GET" && req.method !== "DELETE";
-      const flaskRes = await fetch(`${FLASK_URL}${flaskPath}`, {
-        method: req.method,
-        headers: {
-          ...(hasBody ? { "Content-Type": "application/json" } : {}),
-          ...(req.headers.authorization ? { "Authorization": req.headers.authorization } : {}),
-        },
-        body: hasBody ? JSON.stringify(req.body) : undefined,
-      });
-      console.log(`Flask response status: ${flaskRes.status}`);
-      const text = await flaskRes.text();
-      console.log(`Flask response text: ${text.substring(0, 500)}`);
+    const hasBody = req.method !== "GET" && req.method !== "DELETE";
+    const fetchInit = {
+      method: req.method,
+      headers: {
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
+        ...(req.headers.authorization ? { "Authorization": req.headers.authorization } : {}),
+      },
+      body: hasBody ? JSON.stringify(req.body) : undefined,
+    };
+
+    let lastError: any = null;
+    for (const flaskUrl of FLASK_URLS) {
+      console.log(`Proxying ${req.method} ${flaskPath} to ${flaskUrl}`);
       try {
-        res.status(flaskRes.status).json(JSON.parse(text));
-      } catch {
-        res.status(flaskRes.status).json({ error: `Flask error: ${text.substring(0, 200)}` });
+        const flaskRes = await fetch(`${flaskUrl}${flaskPath}`, fetchInit);
+        console.log(`Flask response status: ${flaskRes.status}`);
+        const text = await flaskRes.text();
+        console.log(`Flask response text: ${text.substring(0, 500)}`);
+        try {
+          return res.status(flaskRes.status).json(JSON.parse(text));
+        } catch {
+          return res.status(flaskRes.status).json({ error: `Flask error: ${text.substring(0, 200)}` });
+        }
+      } catch (err: any) {
+        lastError = err;
+        const cause = err.cause ? ` cause=${err.cause.code || err.cause.message || err.cause}` : "";
+        console.error(`Proxy error for ${flaskUrl}: ${err.message}${cause}`);
       }
-    } catch (err: any) {
-      console.error(`Proxy error: ${err.message}`);
-      res.status(500).json({ error: err.message || "Flask unreachable" });
     }
+
+    res.status(500).json({ error: lastError?.message || "Flask unreachable" });
   };
 
   app.post("/api/auth/register", (req, res) => proxyToFlask(req, res, "/api/auth/register"));
