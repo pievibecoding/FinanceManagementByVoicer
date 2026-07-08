@@ -3,7 +3,7 @@ services:
   - type: web
     name: finance-management-backend
     env: python
-    plan: free
+    plan: starter
     buildCommand: pip install -r backend/requirements.txt
     startCommand: python backend/main.py
     healthCheckPath: /ping
@@ -40,7 +40,5 @@ services:
           type: web
           name: finance-management-backend
           property: hostport
-      - key: FLASK_BACKEND_URL
-        value: https://finance-management-backend-i0cy.onrender.com
       - key: PORT
         value: "3001"

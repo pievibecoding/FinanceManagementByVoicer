@@ -12,7 +12,7 @@ async function startServer() {
   const FLASK_URLS = Array.from(new Set([
     process.env.FLASK_BACKEND_HOSTPORT ? `http://${process.env.FLASK_BACKEND_HOSTPORT}` : "",
     process.env.FLASK_BACKEND_URL || "",
-    "http://localhost:5001",
+    process.env.FLASK_BACKEND_HOSTPORT || process.env.FLASK_BACKEND_URL ? "" : "http://localhost:5001",
   ].filter(Boolean).map(url => url.replace(/\/+$/, ""))));
   const FLASK_URL = FLASK_URLS[0];
 
