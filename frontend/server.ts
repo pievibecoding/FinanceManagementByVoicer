@@ -153,6 +153,9 @@ async function startServer() {
         normalizeLookupText(value)
           .split(/\s+/)
           .filter(token => token.length > 1 && !categoryStopWords.has(token));
+      const genericCategoryNames = new Set(["khac", "thu nhap khac", "chi tieu khac", "khac nhau", "other"]);
+      const isGenericCategoryName = (value: string) =>
+        genericCategoryNames.has(normalizeLookupText(value));
       const findCategoryMatch = (value: string, transactionType?: string) => {
         const normalized = normalizeLookupText(value || "");
         const compatibleCategories = categoryList.filter(category =>
@@ -385,9 +388,12 @@ Return ONLY valid JSON.
           : parsedData.operation_type === "expense" || parsedData.type === "out" ? "expense"
             : "";
       const geminiCategory = (parsedData.category || "") as string;
+      const promptCategoryMatch = findCategoryMatch(`${prompt} ${parsedData.note || ""}`, transactionCategoryType);
+      const geminiCategoryMatch = findCategoryMatch(geminiCategory, transactionCategoryType);
       const matchedCategory =
-        findCategoryMatch(geminiCategory, transactionCategoryType) ||
-        findCategoryMatch(`${prompt} ${parsedData.note || ""}`, transactionCategoryType);
+        geminiCategoryMatch && !isGenericCategoryName(geminiCategoryMatch.category_name)
+          ? geminiCategoryMatch
+          : promptCategoryMatch || geminiCategoryMatch;
       if (matchedCategory) {
         parsedData.category = matchedCategory.category_name;
       }
