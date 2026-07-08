@@ -720,6 +720,7 @@ export function AIChatWidget() {
 
     try {
       await queryClient.refetchQueries({ queryKey: ['categories'], refetchType: 'all' })
+      console.debug('[AI parse client] categories before parse', queryClient.getQueryData(['categories']))
 
       const res = await fetch('/api/parse-transaction', {
         method: 'POST',
@@ -738,6 +739,7 @@ export function AIChatWidget() {
       }
 
       const parsed: ParsedData = await res.json()
+      console.debug('[AI parse client] parsed result', parsed)
       const detectedInnerTransfer = detectInnerTransferFromText(trimmed)
       if (detectedInnerTransfer) {
         parsed.operation_type = 'inner_transfer'
@@ -751,6 +753,15 @@ export function AIChatWidget() {
         parsed.destination_account_id = detectedInnerTransfer.destination.account_id
       }
       const draft = buildDraft(parsed)
+      console.debug('[AI parse client] draft category resolution', {
+        parsedCategory: parsed.category,
+        parsedCategoryId: parsed.category_id,
+        draftKind: draft.kind,
+        draftCategoryId: draft.kind === 'transaction' ? draft.category_id : undefined,
+        matchingCategories: draft.kind === 'transaction'
+          ? categories.filter(category => !category.category_type || category.category_type === draft.type)
+          : undefined,
+      })
       setEntries(prev => [
         ...prev,
         {
