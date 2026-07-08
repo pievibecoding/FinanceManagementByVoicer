@@ -18,8 +18,8 @@ export function useAddCategory() {
       icon: string;
       color: string;
     }) => categoriesApi.addCategory(category),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ['categories'], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
@@ -39,8 +39,8 @@ export function useUpdateCategory() {
         color?: string;
       };
     }) => categoriesApi.updateCategory(categoryId, category),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ['categories'], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
@@ -52,8 +52,8 @@ export function useDeleteCategory() {
   
   return useMutation({
     mutationFn: (categoryId: string) => categoriesApi.deleteCategory(categoryId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ['categories'], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },

@@ -719,6 +719,8 @@ export function AIChatWidget() {
     setEntries(prev => [...prev, { id: `u-${entryId}`, text: trimmed }])
 
     try {
+      await queryClient.refetchQueries({ queryKey: ['categories'], refetchType: 'all' })
+
       const res = await fetch('/api/parse-transaction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
