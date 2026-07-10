@@ -13,15 +13,47 @@ async function startServer() {
     process.env.FLASK_BACKEND_URL || "http://localhost:5001",
   ].filter(Boolean).map(url => url.replace(/\/+$/, ""))));
 
+  const renderWakeRetryDelaysMs = [1500, 4000, 8000, 12000];
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const shouldRetryFlaskResponse = (status: number, text: string, response: Response) => {
+    const renderRouting = response.headers.get("x-render-routing") || "";
+    return [429, 502, 503, 504].includes(status) ||
+      /hibernate|wake/i.test(renderRouting) ||
+      /too many requests|hibernate|wake/i.test(text);
+  };
+
+  const fetchFlaskWithWakeRetry = async (url: string, init?: RequestInit) => {
+    let lastResponse: Response | null = null;
+    let lastText = "";
+    for (let attempt = 0; attempt <= renderWakeRetryDelaysMs.length; attempt++) {
+      const response = await fetch(url, init);
+      const text = await response.text();
+      lastResponse = response;
+      lastText = text;
+
+      if (!shouldRetryFlaskResponse(response.status, text, response) || attempt === renderWakeRetryDelaysMs.length) {
+        return { response, text };
+      }
+
+      const retryAfter = Number(response.headers.get("retry-after"));
+      const delay = Number.isFinite(retryAfter) && retryAfter > 0
+        ? Math.min(retryAfter * 1000, 15000)
+        : renderWakeRetryDelaysMs[attempt];
+      console.warn(`Flask wake/rate-limit response ${response.status}; retrying in ${delay}ms`);
+      await sleep(delay);
+    }
+    return { response: lastResponse as Response, text: lastText };
+  };
+
   const fetchFlaskJson = async <T>(flaskPath: string, init?: RequestInit): Promise<T> => {
     let lastError: any = null;
     for (const flaskUrl of FLASK_URLS) {
       try {
-        const response = await fetch(`${flaskUrl}${flaskPath}`, init);
+        const { response, text } = await fetchFlaskWithWakeRetry(`${flaskUrl}${flaskPath}`, init);
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${(await response.text()).substring(0, 200)}`);
+          throw new Error(`HTTP ${response.status}: ${text.substring(0, 200)}`);
         }
-        return await response.json() as T;
+        return JSON.parse(text) as T;
       } catch (err: any) {
         lastError = err;
         const cause = err.cause ? ` cause=${err.cause.code || err.cause.message || err.cause}` : "";
@@ -47,9 +79,8 @@ async function startServer() {
     for (const flaskUrl of FLASK_URLS) {
       console.log(`Proxying ${req.method} ${flaskPath} to ${flaskUrl}`);
       try {
-        const flaskRes = await fetch(`${flaskUrl}${flaskPath}`, fetchInit);
+        const { response: flaskRes, text } = await fetchFlaskWithWakeRetry(`${flaskUrl}${flaskPath}`, fetchInit);
         console.log(`Flask response status: ${flaskRes.status}`);
-        const text = await flaskRes.text();
         console.log(`Flask response text: ${text.substring(0, 500)}`);
         try {
           return res.status(flaskRes.status).json(JSON.parse(text));

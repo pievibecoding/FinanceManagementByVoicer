@@ -3,7 +3,7 @@ services:
   - type: web
     name: finance-management-backend
     env: python
-    plan: starter
+    plan: free
     buildCommand: pip install -r backend/requirements.txt
     startCommand: python backend/main.py
     healthCheckPath: /ping
@@ -25,7 +25,7 @@ services:
   - type: web
     name: fmbv
     env: node
-    plan: starter
+    plan: free
     buildCommand: cd frontend && npm install && npm run build
     startCommand: cd frontend && npm start
     envVars:
