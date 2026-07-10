@@ -28,7 +28,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
   const { savings = [] } = useSavings();
 
   const [formData, setFormData] = useState({
-    transaction_date: '', account_id: 0, category_id: '',
+    transaction_date: '', transaction_time: '00:00:00', account_id: 0, category_id: '',
     amount: 0, type: 'out', operation_type: 'expense', note: '', location: '',
     from_account_id: 0, to_account_id: 0, savings_id: 0, debt_id: 0,
   });
@@ -37,6 +37,7 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
     if (transaction) {
       setFormData({
         transaction_date: transaction.transaction_date.slice(0, 10),
+        transaction_time: transaction.transaction_date.slice(11, 19) || '00:00:00',
         account_id: transaction.account_id,
         category_id: String(transaction.category_id),
         amount: transaction.amount,
@@ -59,11 +60,12 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!transaction) return;
-    const originalTime = transaction.transaction_date.slice(11) || '00:00:00';
-    const originalDate = transaction.transaction_date.slice(0, 10);
-    const transactionDate = formData.transaction_date === originalDate
-      ? transaction.transaction_date
-      : `${formData.transaction_date} ${originalTime}`;
+    const normalizedTime = /^\d{2}:\d{2}:\d{2}$/.test(formData.transaction_time)
+      ? formData.transaction_time
+      : /^\d{2}:\d{2}$/.test(formData.transaction_time)
+        ? `${formData.transaction_time}:00`
+        : '00:00:00';
+    const transactionDate = `${formData.transaction_date} ${normalizedTime}`;
     const operationType = operationTypeForTransaction(transaction);
     const isOperationMovement = !['income', 'expense'].includes(operationType);
     if (isOperationMovement) {
@@ -264,11 +266,19 @@ export function EditTransactionModal({ open, onOpenChange, transaction }: EditTr
             </div>
           )}
 
-          <div>
-            <label className="block text-muted-foreground text-sm mb-1">{t('transactions.date')}</label>
-            <input type="date" value={formData.transaction_date}
-              onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
-              className={INPUT_CLS} required />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-muted-foreground text-sm mb-1">{t('transactions.date')}</label>
+              <input type="date" value={formData.transaction_date}
+                onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+                className={INPUT_CLS} required />
+            </div>
+            <div>
+              <label className="block text-muted-foreground text-sm mb-1">{t('transactions.time')}</label>
+              <input type="time" step="1" value={formData.transaction_time}
+                onChange={(e) => setFormData({ ...formData, transaction_time: e.target.value })}
+                className={INPUT_CLS} required />
+            </div>
           </div>
           {!isTransfer && (
             <>
