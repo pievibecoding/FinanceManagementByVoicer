@@ -9,11 +9,9 @@ async function startServer() {
 
   app.use(express.json());
 
-  const FLASK_URLS = Array.from(new Set((
-    process.env.FLASK_BACKEND_HOSTPORT
-      ? [`http://${process.env.FLASK_BACKEND_HOSTPORT}`]
-      : [process.env.FLASK_BACKEND_URL || "http://localhost:5001"]
-  ).filter(Boolean).map(url => url.replace(/\/+$/, ""))));
+  const FLASK_URLS = Array.from(new Set([
+    process.env.FLASK_BACKEND_URL || "http://localhost:5001",
+  ].filter(Boolean).map(url => url.replace(/\/+$/, ""))));
 
   const fetchFlaskJson = async <T>(flaskPath: string, init?: RequestInit): Promise<T> => {
     let lastError: any = null;

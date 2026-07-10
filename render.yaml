@@ -35,10 +35,7 @@ services:
         sync: false
       - key: VITE_FLASK_BACKEND_URL
         value: https://finance-management-backend-i0cy.onrender.com
-      - key: FLASK_BACKEND_HOSTPORT
-        fromService:
-          type: web
-          name: finance-management-backend
-          property: hostport
+      - key: FLASK_BACKEND_URL
+        value: https://finance-management-backend-i0cy.onrender.com
       - key: PORT
         value: "3001"
