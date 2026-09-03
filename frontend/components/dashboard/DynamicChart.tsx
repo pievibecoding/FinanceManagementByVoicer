@@ -356,6 +356,7 @@ export function DynamicChart({
     end: todayKey,
   })
   const [donutTooltip, setDonutTooltip] = useState<DonutTooltipState | null>(null)
+  const [selectedExpenseMonth, setSelectedExpenseMonth] = useState<string>(getCurrentMonth)
 
   const dateWindow = useMemo(() => {
     if (timeRange === 'custom') {
@@ -434,12 +435,25 @@ export function DynamicChart({
     }))
   }, [dateWindow, timeBucket, transactions])
 
+  // Months that have at least one expense transaction, sorted DESC
+  const expenseMonths = useMemo<string[]>(() => {
+    const months = new Set<string>()
+    transactions.forEach((tx) => {
+      if (operationTypeForTransaction(tx) !== 'expense') return
+      months.add(tx.transaction_date.slice(0, 7))
+    })
+    const sorted = Array.from(months).sort((a, b) => b.localeCompare(a))
+    // Always include the current month even if it has no expense yet
+    const current = getCurrentMonth()
+    if (!months.has(current)) sorted.unshift(current)
+    return sorted
+  }, [transactions])
+
   const expenseAllocationData = useMemo<DistributionPoint[]>(() => {
-    const currentMonth = getCurrentMonth()
     const byCategory = new Map<string, number>()
     transactions.forEach((tx) => {
       if (operationTypeForTransaction(tx) !== 'expense') return
-      if (!tx.transaction_date.startsWith(currentMonth)) return
+      if (!tx.transaction_date.startsWith(selectedExpenseMonth)) return
       const categoryId = normalizeId(tx.category_id)
       byCategory.set(categoryId, (byCategory.get(categoryId) ?? 0) + tx.amount)
     })
@@ -463,7 +477,7 @@ export function DynamicChart({
       DISTRIBUTION_VISIBLE_LIMIT,
       t('dashboard.chartSummary.other')
     )
-  }, [categories, t, transactions])
+  }, [categories, selectedExpenseMonth, t, transactions])
 
   const accountDistributionData = useMemo<DistributionPoint[]>(() => {
     return groupDistribution(
@@ -534,7 +548,30 @@ export function DynamicChart({
     year: 'numeric',
   })}`
 
+  const renderExpenseMonthSelector = () => (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground">{t('dashboard.chartControls.month')}</span>
+      <select
+        value={selectedExpenseMonth}
+        onChange={(e) => setSelectedExpenseMonth(e.target.value)}
+        className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+      >
+        {expenseMonths.map((month) => {
+          const [year, m] = month.split('-')
+          return (
+            <option key={month} value={month}>
+              {`${m}/${year}`}
+            </option>
+          )
+        })}
+      </select>
+    </div>
+  )
+
   const renderTimeRangeControls = () => {
+    if (chartType === 'expense-allocation') {
+      return renderExpenseMonthSelector()
+    }
     if (!showRangeControls) return null
 
     return (
@@ -1108,13 +1145,16 @@ export function DynamicChart({
         return renderIncomeChart()
       case 'income-expense':
         return renderIncomeExpenseChart()
-      case 'expense-allocation':
+      case 'expense-allocation': {
+        const [year, m] = selectedExpenseMonth.split('-')
+        const monthLabel = `${m}/${year}`
         return renderDonut(
           expenseAllocationData,
           totalFor(expenseAllocationData),
-          t('dashboard.chartSummary.currentMonth'),
+          monthLabel,
           t('dashboard.noExpenseDataThisMonth')
         )
+      }
       case 'account-distribution':
         return renderDonut(
           accountDistributionData,

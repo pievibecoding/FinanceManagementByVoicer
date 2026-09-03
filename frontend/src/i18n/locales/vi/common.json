@@ -87,7 +87,8 @@
       "period": "Kỳ thời gian",
       "range": "Khoảng",
       "startDate": "Từ",
-      "endDate": "Đến"
+      "endDate": "Đến",
+      "month": "Tháng"
     },
     "chartSummary": {
       "current": "Hiện tại",

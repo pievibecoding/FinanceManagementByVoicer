@@ -87,7 +87,8 @@
       "period": "Period",
       "range": "Range",
       "startDate": "From",
-      "endDate": "To"
+      "endDate": "To",
+      "month": "Month"
     },
     "chartSummary": {
       "current": "Current",
